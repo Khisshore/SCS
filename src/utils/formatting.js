@@ -1,0 +1,150 @@
+/**
+ * FORMATTING UTILITIES
+ * Helper functions for consistent data display
+ */
+
+/**
+ * Format number as currency
+ * @param {number} amount - Amount to format
+ * @param {string} currency - Currency code (default: MYR)
+ * @returns {string} - Formatted currency string
+ */
+export function formatCurrency(amount, currency = 'MYR') {
+  const num = parseFloat(amount) || 0;
+  
+  const formatted = num.toLocaleString('en-MY', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  
+  return `${currency} ${formatted}`;
+}
+
+/**
+ * Format date for display
+ * @param {string|Date} date - Date to format
+ * @param {string} format - Format type (default: 'long')
+ * @returns {string} - Formatted date string
+ */
+export function formatDate(date, format = 'long') {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!(d instanceof Date) || isNaN(d)) {
+    return 'Invalid Date';
+  }
+  
+  switch (format) {
+    case 'short':
+      // DD/MM/YYYY
+      return d.toLocaleDateString('en-GB');
+      
+    case 'long':
+      // 24 January 2026
+      return d.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      
+    case 'time':
+      // 24/01/2026 11:30 PM
+      return d.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+    case 'iso':
+      // 2026-01-24
+      return d.toISOString().split('T')[0];
+      
+    default:
+      return d.toLocaleDateString('en-GB');
+  }
+}
+
+/**
+ * Format payment method for display
+ * @param {string} method - Payment method code
+ * @returns {string} - Display-friendly method name
+ */
+export function formatPaymentMethod(method) {
+  const methods = {
+    cash: 'Cash',
+    card: 'Credit/Debit Card',
+    bank_transfer: 'Bank Transfer',
+    online: 'Online Payment',
+    other: 'Other'
+  };
+  
+  return methods[method] || method;
+}
+
+/**
+ * Format receipt number for display
+ * @param {number} number - Receipt number
+ * @returns {string} - Zero-padded receipt number
+ */
+export function formatReceiptNumber(number) {
+  const year = new Date().getFullYear();
+  const paddedNumber = String(number).padStart(5, '0');
+  return `RCP-${year}-${paddedNumber}`;
+}
+
+/**
+ * Parse currency string to number
+ * @param {string} currencyString - Currency string to parse
+ * @returns {number} - Parsed number
+ */
+export function parseCurrency(currencyString) {
+  const cleaned = currencyString.replace(/[^0-9.-]+/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+/**
+ * Get month name
+ * @param {number} month - Month number (1-12)
+ * @returns {string} - Month name
+ */
+export function getMonthName(month) {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[month - 1] || '';
+}
+
+/**
+ * Get relative time (e.g., "2 hours ago")
+ * @param {string|Date} date - Date to compare
+ * @returns {string} - Relative time string
+ */
+export function getRelativeTime(date) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  
+  return formatDate(d, 'short');
+}
+
+/**
+ * Truncate text with ellipsis
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum length
+ * @returns {string} - Truncated text
+ */
+export function truncateText(text, maxLength = 50) {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+}
