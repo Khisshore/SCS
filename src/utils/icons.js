@@ -1,3 +1,8 @@
+import spectrumLogo from '../assets/logos/Spectrum.svg?raw';
+import twintechLogo from '../assets/logos/Twintech.svg?raw';
+import spectrumPng from '../assets/logos/Spectrum.png';
+import twintechPng from '../assets/logos/Twintech.png';
+
 /**
  * ICON LIBRARY
  * Professional SVG icons for NeoTrackr
@@ -164,6 +169,30 @@ export const Icons = {
   // Shield
   shield: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  institute: `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2L1 8v2h22V8L12 2zM3 11h2v8H3v-8zm5 0h2v8H8v-8zm5 0h2v8h-2v-8zm5 0h2v8h-2v-8zM2 20h20v1H2v-1zm-1 2h22v1H1v-1z"/>
+  </svg>`,
+
+  // Program Logos (Using PNGs as requested, fallback strings preserved if needed)
+  spectrum: spectrumPng,
+  twintech: twintechPng,
+
+  // Additional Icons
+  close: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  download: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  chart: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="12" y1="20" x2="12" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="18" y1="20" x2="18" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="6" y1="20" x2="6" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 };
 

@@ -6,6 +6,9 @@
 import * as XLSX from 'xlsx';
 import { db } from '../db/database.js';
 import { fileSystem } from './fileSystem.js';
+import { Student } from '../models/Student.js';
+import { Payment } from '../models/Payment.js';
+import { Programme } from '../models/Programme.js';
 
 /**
  * Parse Excel/CSV file and extract structured data
@@ -58,25 +61,49 @@ export async function parseSpreadsheet(file) {
  */
 export function suggestColumnMapping(headers) {
   const mapping = {
+    // Student fields
     studentName: null,
     studentId: null,
+    email: null,
+    phone: null,
     course: null,
+    intake: null,
+    completionDate: null,
+    completionStatus: null,
+    totalFees: null,
+    institutionalCost: null,
+    registrationFee: null,
+    commission: null,
+    // Payment fields
     semester: null,
     amount: null,
     paymentDate: null,
     method: null,
-    reference: null
+    reference: null,
+    description: null
   };
   
   const patterns = {
-    studentName: /^(student|name|full[\s_-]?name|nama)$/i,
-    studentId: /^(student[\s_-]?id|matric|id|no\.?|number)$/i,
-    course: /^(course|program|programme|major|kursus)$/i,
+    // Student field patterns
+    studentName: /^(student[\s_-]?name|name|full[\s_-]?name|nama|student)$/i,
+    studentId: /^(student[\s_-]?id|matric|matric[\s_-]?no|id[\s_-]?no|no\.?|number|ic)$/i,
+    email: /^(email|e-mail|emel|mail)$/i,
+    phone: /^(phone|contact|hp|telefon|tel|mobile|handphone)$/i,
+    course: /^(course|program|programme|major|kursus|pengajian)$/i,
+    intake: /^(intake|batch|session|sesi|kemasukan)$/i,
+    completionDate: /^(completion[\s_-]?date|end[\s_-]?date|graduate[\s_-]?date|tarikh[\s_-]?tamat)$/i,
+    completionStatus: /^(completion[\s_-]?status|status|progress|kemajuan)$/i,
+    totalFees: /^(total[\s_-]?fees?|total|fees?|jumlah[\s_-]?yuran|yuran)$/i,
+    institutionalCost: /^(institutional[\s_-]?cost|institution[\s_-]?cost|kos[\s_-]?institusi|institutional)$/i,
+    registrationFee: /^(registration[\s_-]?fee|reg[\s_-]?fee|yuran[\s_-]?pendaftaran|registration)$/i,
+    commission: /^(commission|komisen|comm)$/i,
+    // Payment field patterns
     semester: /^(semester|sem|year|tahun)$/i,
-    amount: /^(amount|total|payment|paid|sum|jumlah|rm|ringgit)$/i,
-    paymentDate: /^(date|payment[\s_-]?date|tarikh|when)$/i,
-    method: /^(method|payment[\s_-]?method|type|cara)$/i,
-    reference: /^(ref|reference|receipt[\s_-]?no|transaction)$/i
+    amount: /^(amount|payment[\s_-]?amount|paid|bayaran|rm|ringgit)$/i,
+    paymentDate: /^(date|payment[\s_-]?date|tarikh|when|tarikh[\s_-]?bayaran)$/i,
+    method: /^(method|payment[\s_-]?method|type|cara|jenis)$/i,
+    reference: /^(ref|reference|receipt[\s_-]?no|transaction|resit)$/i,
+    description: /^(description|notes?|remark|catatan|keterangan)$/i
   };
   
   headers.forEach((header, index) => {
@@ -97,29 +124,41 @@ export function suggestColumnMapping(headers) {
  * @param {Array} rows - Data rows from spreadsheet
  * @param {Object} mapping - Column index mapping
  * @param {Array<string>} headers - Original headers for reference
- * @returns {Array<Object>} Transformed payment records
+ * @returns {Array<Object>} Transformed payment records with student data
  */
 export function transformToPayments(rows, mapping, headers) {
   const payments = [];
   
   rows.forEach((row, rowIndex) => {
     try {
-      const payment = {
+      const record = {
+        // Student fields
         studentName: mapping.studentName !== null ? String(row[mapping.studentName] || '').trim() : '',
         studentId: mapping.studentId !== null ? String(row[mapping.studentId] || '').trim() : '',
+        email: mapping.email !== null ? String(row[mapping.email] || '').trim() : '',
+        phone: mapping.phone !== null ? String(row[mapping.phone] || '').trim() : '',
         course: mapping.course !== null ? String(row[mapping.course] || '').trim() : '',
-        semester: mapping.semester !== null ? String(row[mapping.semester] || '').trim() : 'Semester 1',
+        intake: mapping.intake !== null ? String(row[mapping.intake] || '').trim() : '',
+        completionDate: mapping.completionDate !== null ? String(row[mapping.completionDate] || '').trim() : '',
+        completionStatus: mapping.completionStatus !== null ? String(row[mapping.completionStatus] || 'In Progress').trim() : 'In Progress',
+        totalFees: mapping.totalFees !== null ? parseFloat(row[mapping.totalFees]) || 0 : 0,
+        institutionalCost: mapping.institutionalCost !== null ? parseFloat(row[mapping.institutionalCost]) || 0 : 0,
+        registrationFee: mapping.registrationFee !== null ? parseFloat(row[mapping.registrationFee]) || 0 : 0,
+        commission: mapping.commission !== null ? parseFloat(row[mapping.commission]) || 0 : 0,
+        // Payment fields
+        semester: mapping.semester !== null ? parseSemester(row[mapping.semester]) : null,
         amount: mapping.amount !== null ? parseFloat(row[mapping.amount]) || 0 : 0,
         paymentDate: mapping.paymentDate !== null ? parseDate(row[mapping.paymentDate]) : new Date(),
-        method: mapping.method !== null ? String(row[mapping.method] || 'Cash').trim() : 'Cash',
+        method: mapping.method !== null ? parsePaymentMethod(String(row[mapping.method] || '').trim()) : 'cash',
         reference: mapping.reference !== null ? String(row[mapping.reference] || '').trim() : '',
+        description: mapping.description !== null ? String(row[mapping.description] || '').trim() : '',
         rowIndex: rowIndex + 2, // +2 because of header row and 0-indexing
         proofPath: null // Will be populated by proof matching
       };
       
       // Only add if we have at least a name or ID
-      if (payment.studentName || payment.studentId) {
-        payments.push(payment);
+      if (record.studentName || record.studentId) {
+        payments.push(record);
       }
     } catch (error) {
       console.warn(`Failed to parse row ${rowIndex + 2}:`, error);
@@ -127,6 +166,33 @@ export function transformToPayments(rows, mapping, headers) {
   });
   
   return payments;
+}
+
+/**
+ * Parse semester value from spreadsheet - extracts number from various formats
+ * @param {*} value - Cell value
+ * @returns {number|null} Semester number or null
+ */
+function parseSemester(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Math.floor(value);
+  const str = String(value);
+  const match = str.match(/\d+/);
+  return match ? parseInt(match[0], 10) : null;
+}
+
+/**
+ * Parse payment method - normalize to valid method values
+ * @param {string} value - Raw method value
+ * @returns {string} Normalized payment method
+ */
+function parsePaymentMethod(value) {
+  const lower = value.toLowerCase();
+  if (lower.includes('cash') || lower.includes('tunai')) return 'cash';
+  if (lower.includes('card') || lower.includes('kad')) return 'card';
+  if (lower.includes('bank') || lower.includes('transfer')) return 'bank_transfer';
+  if (lower.includes('online') || lower.includes('fpx')) return 'online';
+  return 'other';
 }
 
 /**
@@ -201,50 +267,123 @@ export async function matchProofFiles(payments, folderPath) {
 
 /**
  * Import parsed and validated payments into the database
- * @param {Array<Object>} payments - Validated payment records
+ * @param {Array<Object>} records - Validated payment records with student data
+ * @param {Object} options - Import options (defaultCourse, defaultProgram)
  * @returns {Promise<Object>} Import results summary
  */
-export async function importPayments(payments) {
+export async function importPayments(records, options = {}) {
   const results = {
     studentsCreated: 0,
+    studentsUpdated: 0,
     paymentsCreated: 0,
     errors: []
   };
   
   try {
-    for (const payment of payments) {
+    // Ensure default programme exists if provided
+    if (options.defaultProgram && options.defaultCourse) {
+      await Programme.getOrCreate(options.defaultProgram, options.defaultCourse);
+    }
+
+    for (const record of records) {
       try {
-        // Check if student exists, create if not
-        let student = await db.getStudentByMatricNo(payment.studentId);
-        
-        if (!student && payment.studentName) {
-          student = await db.addStudent({
-            matricNo: payment.studentId || `TEMP-${Date.now()}`,
-            name: payment.studentName,
-            course: payment.course || 'N/A',
-            semester: payment.semester || 'Semester 1',
-            contactInfo: ''
-          });
-          results.studentsCreated++;
+        // Check if student exists by student ID
+        let student = null;
+        if (record.studentId) {
+          student = await Student.findByStudentId(record.studentId);
         }
         
-        if (student) {
-          // Create payment record
-          await db.addPayment({
-            studentId: student.id,
-            amount: payment.amount,
-            method: payment.method,
-            date: payment.paymentDate,
-            reference: payment.reference,
-            proofPath: payment.proofPath || ''
-          });
+        if (!student && record.studentName) {
+          // Determine program and course
+          // Priority: Global Option -> Mapped Value -> Default
+          let courseIdx = options.defaultCourse || (record.course ? inferCourse(record.course) : 'Other');
+          let programIdx = options.defaultProgram || record.course || 'N/A';
+
+          // Create new student with all available fields
+          const studentData = {
+            studentId: record.studentId || `TEMP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: record.studentName,
+            email: record.email || '',
+            phone: record.phone || '',
+            program: programIdx,
+            course: courseIdx,
+            intake: record.intake || '',
+            completionDate: record.completionDate || '',
+            completionStatus: record.completionStatus || 'In Progress',
+            totalFees: record.totalFees || 0,
+            institutionalCost: record.institutionalCost || 0,
+            registrationFee: record.registrationFee || 0,
+            commission: record.commission || 0,
+            status: 'active'
+          };
+          
+          const studentId = await Student.create(studentData);
+          student = await Student.findById(studentId);
+          results.studentsCreated++;
+        } else if (student) {
+            // Update existing logic ...
+            // If we want to enforce the global course/program on existing students, we could do it here. 
+            // But usually checking matches is safer. For now let's just update financial info.
+            
+          // Optionally update existing student with new financial data if provided
+          const updates = {};
+          
+          // ... existing update logic ...
+          if (record.totalFees && record.totalFees > 0 && (!student.totalFees || student.totalFees === 0)) {
+            updates.totalFees = record.totalFees;
+          }
+          if (record.institutionalCost && record.institutionalCost > 0 && (!student.institutionalCost || student.institutionalCost === 0)) {
+            updates.institutionalCost = record.institutionalCost;
+          }
+          if (record.registrationFee && record.registrationFee > 0 && (!student.registrationFee || student.registrationFee === 0)) {
+            updates.registrationFee = record.registrationFee;
+          }
+          if (record.commission && record.commission > 0 && (!student.commission || student.commission === 0)) {
+            updates.commission = record.commission;
+          }
+          if (record.intake && !student.intake) {
+            updates.intake = record.intake;
+          }
+          if (record.completionDate && !student.completionDate) {
+            updates.completionDate = record.completionDate;
+          }
+          
+          // Also update program/course if missing and global options provided
+          if (options.defaultProgram && !student.program) {
+             updates.program = options.defaultProgram;
+          }
+          if (options.defaultCourse && (!student.course || student.course === 'Other')) {
+             updates.course = options.defaultCourse;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await Student.update(student.id, updates);
+            results.studentsUpdated++;
+          }
+        }
+        
+        // ... payment creation logic ...
+        // Create payment record if amount is specified and student exists
+        if (student && record.amount && record.amount > 0) {
+          const paymentData = {
+            studentId: student.studentId,
+            amount: record.amount,
+            date: record.paymentDate instanceof Date ? record.paymentDate.toISOString() : record.paymentDate,
+            method: record.method || 'cash',
+            reference: record.reference || '',
+            description: record.description || '',
+            semester: record.semester || null
+          };
+          
+          await Payment.create(paymentData);
           results.paymentsCreated++;
         }
       } catch (error) {
+         // ... existing error handler ...
         results.errors.push({
-          row: payment.rowIndex,
+          row: record.rowIndex,
           error: error.message,
-          data: payment
+          data: record
         });
       }
     }
@@ -253,4 +392,18 @@ export async function importPayments(payments) {
   }
   
   return results;
+}
+
+/**
+ * Infer course type from program name (helper for import)
+ * @param {string} program - Program name
+ * @returns {string} Course type
+ */
+function inferCourse(program) {
+  const programLower = program.toLowerCase();
+  if (programLower.includes('diploma')) return 'Diploma';
+  if (programLower.includes('dba') || programLower.includes('doctor')) return 'DBA';
+  if (programLower.includes('mba') || programLower.includes('master')) return 'MBA';
+  if (programLower.includes('bba') || programLower.includes('bachelor') || programLower.includes('degree')) return 'BBA';
+  return 'Other';
 }

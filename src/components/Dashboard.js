@@ -16,7 +16,7 @@ export async function renderDashboard() {
   // Get statistics
   const studentStats = await Student.getStatistics();
   const recentPayments = await Payment.getRecent(10);
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
   
   // Calculate today's payments
   const today = new Date();
@@ -292,15 +292,32 @@ async function renderPaymentTrendChart(months = 6) {
         y: {
           beginAtZero: true,
           ticks: {
+            maxTicksLimit: 6,
+            precision: 0,
             callback: function(value) {
-              return 'MYR ' + value.toLocaleString();
-            }
+              // Format with proper currency and no unnecessary decimals
+              if (value >= 1000) {
+                return 'RM ' + (value / 1000).toFixed(1) + 'k';
+              }
+              return 'RM ' + value.toFixed(0);
+            },
+            font: {
+              size: 11
+            },
+            color: 'rgba(0, 0, 0, 0.6)'
           },
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)'
+            color: 'rgba(0, 0, 0, 0.05)',
+            drawBorder: false
           }
         },
         x: {
+          ticks: {
+            font: {
+              size: 11
+            },
+            color: 'rgba(0, 0, 0, 0.6)'
+          },
           grid: {
             display: false
           }

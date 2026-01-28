@@ -6,10 +6,10 @@
 /**
  * Format number as currency
  * @param {number} amount - Amount to format
- * @param {string} currency - Currency code (default: MYR)
+ * @param {string} currency - Currency code (default: RM)
  * @returns {string} - Formatted currency string
  */
-export function formatCurrency(amount, currency = 'MYR') {
+export function formatCurrency(amount, currency = 'RM') {
   const num = parseFloat(amount) || 0;
   
   const formatted = num.toLocaleString('en-MY', {
@@ -38,6 +38,14 @@ export function formatDate(date, format = 'long') {
       // DD/MM/YYYY
       return d.toLocaleDateString('en-GB');
       
+    case 'malaysian':
+      // DD-MM-YYYY (Malaysian standard for transactional dates)
+      return formatDateMalaysian(d);
+      
+    case 'month-year':
+      // Oct 2024 (for intake/completion fields)
+      return formatMonthYear(d);
+      
     case 'long':
       // 24 January 2026
       return d.toLocaleDateString('en-GB', {
@@ -64,6 +72,45 @@ export function formatDate(date, format = 'long') {
     default:
       return d.toLocaleDateString('en-GB');
   }
+}
+
+/**
+ * Format date in Malaysian standard (DD-MM-YYYY)
+ * Used for transactional dates like payment dates
+ * @param {string|Date} date - Date to format
+ * @returns {string} - Formatted date string (DD-MM-YYYY)
+ */
+export function formatDateMalaysian(date) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!(d instanceof Date) || isNaN(d)) {
+    return 'Invalid Date';
+  }
+  
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * Format date as Month-Year (e.g., "Oct 2024")
+ * Used for intake and completion fields
+ * @param {string|Date} date - Date to format
+ * @returns {string} - Formatted date string (MMM YYYY)
+ */
+export function formatMonthYear(date) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  if (!(d instanceof Date) || isNaN(d)) {
+    return 'Invalid Date';
+  }
+  
+  return d.toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric'
+  });
 }
 
 /**

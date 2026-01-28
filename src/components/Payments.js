@@ -63,7 +63,7 @@ export async function renderPayments() {
           <h3 class="card-title">Payment Records</h3>
           <div class="flex gap-md">
             <span class="badge badge-primary" id="paymentCount">0 payments</span>
-            <span class="badge badge-success" id="paymentTotal">MYR 0.00</span>
+            <span class="badge badge-success" id="paymentTotal">RM 0.00</span>
           </div>
         </div>
         <div class="card-body">
@@ -105,7 +105,7 @@ async function loadPayments() {
   if (method) filters.method = method;
 
   const payments = await Payment.findAll(filters);
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
   const total = payments.reduce((sum, p) => sum + p.amount, 0);
 
   const countBadge = document.getElementById('paymentCount');
@@ -203,7 +203,7 @@ async function loadPayments() {
   document.getElementById('downloadPaymentsBtn')?.addEventListener('click', () => downloadPaymentRecords());
 }
 
-function showPaymentForm() {
+export function showPaymentForm(initialData = {}) {
   const modal = document.getElementById('modal-container');
   modal.innerHTML = `
     <div class="modal-backdrop">
@@ -223,7 +223,7 @@ function showPaymentForm() {
 
             <div class="grid grid-2 gap-md">
               <div class="form-group">
-                <label class="form-label required">Amount (MYR)</label>
+                <label class="form-label required">Amount (RM)</label>
                 <input type="number" id="paymentAmount" class="form-input" required min="0" step="0.01" placeholder="0.00" />
               </div>
 
@@ -243,6 +243,23 @@ function showPaymentForm() {
                   <option value="online">Online Payment</option>
                   <option value="other">Other</option>
                 </select>
+              </div>
+
+            <div class="grid grid-2 gap-md">
+              <div class="form-group">
+                <label class="form-label">Semester</label>
+                <select id="paymentSemester" class="form-select">
+                  <option value="">-- Select Semester --</option>
+                  <option value="1">Semester 1</option>
+                  <option value="2">Semester 2</option>
+                  <option value="3">Semester 3</option>
+                  <option value="4">Semester 4</option>
+                  <option value="5">Semester 5</option>
+                  <option value="6">Semester 6</option>
+                  <option value="7">Semester 7</option>
+                  <option value="8">Semester 8</option>
+                </select>
+                <div class="form-help">Semester this payment is for (used in Spreadsheet)</div>
               </div>
 
               <div class="form-group">
@@ -275,6 +292,14 @@ function showPaymentForm() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('paymentDate').value = today;
 
+  // Pre-fill data if provided
+  if (initialData.studentId) {
+    document.getElementById('paymentStudent').value = initialData.studentId;
+  }
+  if (initialData.semester) {
+    document.getElementById('paymentSemester').value = initialData.semester;
+  }
+
   document.getElementById('paymentForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     await savePayment();
@@ -298,11 +323,13 @@ async function savePayment() {
   formError.classList.add('hidden');
 
   const studentId = parseInt(document.getElementById('paymentStudent').value);
+  const semesterValue = document.getElementById('paymentSemester').value;
   const paymentData = {
     studentId,
     amount: document.getElementById('paymentAmount').value,
     date: new Date(document.getElementById('paymentDate').value).toISOString(),
     method: document.getElementById('paymentMethod').value,
+    semester: semesterValue ? parseInt(semesterValue) : null,
     reference: document.getElementById('paymentReference').value.trim(),
     description: document.getElementById('paymentDescription').value.trim()
   };
@@ -326,7 +353,7 @@ async function viewReceipt(paymentId) {
   const payment = await Payment.findById(paymentId);
   const student = await Student.findById(payment.studentId);
   const receipt = await Receipt.getByPaymentId(paymentId);
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
 
   const modal = document.getElementById('modal-container');
   modal.innerHTML = `

@@ -5,6 +5,7 @@
 
 import { Icons } from '../utils/icons.js';
 import { parseSpreadsheet, suggestColumnMapping, transformToPayments, matchProofFiles, importPayments } from '../services/importService.js';
+import { Programme } from '../models/Programme.js';
 
 let wizardState = {
   currentStep: 1,
@@ -13,7 +14,40 @@ let wizardState = {
   columnMapping: null,
   transformedPayments: null,
   proofsFolder: null,
-  importResults: null
+  transformedPayments: null,
+  proofsFolder: null,
+  importResults: null,
+  selectedCourse: null,
+  selectedProgram: null
+};
+
+// Helper functions for Import Wizard
+window.updateImportProgrammeOptions = async () => {
+  const course = document.getElementById('importCourse').value;
+  const programSelect = document.getElementById('importProgramSelect');
+  
+  // Clear options
+  programSelect.innerHTML = '<option value="">Select Programme</option>';
+  
+  if (course) {
+    const programmes = await Programme.findByCourse(course);
+    programmes.forEach(p => {
+      programSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+    });
+  }
+  
+  programSelect.innerHTML += '<option value="Other">Other (Add New)</option>';
+};
+
+window.toggleImportOtherProgram = () => {
+  const val = document.getElementById('importProgramSelect').value;
+  const input = document.getElementById('importProgramOther');
+  if (val === 'Other') {
+    input.classList.remove('hidden');
+    input.focus();
+  } else {
+    input.classList.add('hidden');
+  }
 };
 
 export function renderImportWizard() {
@@ -110,35 +144,92 @@ function renderStep2() {
   const mapping = wizardState.columnMapping || suggestColumnMapping(headers);
   
   const fields = [
-    { key: 'studentName', label: 'Student Name', required: true },
-    { key: 'studentId', label: 'Student ID', required: false },
-    { key: 'course', label: 'Course', required: false },
-    { key: 'semester', label: 'Semester', required: false },
-    { key: 'amount', label: 'Amount', required: true },
-    { key: 'paymentDate', label: 'Payment Date', required: false },
-    { key: 'method', label: 'Payment Method', required: false },
-    { key: 'reference', label: 'Reference/Receipt No', required: false }
+    // Student fields
+    { key: 'studentName', label: 'Student Name', required: true, section: 'student' },
+    { key: 'studentId', label: 'Student ID', required: false, section: 'student' },
+    { key: 'email', label: 'Email', required: false, section: 'student' },
+    { key: 'phone', label: 'Phone', required: false, section: 'student' },
+    { key: 'course', label: 'Program/Course', required: false, section: 'student' },
+    { key: 'intake', label: 'Intake', required: false, section: 'student' },
+    { key: 'completionDate', label: 'Completion Date', required: false, section: 'student' },
+    { key: 'completionStatus', label: 'Completion Status', required: false, section: 'student' },
+    // Financial fields
+    { key: 'totalFees', label: 'Total Fees', required: false, section: 'financial' },
+    { key: 'institutionalCost', label: 'Institutional Cost', required: false, section: 'financial' },
+    { key: 'registrationFee', label: 'Registration Fee', required: false, section: 'financial' },
+    { key: 'commission', label: 'Commission', required: false, section: 'financial' },
+    // Payment fields
+    { key: 'amount', label: 'Payment Amount', required: true, section: 'payment' },
+    { key: 'paymentDate', label: 'Payment Date', required: false, section: 'payment' },
+    { key: 'method', label: 'Payment Method', required: false, section: 'payment' },
+    { key: 'semester', label: 'Semester', required: false, section: 'payment' },
+    { key: 'reference', label: 'Reference/Receipt No', required: false, section: 'payment' },
+    { key: 'description', label: 'Description/Notes', required: false, section: 'payment' }
   ];
+  
+  // Group fields by section
+  const sections = {
+    student: { title: 'Student Information', fields: fields.filter(f => f.section === 'student') },
+    financial: { title: 'Financial Information', fields: fields.filter(f => f.section === 'financial') },
+    payment: { title: 'Payment Information', fields: fields.filter(f => f.section === 'payment') }
+  };
+  
+  const renderFieldRow = (field) => `
+    <div class="mapping-row">
+      <label>
+        ${field.label}${field.required ? ' <span class="required">*</span>' : ''}
+      </label>
+      <select class="mapping-select" data-field="${field.key}">
+        <option value="">-- Not Mapped --</option>
+        ${headers.map((header, index) => `
+          <option value="${index}" ${mapping[field.key] === index ? 'selected' : ''}>
+            ${header || `Column ${index + 1}`}
+          </option>
+        `).join('')}
+      </select>
+    </div>
+  `;
   
   return `
     <div class="wizard-step-content">
-      <h3>Map Your Columns</h3>
-      <p>We've tried to automatically detect your columns. Adjust if needed.</p>
+      <h3 style="margin-bottom: 1.5rem;">Import Configuration</h3>
       
-      <div class="column-mapping">
-        ${fields.map(field => `
-          <div class="mapping-row">
-            <label>
-              ${field.label}${field.required ? ' <span class="required">*</span>' : ''}
-            </label>
-            <select class="mapping-select" data-field="${field.key}">
-              <option value="">-- Not Mapped --</option>
-              ${headers.map((header, index) => `
-                <option value="${index}" ${mapping[field.key] === index ? 'selected' : ''}>
-                  ${header || `Column ${index + 1}`}
-                </option>
-              `).join('')}
-            </select>
+      <div class="card mb-lg" style="background: var(--gray-50); border: 1px solid var(--border-light);">
+        <div class="card-body">
+          <h4 style="margin-bottom: 1rem; font-size: 1rem;">Default Values</h4>
+          <p class="text-secondary text-sm mb-md">Select the Course and Programme for this batch of students.</p>
+          
+          <div class="grid grid-2 gap-md">
+            <div class="form-group">
+              <label class="form-label required">Course Type</label>
+              <select id="importCourse" class="form-select" onchange="window.updateImportProgrammeOptions()">
+                <option value="">Select Course</option>
+                <option value="Diploma">Diploma</option>
+                <option value="BBA">BBA (Bachelor)</option>
+                <option value="MBA">MBA (Master)</option>
+                <option value="DBA">DBA (Doctorate)</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label required">Programme</label>
+              <select id="importProgramSelect" class="form-select" onchange="window.toggleImportOtherProgram()">
+                <option value="">Select Programme</option>
+              </select>
+              <input type="text" id="importProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom: 1rem;">Map Your Columns</h3>
+      <p style="margin-bottom: 1.5rem;">We've tried to automatically detect your columns. Adjust if needed.</p>
+      
+      <div class="column-mapping" style="max-height: 350px; overflow-y: auto;">
+        ${Object.values(sections).map(section => `
+          <div class="mapping-section">
+            <h4 style="margin: 1rem 0 0.5rem; color: var(--primary-400); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">${section.title}</h4>
+            ${section.fields.map(renderFieldRow).join('')}
           </div>
         `).join('')}
       </div>
@@ -297,6 +388,22 @@ export async function initImportWizard() {
   });
   
   document.getElementById('nextStep2')?.addEventListener('click', async () => {
+    // Capture global course/programme
+    const course = document.getElementById('importCourse').value;
+    let program = document.getElementById('importProgramSelect').value;
+    if (program === 'Other') {
+      program = document.getElementById('importProgramOther').value.trim();
+    }
+    
+    // Validate if user has started selecting but not finished
+    if (course && !program) {
+      alert('Please select a Programme');
+      return;
+    }
+    
+    wizardState.selectedCourse = course;
+    wizardState.selectedProgram = program;
+
     const mapping = wizardState.columnMapping || suggestColumnMapping(wizardState.spreadsheetData.headers);
     wizardState.transformedPayments = transformToPayments(wizardState.spreadsheetData.rows, mapping, wizardState.spreadsheetData.headers);
     
@@ -323,7 +430,10 @@ export async function initImportWizard() {
       btn.disabled = true;
       btn.textContent = 'Importing...';
       
-      const results = await importPayments(wizardState.transformedPayments);
+      const results = await importPayments(wizardState.transformedPayments, {
+        defaultCourse: wizardState.selectedCourse,
+        defaultProgram: wizardState.selectedProgram
+      });
       
       alert(`Import complete!\n${results.studentsCreated} students created\n${results.paymentsCreated} payments added`);
       

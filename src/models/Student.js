@@ -27,6 +27,16 @@ class StudentModel {
       email: studentData.email || '',
       phone: studentData.phone || '',
       program: studentData.program,
+      institution: studentData.institution || '',
+      course: studentData.course || this.inferCourse(studentData.program),
+      intake: studentData.intake || '',
+      completionDate: studentData.completionDate || '',
+      completionStatus: studentData.completionStatus || 'In Progress',
+      totalFees: parseFloat(studentData.totalFees) || 0,
+      institutionalCost: parseFloat(studentData.institutionalCost) || 0,
+      registrationFee: parseFloat(studentData.registrationFee) || 0,
+      commission: parseFloat(studentData.commission) || 0,
+      totalSemesters: parseInt(studentData.totalSemesters) || 1,
       status: studentData.status || 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -96,20 +106,74 @@ class StudentModel {
       students = students.filter(s => s.status === filters.status);
     }
 
+    if (filters.course) {
+      students = students.filter(s => s.course === filters.course);
+    }
+
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       students = students.filter(s =>
         s.name.toLowerCase().includes(searchTerm) ||
         s.studentId.toLowerCase().includes(searchTerm) ||
-        s.email.toLowerCase().includes(searchTerm) ||
+        (s.email && s.email.toLowerCase().includes(searchTerm)) ||
         s.program.toLowerCase().includes(searchTerm)
       );
     }
 
-    // Sort by name
-    students.sort((a, b) => a.name.localeCompare(b.name));
+    // Sort by relevance (starts with > includes) then by name
+    if (filters.search) {
+      const lowerSearch = filters.search.toLowerCase();
+      students.sort((a, b) => {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        
+        const aStartsWith = nameA.startsWith(lowerSearch);
+        const bStartsWith = nameB.startsWith(lowerSearch);
+        
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+        
+        return nameA.localeCompare(nameB);
+      });
+    } else {
+      students.sort((a, b) => a.name.localeCompare(b.name));
+    }
 
     return students;
+  }
+
+  /**
+   * Find students by course
+   * @param {string} course - Course type (Diploma, BBA, MBA, DBA)
+   * @returns {Promise<Array>} - Array of students
+   */
+  async findByCourse(course) {
+    return this.findAll({ course, status: 'active' });
+  }
+
+  /**
+   * Get unique programs for a given course
+   * @param {string} course - Course type
+   * @returns {Promise<Array>} - Array of unique program names
+   */
+  async getProgramsByCourse(course) {
+    const students = await this.findByCourse(course);
+    const programs = [...new Set(students.map(s => s.program))];
+    return programs.sort();
+  }
+
+  /**
+   * Infer course type from program name
+   * @param {string} program - Program name
+   * @returns {string} - Course type (Diploma, BBA, MBA, DBA, or Other)
+   */
+  inferCourse(program) {
+    const programLower = program.toLowerCase();
+    if (programLower.includes('diploma')) return 'Diploma';
+    if (programLower.includes('dba') || programLower.includes('doctor')) return 'DBA';
+    if (programLower.includes('mba') || programLower.includes('master')) return 'MBA';
+    if (programLower.includes('bba') || programLower.includes('bachelor') || programLower.includes('degree')) return 'BBA';
+    return 'Other';
   }
 
   /**

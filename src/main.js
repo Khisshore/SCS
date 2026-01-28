@@ -10,6 +10,7 @@ import { Icons } from './utils/icons.js';
 import { renderDashboard } from './components/Dashboard.js';
 import { renderStudents } from './components/Students.js';
 import { renderPayments } from './components/Payments.js';
+import { renderSpreadsheet } from './components/Spreadsheet.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
 import { createThemeToggle, initTheme, setupThemeToggle } from './components/ThemeToggle.js';
 import { setupPacmanEasterEgg } from './components/PacmanEasterEgg.js';
@@ -164,6 +165,10 @@ async function navigateToPage(page) {
       
       case 'reports':
         await renderReports();
+        break;
+      
+      case 'spreadsheet':
+        await renderSpreadsheet();
         break;
       
       case 'settings':
@@ -334,7 +339,7 @@ async function renderReports() {
     
     const payments = await Payment.findByDateRange(startDate, endDate);
     const stats = await Payment.getStatistics({ startDate, endDate });
-    const currency = await db.getSetting('currency') || 'MYR';
+    const currency = await db.getSetting('currency') || 'RM';
     
     const resultsContainer = document.getElementById('reportResults');
     resultsContainer.innerHTML = `
@@ -409,7 +414,7 @@ async function renderReports() {
  */
 async function renderSettings() {
   const container = document.getElementById('app-content');
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
   const institutionName = await db.getSetting('institutionName') || 'Education Institution';
   const baseFolder = await db.getSetting('baseFolder');
   const isDesktop = fileSystem.isDesktopApp();
@@ -432,15 +437,7 @@ async function renderSettings() {
             <input type="text" id="institutionName" class="form-input" value="${institutionName}" />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Currency</label>
-            <select id="currencySetting" class="form-select">
-              <option value="MYR" ${currency === 'MYR' ? 'selected' : ''}>MYR (Malaysian Ringgit)</option>
-              <option value="USD" ${currency === 'USD' ? 'selected' : ''}>USD (US Dollar)</option>
-              <option value="SGD" ${currency === 'SGD' ? 'selected' : ''}>SGD (Singapore Dollar)</option>
-              <option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>EUR (Euro)</option>
-            </select>
-          </div>
+
 
           <button class="btn btn-success" id="saveSettingsBtn">
             <span class="icon">${Icons.checkCircle}</span>
@@ -570,10 +567,9 @@ async function renderSettings() {
 
   document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
     const newInstitutionName = document.getElementById('institutionName').value;
-    const newCurrency = document.getElementById('currencySetting').value;
     
     await db.setSetting('institutionName', newInstitutionName);
-    await db.setSetting('currency', newCurrency);
+    await db.setSetting('currency', 'RM');
     
     alert('Settings saved successfully!');
   });

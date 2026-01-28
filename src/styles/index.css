@@ -756,13 +756,15 @@ p {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-light);
+  border: 1px solid var(--border-color); /* Full border */
+  background: var(--surface-hover); /* Light header bg */
 }
 
 .table td {
   padding: var(--space-lg);
-  border-bottom: 1px solid var(--border-light);
+  border: 1px solid var(--border-color); /* Full border */
   color: var(--text-secondary);
+  vertical-align: middle;
 }
 
 .table tbody tr {

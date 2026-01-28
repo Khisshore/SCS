@@ -293,17 +293,4 @@ ipcMain.handle('delete-file', async (event, filePath) => {
   }
 });
 
-/**
- * List files in a folder (for proof matching)
- */
-ipcMain.handle('list-files', async (event, folderPath) => {
-  try {
-    const files = await fs.readdir(folderPath);
-    return files;
-  } catch (error) {
-    console.error('Error listing files:', error);
-    return [];
-  }
-});
-
 console.log('✅ NeoTrackr main process initialized');

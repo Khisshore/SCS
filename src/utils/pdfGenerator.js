@@ -104,7 +104,7 @@ export async function generateReceiptPDF(receiptData, studentData, paymentData) 
   doc.setFont('helvetica', 'bold');
   doc.text('Total Amount Paid:', margin + 5, y);
   doc.setFontSize(16);
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
   doc.text(formatCurrency(paymentData.amount, currency), pageWidth - margin - 5, y, { align: 'right' });
   
   // Footer
@@ -189,7 +189,7 @@ export async function generateMonthlyReportPDF(reportData) {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
-  const currency = await db.getSetting('currency') || 'MYR';
+  const currency = await db.getSetting('currency') || 'RM';
   const summaryItems = [
     ['Total Payments:', `${reportData.statistics.totalPayments}`],
     ['Total Amount:', formatCurrency(reportData.statistics.totalAmount, currency)],

@@ -5,8 +5,11 @@
 
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
+import { Programme } from '../models/Programme.js';
 import { Icons } from '../utils/icons.js';
 import { formatDate } from '../utils/formatting.js';
+
+let currentSort = { field: 'name', dir: 'asc' };
 
 export async function renderStudents() {
   const container = document.getElementById('app-content');
@@ -108,6 +111,9 @@ export async function renderStudents() {
 /**
  * Load and display students
  */
+/**
+ * Load and display students
+ */
 async function loadStudents() {
   const search = document.getElementById('studentSearch')?.value || '';
   const status = document.getElementById('statusFilter')?.value || '';
@@ -116,7 +122,45 @@ async function loadStudents() {
   if (search) filters.search = search;
   if (status) filters.status = status;
 
-  const students = await Student.findAll(filters);
+  let students = await Student.findAll(filters);
+
+  // Sorting
+  // Sorting
+  students.sort((a, b) => {
+    // Priority 1: Search Relevance (if searching)
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      
+      const aStarts = nameA.startsWith(lowerSearch);
+      const bStarts = nameB.startsWith(lowerSearch);
+      
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+    }
+
+    // Priority 2: Selected Column
+    let valA = a[currentSort.field] || '';
+    let valB = b[currentSort.field] || '';
+
+    if (currentSort.field === 'studentId') {
+       // Numeric sort for IDs if possible, else string
+       const numA = parseInt(valA.replace(/\D/g, ''));
+       const numB = parseInt(valB.replace(/\D/g, ''));
+       if (!isNaN(numA) && !isNaN(numB)) {
+         valA = numA;
+         valB = numB;
+       }
+    } else if (typeof valA === 'string') {
+      valA = valA.toLowerCase();
+      valB = valB.toLowerCase();
+    }
+
+    if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+    if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const container = document.getElementById('studentsTableContainer');
   const countBadge = document.getElementById('studentCount');
@@ -138,38 +182,35 @@ async function loadStudents() {
     return;
   }
 
+  const getSortIcon = (field) => {
+    if (currentSort.field !== field) return '<span style="opacity: 0.3">↕</span>';
+    return currentSort.dir === 'asc' ? '↑' : '↓';
+  };
+
   container.innerHTML = `
     <div class="table-container" style="box-shadow: none;">
       <table class="table">
         <thead>
           <tr>
-            <th>Student ID</th>
-            <th>Name</th>
-            <th>Program</th>
-            <th>Contact</th>
-            <th>Status</th>
-            <th>Created</th>
+            <th width="50">#</th>
+            <th style="cursor: pointer;" onclick="window.sortStudents('name')">Name ${getSortIcon('name')}</th>
+            <th style="cursor: pointer;" onclick="window.sortStudents('program')">Programme ${getSortIcon('program')}</th>
+            <th style="cursor: pointer;" onclick="window.sortStudents('course')">Course ${getSortIcon('course')}</th>
+            <th style="cursor: pointer;" onclick="window.sortStudents('completionStatus')">Status ${getSortIcon('completionStatus')}</th>
             <th style="text-align: center;">Actions</th>
           </tr>
         </thead>
         <tbody>
           ${students.map((student, index) => `
             <tr style="animation: slideIn 0.3s ease-out ${index * 0.05}s both;">
-              <td><strong>${student.studentId}</strong></td>
-              <td>${student.name}</td>
+              <td style="color: var(--text-tertiary); font-size: 0.85rem;">${index + 1}</td>
+              <td style="font-weight: 500; color: var(--text-primary);">${student.name}</td>
               <td>${student.program}</td>
+              <td><span class="badge badge-secondary">${student.course || 'Other'}</span></td>
               <td>
-                ${student.email ? `<div style="font-size: var(--font-size-sm);">${student.email}</div>` : ''}
-                ${student.phone ? `<div style="font-size: var(--font-size-sm);">${student.phone}</div>` : ''}
-                ${!student.email && !student.phone ? '<span style="color: var(--text-tertiary);">-</span>' : ''}
-              </td>
-              <td>
-                <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-danger'}">
-                  ${student.status}
+                <span class="badge ${getCompletionStatusBadge(student.completionStatus)}">
+                  ${student.completionStatus || 'In Progress'}
                 </span>
-              </td>
-              <td style="color: var(--text-tertiary); font-size: var(--font-size-sm);">
-                ${formatDate(student.createdAt, 'short')}
               </td>
               <td style="text-align: center;">
                 <div class="flex gap-sm" style="justify-content: center;">
@@ -204,6 +245,27 @@ async function loadStudents() {
   `;
 }
 
+function getCompletionStatusBadge(status) {
+  const map = {
+    'In Progress': 'badge-primary',
+    'Completed': 'badge-success',
+    'Withdrawn': 'badge-danger',
+    'Deferred': 'badge-warning'
+  };
+  return map[status] || 'badge-secondary';
+}
+
+// Sorting function exposed to window
+window.sortStudents = (field) => {
+  if (currentSort.field === field) {
+    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentSort.field = field;
+    currentSort.dir = 'asc';
+  }
+  loadStudents();
+};
+
 /**
  * Show student form modal (add/edit)
  */
@@ -213,50 +275,139 @@ function showStudentForm(studentId = null) {
   const modal = document.getElementById('modal-container');
   modal.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal">
+      <div class="modal" style="max-width: 700px;">
         <div class="modal-header">
           <h2 class="modal-title">${isEdit ? 'Edit Student' : 'Add New Student'}</h2>
           <button class="modal-close" onclick="window.closeModal()">×</button>
         </div>
         <form id="studentForm">
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label required">Student ID</label>
-              <input type="text" id="studentId" class="form-input" required placeholder="e.g., S2024001" autofocus />
-              <div class="form-help">Unique identifier for the student</div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label required">Full Name</label>
-              <input type="text" id="studentName" class="form-input" required placeholder="e.g., John Doe" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label required">Program/Course</label>
-              <input type="text" id="studentProgram" class="form-input" required placeholder="e.g., Computer Science" />
-            </div>
-
-            <div class="grid grid-2 gap-md">
-              <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" id="studentEmail" class="form-input" placeholder="student@example.com" />
+          <div class="modal-body" style="overflow-y: auto;">
+            <!-- Basic Info Section -->
+            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+              <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
+                <span class="icon icon-sm text-primary-600">${Icons.user}</span> Basic Information
+              </h4>
+              
+              <div class="grid grid-2 gap-md">
+                <div class="form-group">
+                  <label class="form-label">Student ID</label>
+                  <input type="text" id="studentId" class="form-input" placeholder="e.g., S2024001" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Full Name</label>
+                  <input type="text" id="studentName" class="form-input" placeholder="e.g., John Doe" />
+                </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Phone</label>
-                <input type="tel" id="studentPhone" class="form-input" placeholder="+60123456789" />
+              <div class="grid grid-2 gap-md mt-md">
+                <div class="form-group">
+                  <label class="form-label">Course Type</label>
+                  <select id="studentCourse" class="form-select" onchange="window.updateProgrammeOptions()">
+                    <option value="">Select Course</option>
+                    <option value="Diploma">Diploma</option>
+                    <option value="BBA">BBA (Bachelor)</option>
+                    <option value="MBA">MBA (Master)</option>
+                    <option value="DBA">DBA (Doctorate)</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Programme</label>
+                  <div class="flex gap-sm">
+                    <select id="studentProgramSelect" class="form-select flex-1" onchange="window.handleProgramSelectChange()">
+                      <option value="">Select Programme</option>
+                    </select>
+                    <button type="button" id="deleteProgramBtn" class="btn btn-sm btn-danger-light hidden" onclick="window.deleteSelectedProgramme()" title="Delete this programme">
+                      <span class="icon icon-sm">${Icons.trash}</span>
+                    </button>
+                  </div>
+                  <input type="text" id="studentProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" />
+                </div>
+              </div>
+
+              <div class="grid grid-2 gap-md mt-md">
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="studentEmail" class="form-input" placeholder="student@example.com" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Phone</label>
+                  <input type="tel" id="studentPhone" class="form-input" placeholder="+60123456789" />
+                </div>
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Status</label>
-              <select id="studentStatus" class="form-select">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+            <!-- Enrollment Section -->
+            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+              <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
+                <span class="icon icon-sm text-primary-600">
+                  <svg viewBox="0 0 24 24" fill="none" class="icon-sm" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </span> 
+                Enrollment Details
+              </h4>
+
+              <div class="grid grid-3 gap-md">
+                <div class="form-group">
+                  <label class="form-label">Intake</label>
+                  <div class="grid grid-2 gap-sm">
+                    <select id="studentIntakeMonth" class="form-select bg-white"></select>
+                    <select id="studentIntakeYear" class="form-select bg-white"></select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Completion Date</label>
+                  <div class="grid grid-2 gap-sm">
+                    <select id="studentCompletionMonth" class="form-select bg-white"></select>
+                    <select id="studentCompletionYear" class="form-select bg-white"></select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Student Status</label>
+                  <select id="studentCompletionStatus" class="form-select bg-white">
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                    <option value="Deferred">Deferred</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div id="formError" class="form-error hidden"></div>
+            <!-- Financial Section -->
+            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+              <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
+                <span class="icon icon-sm text-primary-600">${Icons.dollarSign}</span> Financial Details
+              </h4>
+
+              <div class="grid grid-2 gap-md">
+                <div class="form-group">
+                  <label class="form-label">Total Fees (RM)</label>
+                  <input type="number" id="studentTotalFees" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Institutional Cost (RM)</label>
+                  <input type="number" id="studentInstitutionalCost" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                </div>
+              </div>
+
+              <div class="grid grid-2 gap-md mt-md">
+                <div class="form-group">
+                  <label class="form-label">Registration Fee (RM)</label>
+                  <input type="number" id="studentRegistrationFee" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Commission (RM)</label>
+                  <input type="number" id="studentCommission" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group mb-0">
+              <label class="form-label">Remarks</label>
+              <textarea id="studentRemarks" class="form-input" placeholder="Add any additional notes here..." rows="3"></textarea>
+            </div>
+
+            <div id="formError" class="form-error hidden mt-md p-md bg-danger-50 text-danger-700 rounded-md border border-danger-200"></div>
           </div>
 
           <div class="modal-footer">
@@ -270,9 +421,116 @@ function showStudentForm(studentId = null) {
     </div>
   `;
 
+  // Helper to generate date options
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentYear = new Date().getFullYear();
+  const yearRange = 10; // +/- 10 years
+
+  const populateDateSelects = (monthId, yearId) => {
+    const monthSelect = document.getElementById(monthId);
+    const yearSelect = document.getElementById(yearId);
+    
+    monthSelect.innerHTML = '<option value="">Month</option>' + 
+      months.map((m, i) => `<option value="${(i+1).toString().padStart(2, '0')}">${m}</option>`).join('');
+      
+    let yearOpts = '<option value="">Year</option>';
+    for (let i = currentYear - yearRange; i <= currentYear + yearRange; i++) {
+      yearOpts += `<option value="${i}">${i}</option>`;
+    }
+    yearSelect.innerHTML = yearOpts;
+  };
+
+  populateDateSelects('studentIntakeMonth', 'studentIntakeYear');
+  populateDateSelects('studentCompletionMonth', 'studentCompletionYear');
+
+  // Helper to update programme options
+  window.updateProgrammeOptions = async (selectedProgram = null) => {
+    const course = document.getElementById('studentCourse').value;
+    const programSelect = document.getElementById('studentProgramSelect');
+    const deleteBtn = document.getElementById('deleteProgramBtn');
+    
+    // Clear options
+    programSelect.innerHTML = '<option value="">Select Programme</option>';
+    
+    // Hide delete button initially
+    if(deleteBtn) deleteBtn.classList.add('hidden');
+    
+    if (course) {
+      const programmes = await Programme.findByCourse(course);
+      programmes.forEach(p => {
+        programSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+      });
+    }
+    
+    programSelect.innerHTML += '<option value="Other">Other (Add New)</option>';
+    
+    if (selectedProgram) {
+      // Check if selected program exists in options
+      const exists = Array.from(programSelect.options).some(opt => opt.value === selectedProgram);
+      if (exists) {
+        programSelect.value = selectedProgram;
+      } else {
+        // If it's a value from DB but not in our filtered list (edge case), or logic mismatch
+        // check if it matches "Other" logic? 
+        // For now, if it's not in the list, we assume it's custom or "Other" was meant
+        programSelect.value = 'Other';
+        document.getElementById('studentProgramOther').value = selectedProgram;
+        document.getElementById('studentProgramOther').classList.remove('hidden');
+      }
+    }
+    
+    // Trigger handle change to set UI state
+    window.handleProgramSelectChange();
+  };
+
+  // Handle program select change
+  window.handleProgramSelectChange = () => {
+    const val = document.getElementById('studentProgramSelect').value;
+    const input = document.getElementById('studentProgramOther');
+    const deleteBtn = document.getElementById('deleteProgramBtn');
+    
+    if (val === 'Other') {
+      input.classList.remove('hidden');
+      input.focus();
+      if(deleteBtn) deleteBtn.classList.add('hidden');
+    } else {
+      input.classList.add('hidden');
+      // Show delete button if value is selected and it's not empty
+      if (val && deleteBtn) {
+         deleteBtn.classList.remove('hidden');
+      } else if (deleteBtn) {
+         deleteBtn.classList.add('hidden');
+      }
+    }
+  };
+
+  // Delete selected programme
+  window.deleteSelectedProgramme = async () => {
+    const programName = document.getElementById('studentProgramSelect').value;
+    if (!programName || programName === 'Other') return;
+
+    if (confirm(`Are you sure you want to delete the programme "${programName}"? This will remove it from the list of options.`)) {
+      try {
+        const deleted = await Programme.deleteByName(programName);
+        if (deleted) {
+           await window.updateProgrammeOptions();
+           // Optional: Reset selection or notify
+        } else {
+           alert('Could not delete programme.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error deleting programme: ' + err.message);
+      }
+    }
+  };
+
   // If editing, load student data
   if (isEdit) {
     loadStudentData(studentId);
+  } else {
+    // Just trigger update for empty form
+    window.updateProgrammeOptions();
   }
 
   // Form submission
@@ -297,12 +555,43 @@ async function loadStudentData(studentId) {
 
   document.getElementById('studentId').value = student.studentId;
   document.getElementById('studentName').value = student.name;
-  document.getElementById('studentProgram').value = student.program;
+  document.getElementById('studentCourse').value = student.course || 'Other';
+  
+  // Load programmes for this course then set value
+  await window.updateProgrammeOptions(student.program);
   document.getElementById('studentEmail').value = student.email || '';
   document.getElementById('studentPhone').value = student.phone || '';
-  document.getElementById('studentStatus').value = student.status;
+  // Parse and set date selectors
+  const setDateSelectors = (dateStr, monthId, yearId) => {
+    if (!dateStr) return;
+    try {
+      // Handle both YYYY-MM and existing text formats if necessary
+      if (dateStr.includes('-')) {
+        const [year, month] = dateStr.split('-');
+        document.getElementById(yearId).value = year;
+        document.getElementById(monthId).value = month;
+      } else {
+        // Fallback for messy data, try basic parsing
+        // For now assume YYYY-MM which is standard in our new system
+      }
+    } catch (e) { console.error('Error parsing date', e); }
+  };
+
+  setDateSelectors(student.intake, 'studentIntakeMonth', 'studentIntakeYear');
+  setDateSelectors(student.completionDate, 'studentCompletionMonth', 'studentCompletionYear');
+
+  document.getElementById('studentCompletionStatus').value = student.completionStatus || 'In Progress';
+  document.getElementById('studentTotalFees').value = student.totalFees || '';
+  document.getElementById('studentTotalFees').value = student.totalFees || '';
+  document.getElementById('studentInstitutionalCost').value = student.institutionalCost || '';
+  document.getElementById('studentRegistrationFee').value = student.registrationFee || '';
+  document.getElementById('studentCommission').value = student.commission || '';
+  document.getElementById('studentRemarks').value = student.remarks || '';
 }
 
+/**
+ * Save student (create or update)
+ */
 /**
  * Save student (create or update)
  */
@@ -310,16 +599,48 @@ async function saveStudent(studentId) {
   const formError = document.getElementById('formError');
   formError.classList.add('hidden');
 
-  const studentData = {
-    studentId: document.getElementById('studentId').value.trim(),
-    name: document.getElementById('studentName').value.trim(),
-    program: document.getElementById('studentProgram').value.trim(),
-    email: document.getElementById('studentEmail').value.trim(),
-    phone: document.getElementById('studentPhone').value.trim(),
-    status: document.getElementById('studentStatus').value
-  };
-
   try {
+    let program = document.getElementById('studentProgramSelect').value;
+    if (program === 'Other') {
+      program = document.getElementById('studentProgramOther').value.trim();
+    }
+
+    const course = document.getElementById('studentCourse').value;
+
+    // Validate
+    if (!program) throw new Error('Programme is required');
+    if (!course) throw new Error('Course is required');
+
+    // Create program if new
+    if (document.getElementById('studentProgramSelect').value === 'Other') {
+      await Programme.getOrCreate(program, course);
+    }
+
+    // Combine date selectors
+    const getCombinedDate = (monthId, yearId) => {
+      const m = document.getElementById(monthId).value;
+      const y = document.getElementById(yearId).value;
+      return (m && y) ? `${y}-${m}` : '';
+    };
+
+    const studentData = {
+      studentId: document.getElementById('studentId').value.trim(),
+      name: document.getElementById('studentName').value.trim(),
+      program: program,
+      course: course,
+      email: document.getElementById('studentEmail').value.trim(),
+      phone: document.getElementById('studentPhone').value.trim(),
+      intake: getCombinedDate('studentIntakeMonth', 'studentIntakeYear'),
+      completionDate: getCombinedDate('studentCompletionMonth', 'studentCompletionYear'),
+      completionStatus: document.getElementById('studentCompletionStatus').value,
+      status: 'active', // Default to active since field removed
+      totalFees: document.getElementById('studentTotalFees').value || 0,
+      institutionalCost: document.getElementById('studentInstitutionalCost').value || 0,
+      registrationFee: document.getElementById('studentRegistrationFee').value || 0,
+      commission: document.getElementById('studentCommission').value || 0,
+      remarks: document.getElementById('studentRemarks').value.trim()
+    };
+
     if (studentId) {
       await Student.update(studentId, studentData);
     } else {
@@ -330,8 +651,12 @@ async function saveStudent(studentId) {
     await loadStudents();
     showNotification(studentId ? 'Student updated successfully!' : 'Student added successfully!', 'success');
   } catch (error) {
-    formError.textContent = error.message;
-    formError.classList.remove('hidden');
+    if (formError) {
+      formError.textContent = error.message;
+      formError.classList.remove('hidden');
+    } else {
+      alert(error.message);
+    }
   }
 }
 
@@ -370,7 +695,7 @@ async function viewStudent(studentId) {
               <h4>Payment Summary</h4>
               <div style="background: var(--primary-50); padding: 1rem; border-radius: var(--radius-lg);">
                 <p><strong>Total Payments:</strong> ${payments.length}</p>
-                <p><strong>Total Amount:</strong> MYR ${totalPaid.toFixed(2)}</p>
+                <p><strong>Total Amount:</strong> RM ${totalPaid.toFixed(2)}</p>
                 <p><strong>Last Payment:</strong> ${payments[0] ? formatDate(payments[0].date, 'short') : 'N/A'}</p>
               </div>
             </div>
@@ -392,7 +717,7 @@ async function viewStudent(studentId) {
                   ${payments.map(payment => `
                     <tr>
                       <td>${formatDate(payment.date, 'short')}</td>
-                      <td><strong>MYR ${payment.amount.toFixed(2)}</strong></td>
+                      <td><strong>RM ${payment.amount.toFixed(2)}</strong></td>
                       <td><span class="badge badge-primary">${payment.method}</span></td>
                       <td>${payment.description || '-'}</td>
                     </tr>

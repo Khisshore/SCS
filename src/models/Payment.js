@@ -22,6 +22,7 @@ class PaymentModel {
       method: paymentData.method,
       reference: paymentData.reference || '',
       description: paymentData.description || '',
+      semester: paymentData.semester || null, // Semester number for grouping
       status: 'completed',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -105,10 +106,48 @@ class PaymentModel {
       payments = payments.filter(p => p.studentId === filters.studentId);
     }
 
+    // Filter by semester
+    if (filters.semester !== undefined) {
+      payments = payments.filter(p => p.semester === filters.semester);
+    }
+
     // Sort by date (newest first)
     payments.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return payments;
+  }
+
+  /**
+   * Get payments for a student grouped by semester
+   * @param {number} studentId - Student database ID
+   * @returns {Promise<object>} - Payments grouped by semester
+   */
+  async getStudentPaymentsBySemester(studentId) {
+    const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', studentId);
+    
+    const grouped = {};
+    let maxSemester = 0;
+    
+    payments.forEach(payment => {
+      const sem = payment.semester || 'unassigned';
+      if (!grouped[sem]) {
+        grouped[sem] = {
+          payments: [],
+          totalAmount: 0,
+          receipts: []
+        };
+      }
+      grouped[sem].payments.push(payment);
+      grouped[sem].totalAmount += payment.amount;
+      if (payment.reference) {
+        grouped[sem].receipts.push(payment.reference);
+      }
+      if (typeof sem === 'number' && sem > maxSemester) {
+        maxSemester = sem;
+      }
+    });
+    
+    return { grouped, maxSemester };
   }
 
   /**

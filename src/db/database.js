@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'NeoTrackrDB';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 // Object store names
 const STORES = {
@@ -13,7 +13,9 @@ const STORES = {
   PAYMENTS: 'payments',
   RECEIPTS: 'receipts',
   SETTINGS: 'settings',
-  FILE_METADATA: 'fileMetadata'
+  FILE_METADATA: 'fileMetadata',
+  STUDENT_REMARKS: 'studentRemarks',
+  PROGRAMMES: 'programmes'
 };
 
 class Database {
@@ -53,6 +55,7 @@ class Database {
           paymentStore.createIndex('studentId', 'studentId', { unique: false });
           paymentStore.createIndex('date', 'date', { unique: false });
           paymentStore.createIndex('method', 'method', { unique: false });
+          paymentStore.createIndex('semester', 'semester', { unique: false });
         }
 
         // Create Receipts store
@@ -82,6 +85,34 @@ class Database {
           fileMetadataStore.createIndex('semester', 'semester', { unique: false });
         }
 
+        // Create Student Remarks store (for spreadsheet remarks at student level)
+        if (!db.objectStoreNames.contains(STORES.STUDENT_REMARKS)) {
+          const remarksStore = db.createObjectStore(STORES.STUDENT_REMARKS, {
+            keyPath: 'id',
+            autoIncrement: true
+          });
+          remarksStore.createIndex('studentId', 'studentId', { unique: true });
+        }
+
+        // Create Programmes store
+        if (!db.objectStoreNames.contains(STORES.PROGRAMMES)) {
+          const programmeStore = db.createObjectStore(STORES.PROGRAMMES, {
+            keyPath: 'id',
+            autoIncrement: true
+          });
+          programmeStore.createIndex('course', 'course', { unique: false });
+          programmeStore.createIndex('name', 'name', { unique: true });
+        }
+
+        // Add semester index to existing payments store if upgrading
+        if (event.oldVersion < 3 && db.objectStoreNames.contains(STORES.PAYMENTS)) {
+          const transaction = event.target.transaction;
+          const paymentStore = transaction.objectStore(STORES.PAYMENTS);
+          if (!paymentStore.indexNames.contains('semester')) {
+            paymentStore.createIndex('semester', 'semester', { unique: false });
+          }
+        }
+
         console.log('✅ NeoTrackr database schema created successfully');
       };
 
@@ -106,7 +137,7 @@ class Database {
    */
   async initializeSettings() {
     const defaultSettings = [
-      { key: 'currency', value: 'MYR' },
+      { key: 'currency', value: 'RM' },
       { key: 'lastReceiptNumber', value: 0 },
       { key: 'institutionName', value: 'Education Institution' },
       { key: 'institutionAddress', value: '' },
@@ -118,6 +149,9 @@ class Database {
       const exists = await this.getSetting(setting.key);
       if (!exists) {
         await this.setSetting(setting.key, setting.value);
+      } else if (setting.key === 'currency' && exists !== 'RM') {
+        // Migration: Ensure currency is always RM
+        await this.setSetting(setting.key, 'RM');
       }
     }
   }
