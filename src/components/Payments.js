@@ -415,19 +415,20 @@ async function viewReceipt(paymentId) {
 async function printReceipt(paymentId) {
   const payment = await Payment.findById(paymentId);
   const student = await Student.findById(payment.studentId);
-  const receipt = await Receipt.getByPaymentId(paymentId);
+  const allPayments = await Payment.findByStudent(payment.studentId);
 
-  const pdf = await generateReceiptPDF(receipt, student, payment);
-  printPDF(pdf);
+  const doc = await generateReceiptPDF(student, payment, allPayments);
+  printPDF(doc);
 }
 
 async function downloadReceiptPDF(paymentId) {
   const payment = await Payment.findById(paymentId);
   const student = await Student.findById(payment.studentId);
-  const receipt = await Receipt.getByPaymentId(paymentId);
+  const allPayments = await Payment.findByStudent(payment.studentId);
 
-  const pdf = await generateReceiptPDF(receipt, student, payment);
-  downloadPDF(pdf, `Receipt-${receipt.receiptNumber}.pdf`);
+  const doc = await generateReceiptPDF(student, payment, allPayments);
+  const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}.pdf`;
+  downloadPDF(doc, filename);
 }
 
 /**

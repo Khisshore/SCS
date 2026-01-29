@@ -1,234 +1,268 @@
-/**
- * PDF GENERATOR
- * Creates PDF documents for receipts and reports using jsPDF
- */
-
 import jsPDF from 'jspdf';
-import { formatCurrency, formatDate, formatPaymentMethod } from './formatting.js';
-import { fileSystem } from '../services/fileSystem.js';
+import { Icons } from './icons.js';
+import { formatCurrency, formatDate } from './formatting.js';
 import { db } from '../db/database.js';
+import { fileSystem } from '../services/fileSystem.js';
 
 /**
- * Generate a receipt PDF
- * @param {object} receiptData - Receipt information
- * @param {object} studentData - Student information
- * @param {object} paymentData - Payment information
- * @returns {jsPDF} - PDF document
+ * PDF GENERATOR UTILITY
+ * Handles creation and download of professional receipt PDFs
  */
-export async function generateReceiptPDF(receiptData, studentData, paymentData) {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  let y = 20;
 
-  // Get institution name from settings
-  const institutionName = await db.getSetting('institutionName') || 'NeoTrackr Payment Management';
-
-  // Header - Institution Name
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PAYMENT RECEIPT', pageWidth / 2, y, { align: 'center' });
-  
-  y += 10;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(institutionName, pageWidth / 2, y, { align: 'center' });
-  
-  // Line separator
-  y += 10;
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  
-  // Receipt Details
-  y += 15;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Receipt Number: ${receiptData.receiptNumber}`, margin, y);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Date: ${formatDate(receiptData.generatedAt, 'long')}`, pageWidth - margin, y, { align: 'right' });
-  
-  // Student Information Box
-  y += 15;
-  doc.setFillColor(249, 250, 251);
-  doc.rect(margin, y, pageWidth - 2 * margin, 30, 'F');
-  
-  y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Student Information', margin + 5, y);
-  
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Name: ${studentData.name}`, margin + 5, y);
-  
-  y += 6;
-  doc.text(`Student ID: ${studentData.studentId}`, margin + 5, y);
-  
-  y += 6;
-  doc.text(`Program: ${studentData.program}`, margin + 5, y);
-  
-  // Payment Details
-  y += 15;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Payment Details', margin, y);
-  
-  y += 10;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  
-  // Payment table
-  const paymentDetails = [
-    ['Payment Date:', formatDate(paymentData.date, 'long')],
-    ['Payment Method:', formatPaymentMethod(paymentData.method)],
-    ['Reference Number:', paymentData.reference || 'N/A'],
-    ['Description:', paymentData.description || 'Payment']
-  ];
-  
-  paymentDetails.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value, margin + 50, y);
-    y += 7;
+/**
+ * Generate and download a receipt PDF for a specific payment
+ * @param {object} student - Student object
+ * @param {object} currentPayment - The payment record for this receipt
+ * @param {Array} allPayments - All student payments for balance calculations
+ */
+export async function generateReceiptPDF(student, currentPayment, allPayments) {
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4'
   });
-  
-  // Amount Box
-  y += 10;
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(1);
-  doc.rect(margin, y, pageWidth - 2 * margin, 20);
-  
-  y += 13;
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Total Amount Paid:', margin + 5, y);
-  doc.setFontSize(16);
+
   const currency = await db.getSetting('currency') || 'RM';
-  doc.text(formatCurrency(paymentData.amount, currency), pageWidth - margin - 5, y, { align: 'right' });
+  const institutionName = "Spectrum International College of Technology (TVET)";
+  const addressLine1 = "No 13G, Jalan OP 1/2, One Puchong Business Park,";
+  const addressLine2 = "Puchong, Selangor, Malaysia";
+
+  // Configuration
+  const margin = 15;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let currentY = 15;
+
+  // --- HEADER SECTION ---
   
-  // Footer
-  y = doc.internal.pageSize.getHeight() - 40;
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'italic');
-  doc.text('Thank you for your payment!', pageWidth / 2, y, { align: 'center' });
+  // Draw Logo
+  try {
+    const isTwintech = (student.program || '').toLowerCase().includes('twintech') || 
+                      (student.course || '').toLowerCase().includes('twintech');
+    const logoSrc = isTwintech ? Icons.twintech : Icons.spectrum;
+    
+    // Vite assets are URLs. jsPDF can fetch them if they are same-origin or base64.
+    doc.addImage(logoSrc, 'PNG', margin, currentY, 30, 30);
+  } catch (error) {
+    console.warn('Could not add logo to PDF:', error);
+    doc.setFontSize(10);
+    doc.text('[Logo]', margin + 10, currentY + 15);
+  }
+
+  // Institution Name & Address
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(institutionName, margin + 45, currentY + 10);
   
-  y += 10;
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth / 2 - 10, y);
-  
-  y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.text('Authorized Signature', pageWidth / 2, y, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text(addressLine1, margin + 45, currentY + 18);
+  doc.text(addressLine2, margin + 45, currentY + 24);
+
+  currentY += 40;
+
+  // --- RECEIPT INFO BAR ---
   
-  y += 8;
+  // Draw top border for info bar
+  doc.setLineWidth(0.5);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Fee receipt', margin + 2, currentY + 6);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Receipt No.: ${currentPayment.reference || 'N/A'}`, pageWidth / 2, currentY + 6, { align: 'center' });
+  
+  const paymentDate = new Date(currentPayment.date);
+  doc.text(`Date: ${formatDate(paymentDate, 'malaysian')}`, pageWidth - margin - 2, currentY + 6, { align: 'right' });
+  
+  // Draw bottom border for info bar
+  doc.line(margin, currentY + 10, pageWidth - margin, currentY + 10);
+  
+  currentY += 10;
+
+  // --- STUDENT & PROGRAM INFO ---
+  
+  doc.setFontSize(9);
+  const infoRowHeight = 6;
+  const col1X = margin + 2;
+  const col2X = margin + 45;
+  const col3X = pageWidth / 2 + 15;
+  const col4X = col3X + 45;
+
+  // Row 1
+  currentY += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Student Name', col1X, currentY);
+  doc.setFont('helvetica', 'bold');
+  
+  // Wrap student name if too long
+  const nameLines = doc.splitTextToSize((student.name || '').toUpperCase(), col3X - col2X - 5);
+  doc.text(nameLines, col2X, currentY);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text('Programme', col3X, currentY);
+  doc.setFont('helvetica', 'bold');
+  const progLines = doc.splitTextToSize(student.program || student.course || 'N/A', pageWidth - margin - col4X);
+  doc.text(progLines, col4X, currentY);
+
+  // Row 2 (Adjustment for name/prog height)
+  const row1Extra = Math.max(nameLines.length, progLines.length) * infoRowHeight;
+  currentY += row1Extra;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Intake', col1X, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(student.intake || 'N/A', col2X, currentY);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text('Admission No.', col3X, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(student.studentId || 'N/A', col4X, currentY);
+
+  currentY += infoRowHeight;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Finance fee Collection', col1X, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Tuition fees for ${student.course || 'the program'}`, col2X, currentY);
+
+  currentY += 10;
+
+  // --- PARTICULARS TABLE ---
+  
+  // Header
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  doc.line(margin, currentY + 8, pageWidth - margin, currentY + 8);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Particulars', margin + 2, currentY + 6);
+  doc.text(`Amount (${currency})`, pageWidth - margin - 2, currentY + 6, { align: 'right' });
+  
+  currentY += 8;
+
+  // Rows (registration + tuition)
+  doc.setFont('helvetica', 'normal');
+  
+  const regFee = student.registrationFee || 0;
+  const tuitionFee = (student.totalFees || 0) - regFee;
+
+  currentY += 6;
+  doc.text('1. Registration Fee', margin + 2, currentY);
+  doc.text(formatCurrencyValue(regFee), pageWidth - margin - 2, currentY, { align: 'right' });
+  
+  currentY += 6;
+  doc.text('2. Tuition Fee', margin + 2, currentY);
+  doc.text(formatCurrencyValue(tuitionFee), pageWidth - margin - 2, currentY, { align: 'right' });
+
+  // --- SUMMARY SECTION ---
+  
+  currentY += 8;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  doc.line(margin, currentY + 8, pageWidth - margin, currentY + 8);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Summary', margin + 2, currentY + 6);
+  doc.text(`Amount (${currency})`, pageWidth - margin - 2, currentY + 6, { align: 'right' });
+  
+  currentY += 8;
+  currentY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text('1. Total Fees', margin + 2, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrencyValue(student.totalFees || 0), pageWidth - margin - 2, currentY, { align: 'right' });
+
+  currentY += 10;
+
+  // --- CALCULATION FOOTER ---
+  
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  
+  const calcY = currentY + 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  
+  // Left side
+  doc.text('Payment mode', col1X, calcY);
+  doc.text(formatPaymentMethodLabel(currentPayment.method), col2X, calcY);
+  
+  doc.text('Notes', col1X, calcY + 6);
+  doc.text(currentPayment.description || '-', col2X, calcY + 6);
+
+  // Right side (Summary totals)
+  const totalAmountToPay = student.totalFees || 0;
+  
+  // Calculate previous payments (sum of all payments before THIS one)
+  const currentPaymentDate = new Date(currentPayment.date);
+  const previousPayments = allPayments
+    .filter(p => new Date(p.date) < currentPaymentDate && p.id !== currentPayment.id)
+    .reduce((sum, p) => sum + p.amount, 0);
+  
+  const totalAmountPaid = previousPayments + currentPayment.amount;
+  const totalDueAmount = totalAmountToPay - totalAmountPaid;
+
+  const rightColLabelX = pageWidth / 2 + 10;
+  const rightColValueX = pageWidth - margin - 2;
+
+  doc.text('Total amount to pay', rightColLabelX, calcY);
+  doc.text(formatCurrencyValue(totalAmountToPay), rightColValueX, calcY, { align: 'right' });
+  
+  doc.text('Previous Payments', rightColLabelX, calcY + 6);
+  doc.text(formatCurrencyValue(previousPayments), rightColValueX, calcY + 6, { align: 'right' });
+  
+  doc.text('Total amount paid', rightColLabelX, calcY + 12);
+  doc.text(formatCurrencyValue(totalAmountPaid), rightColValueX, calcY + 12, { align: 'right' });
+  
+  doc.text('Total due amount', rightColLabelX, calcY + 18);
+  doc.text(formatCurrencyValue(totalDueAmount), rightColValueX, calcY + 18, { align: 'right' });
+
+  currentY += 30;
+
+  // --- FINAL HIGHLIGHT ---
+  
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, currentY, pageWidth - (margin * 2), 10, 'F');
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  doc.line(margin, currentY + 10, pageWidth - margin, currentY + 10);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Amount paid', pageWidth - margin - 60, currentY + 7);
+  doc.text(formatCurrencyValue(currentPayment.amount), pageWidth - margin - 2, currentY + 7, { align: 'right' });
+
+  // Border boxes for the whole thing (to match mockup)
+  doc.setLineWidth(0.2);
+  doc.rect(margin, 55, pageWidth - (margin * 2), currentY + 10 - 55);
+
+  currentY += 18;
+
+  // --- FOOTER NOTE ---
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text('This is a computer-generated receipt and does not require a physical signature.', pageWidth / 2, y, { align: 'center' });
-  
+  doc.text('Thank you for your payment. This is a computer-generated receipt. All payment made is NON-REFUNDABLE.', margin, currentY);
+
   // Save to file system if running in desktop app
-  if (fileSystem.isDesktopApp() && studentData.program && studentData.name) {
+  if (fileSystem.isDesktopApp()) {
     try {
       const pdfData = doc.output('arraybuffer');
-      const fileName = `Receipt-${receiptData.receiptNumber}`;
-      const semester = paymentData.semester || 'Semester 1'; // Default to Semester 1 if not specified
+      const baseFilename = `Receipt_${currentPayment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
+      const semesterLabel = currentPayment.semester ? `Semester ${currentPayment.semester}` : 'General';
       
       await fileSystem.savePDF(
-        studentData.program,
-        studentData.name,
-        semester,
-        fileName,
+        student.course || 'Other',
+        student.name,
+        semesterLabel,
+        baseFilename,
         pdfData
       );
-      
-      console.log('✅ Receipt saved to file system');
     } catch (error) {
       console.error('❌ Failed to save receipt to file system:', error);
-      // Don't throw error - PDF generation should still succeed even if file save fails
     }
   }
-  
-  return doc;
-}
 
-/**
- * Generate monthly report PDF
- * @param {object} reportData - Report data
- * @returns {jsPDF} - PDF document
- */
-export async function generateMonthlyReportPDF(reportData) {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  let y = 20;
-
-  // Header
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Monthly Financial Statement', pageWidth / 2, y, { align: 'center' });
-  
-  y += 10;
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${reportData.monthName} ${reportData.year}`, pageWidth / 2, y, { align: 'center' });
-  
-  // Line separator
-  y += 10;
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  
-  // Summary Statistics
-  y += 15;
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Summary', margin, y);
-  
-  y += 10;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  
-  const currency = await db.getSetting('currency') || 'RM';
-  const summaryItems = [
-    ['Total Payments:', `${reportData.statistics.totalPayments}`],
-    ['Total Amount:', formatCurrency(reportData.statistics.totalAmount, currency)],
-    ['Average Payment:', formatCurrency(reportData.statistics.totalAmount / reportData.statistics.totalPayments || 0, currency)]
-  ];
-  
-  summaryItems.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold');
-    doc.text(label, margin, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value, margin + 60, y);
-    y += 7;
-  });
-  
-  // Payment Methods Breakdown
-  y += 10;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Payment Methods Breakdown', margin, y);
-  
-  y += 10;
-  doc.setFontSize(10);
-  
-  Object.entries(reportData.statistics.byMethod).forEach(([method, data]) => {
-    if (data.count > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${formatPaymentMethod(method)}:`, margin + 5, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`${data.count} payment(s) - ${formatCurrency(data.amount, currency)}`, margin + 60, y);
-      y += 7;
-    }
-  });
-  
-  // Footer
-  const footerY = doc.internal.pageSize.getHeight() - 20;
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generated on ${formatDate(new Date(), 'long')}`, pageWidth / 2, footerY, { align: 'center' });
-  
   return doc;
 }
 
@@ -242,10 +276,60 @@ export function downloadPDF(doc, filename) {
 }
 
 /**
- * Print PDF
+ * Preview PDF in a new tab without auto-printing
+ * @param {jsPDF} doc - PDF document
+ * @param {string} title - Optional title for the preview window
+ */
+export function previewPDF(doc, title) {
+  if (title) {
+    doc.setProperties({
+      title: title
+    });
+  }
+  const blobUrl = doc.output('bloburl');
+  window.open(blobUrl, '_blank');
+}
+
+/**
+ * Print PDF - Triggers print dialog
  * @param {jsPDF} doc - PDF document
  */
 export function printPDF(doc) {
   doc.autoPrint();
-  window.open(doc.output('bloburl'), '_blank');
+  const blobUrl = doc.output('bloburl');
+  window.open(blobUrl, '_blank');
+}
+
+/**
+ * Placeholder for report generation if needed later
+ */
+export async function generateMonthlyReportPDF(reportData) {
+    const doc = new jsPDF();
+    doc.text('Monthly Report - ' + reportData.monthName, 20, 20);
+    return doc;
+}
+
+/**
+ * Helper to format amount for PDF without the currency symbol (added separately in headers)
+ */
+function formatCurrencyValue(amount) {
+  return (parseFloat(amount) || 0).toLocaleString('en-MY', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+/**
+ * Helper to match mockup method labels
+ */
+function formatPaymentMethodLabel(method) {
+  const methods = {
+    'cash': 'Cash',
+    'card': 'Credit Card',
+    'bank_transfer': 'Bank Transfer',
+    'online': 'Online Payment',
+    'other': 'Online Payment', 
+    'online_payment': 'Online Payment'
+  };
+  return methods[method] || 'Online Payment';
 }

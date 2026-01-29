@@ -11,6 +11,7 @@ import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
 import { showPaymentForm } from './Payments.js';
+import { generateReceiptPDF, previewPDF } from '../utils/pdfGenerator.js';
 
 // Available courses (removed 'Other')
 const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
@@ -1269,11 +1270,15 @@ export async function renderSpreadsheet() {
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .btn-inline-save:hover {
-        background: var(--success-700);
+        background: var(--success-500);
         transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
       }
 
       .btn-inline-cancel {
@@ -1288,7 +1293,9 @@ export async function renderSpreadsheet() {
       }
 
       .btn-inline-cancel:hover {
-        background: var(--gray-50);
+        background: var(--surface-hover);
+        border-color: var(--text-tertiary);
+        color: var(--text-primary);
       }
 
       .modal-footer {
@@ -1523,6 +1530,48 @@ function setupEventListeners() {
       await openStudentDetailModal(student);
     }
   });
+
+  // Global receipt download trigger
+  window.downloadReceipt = async (studentId, paymentId) => {
+    try {
+      const student = await Student.findById(studentId);
+      const payment = await Payment.findById(paymentId);
+      const allPayments = await Payment.findByStudent(studentId);
+      
+      if (!student || !payment) {
+        alert('Error: Could not find student or payment data.');
+        return;
+      }
+      
+      const doc = await generateReceiptPDF(student, payment, allPayments);
+      const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}.pdf`;
+      doc.save(filename);
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      alert('Failed to generate receipt. Please try again.');
+    }
+  };
+
+  // Global receipt preview trigger
+  window.previewReceipt = async (studentId, paymentId) => {
+    try {
+      const student = await Student.findById(studentId);
+      const payment = await Payment.findById(paymentId);
+      const allPayments = await Payment.findByStudent(studentId);
+      
+      if (!student || !payment) {
+        alert('Error: Could not find student or payment data.');
+        return;
+      }
+      
+      const doc = await generateReceiptPDF(student, payment, allPayments);
+      const title = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
+      previewPDF(doc, title);
+    } catch (error) {
+      console.error('Error previewing receipt:', error);
+      alert('Failed to preview receipt. Please try again.');
+    }
+  };
 }
 
 /**
@@ -1624,7 +1673,7 @@ async function openStudentDetailModal(student) {
                   <th>Date</th>
                   <th>Amount Paid</th>
                   <th>Method</th>
-                  <th>Invoice / Receipt</th>
+                  <th>Receipt</th>
                   <th style="text-align: right;">Actions</th>
                 </tr>
               </thead>
@@ -1636,7 +1685,7 @@ async function openStudentDetailModal(student) {
                     <td>${formatPaymentMethod(payment.method)}</td>
                     <td>
                       ${payment.reference ? `
-                        <a href="#" class="receipt-link">
+                        <a href="#" class="receipt-link" onclick="window.previewReceipt(${student.id}, ${payment.id}); return false;">
                           <span class="icon">${Icons.file}</span>
                           ${payment.reference}
                         </a>
@@ -1644,11 +1693,14 @@ async function openStudentDetailModal(student) {
                     </td>
                     <td>
                       <div class="payment-actions">
-                        <button class="payment-action-btn" title="View Details">
-                          <span class="icon">${Icons.eye}</span>
-                        </button>
-                        <button class="payment-action-btn" title="Download">
+                        <button class="payment-action-btn" title="Download" onclick="window.downloadReceipt(${student.id}, ${payment.id})">
                           <span class="icon">${Icons.download}</span>
+                        </button>
+                        <button class="payment-action-btn" title="Edit" onclick="window.editPaymentEntry(${student.id}, ${sem}, ${payment.id})">
+                          <span class="icon">${Icons.edit}</span>
+                        </button>
+                        <button class="payment-action-btn" title="Delete" onclick="window.deletePaymentEntry(${student.id}, ${payment.id})" style="color: var(--danger-color);">
+                          <span class="icon">${Icons.trash}</span>
                         </button>
                       </div>
                     </td>
@@ -1790,11 +1842,9 @@ window.addPaymentEntry = function(studentId, semester) {
   const emptyState = container.querySelector('.empty-semester');
   if (emptyState) {
     emptyState.style.display = 'none';
-    container.innerHTML += formHTML;
-  } else {
-    // If table exists, prepend/append
-    container.innerHTML += formHTML;
   }
+  
+  container.insertAdjacentHTML('beforeend', formHTML);
 };
 
 /**
@@ -1854,6 +1904,144 @@ window.cancelInlinePayment = function(semester) {
   const emptyState = container.querySelector('.empty-semester');
   if (emptyState) {
     emptyState.style.display = 'block';
+  }
+};
+
+/**
+ * Edit payment entry - Renders inline form with existing data
+ */
+window.editPaymentEntry = async function(studentId, semester, paymentId) {
+  const container = document.querySelector(`.semester-group:nth-child(${semester}) .semester-card`);
+  
+  // If already open, ignore
+  if (container.querySelector('.inline-payment-form')) return;
+
+  const payment = await Payment.findById(paymentId);
+  if (!payment) {
+    alert('Payment not found.');
+    return;
+  }
+
+  const paymentDate = new Date(payment.date).toISOString().split('T')[0];
+
+  const formHTML = `
+    <div class="inline-payment-form" id="inlineForm-${semester}">
+      <h5 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 700;">Edit Payment - Semester ${semester}</h5>
+      
+      <div class="inline-form-grid">
+        <div class="inline-form-group">
+          <label class="inline-form-label">Amount (RM)</label>
+          <input type="number" id="inlineAmount-${semester}" class="inline-form-input" value="${payment.amount}" step="0.01" required />
+        </div>
+        <div class="inline-form-group">
+          <label class="inline-form-label">Date</label>
+          <input type="date" id="inlineDate-${semester}" class="inline-form-input" value="${paymentDate}" required />
+        </div>
+      </div>
+
+      <div class="inline-form-grid">
+        <div class="inline-form-group">
+          <label class="inline-form-label">Method</label>
+          <select id="inlineMethod-${semester}" class="inline-form-select">
+            <option value="cash" ${payment.method === 'cash' ? 'selected' : ''}>Cash</option>
+            <option value="card" ${payment.method === 'card' ? 'selected' : ''}>Credit Card</option>
+            <option value="bank_transfer" ${payment.method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
+            <option value="online" ${payment.method === 'online' ? 'selected' : ''}>Online Payment</option>
+            <option value="other" ${payment.method === 'other' ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div class="inline-form-group">
+          <label class="inline-form-label">Reference (Optional)</label>
+          <input type="text" id="inlineRef-${semester}" class="inline-form-input" value="${payment.reference || ''}" placeholder="Ref #" />
+        </div>
+      </div>
+
+      <div class="inline-form-group">
+        <label class="inline-form-label">Description</label>
+        <input type="text" id="inlineDesc-${semester}" class="inline-form-input" value="${payment.description || ''}" placeholder="Payment description" />
+      </div>
+
+      <div class="inline-form-actions">
+        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel</button>
+        <button class="btn-inline-save" onclick="window.updateInlinePayment(${studentId}, ${paymentId}, ${semester})">
+          <span class="icon" style="margin-right: 0.5rem; font-size: 0.875rem;">${Icons.check}</span>
+          Update Payment
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', formHTML);
+};
+
+/**
+ * Update inline payment
+ */
+window.updateInlinePayment = async function(studentId, paymentId, semester) {
+  const amountInput = document.getElementById(`inlineAmount-${semester}`);
+  const dateInput = document.getElementById(`inlineDate-${semester}`);
+  const methodInput = document.getElementById(`inlineMethod-${semester}`);
+  const referenceInput = document.getElementById(`inlineRef-${semester}`);
+  const descriptionInput = document.getElementById(`inlineDesc-${semester}`);
+
+  if (!amountInput) return;
+
+  const amount = amountInput.value;
+  const date = dateInput.value;
+  const method = methodInput.value;
+  const reference = referenceInput.value;
+  const description = descriptionInput.value;
+
+  if (!amount || parseFloat(amount) <= 0) {
+    alert('Please enter a valid amount.');
+    return;
+  }
+
+  try {
+    const updates = {
+      amount: parseFloat(amount),
+      date: new Date(date).toISOString(),
+      method: method,
+      reference: reference.trim(),
+      description: description.trim()
+    };
+
+    await Payment.update(paymentId, updates);
+    
+    // Refresh modal
+    const student = await Student.findById(studentId);
+    await openStudentDetailModal(student);
+    
+    // Also refresh the main spreadsheet behind it
+    await loadSpreadsheetData();
+    
+    alert('Payment updated successfully!');
+  } catch (error) {
+    console.error('Error updating inline payment:', error);
+    alert('Failed to update payment. Please try again.');
+  }
+};
+
+/**
+ * Delete payment entry
+ */
+window.deletePaymentEntry = async function(studentId, paymentId) {
+  if (confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
+    try {
+      await Payment.delete(paymentId);
+      
+      // Refresh modal
+      const student = await Student.findById(studentId);
+      await openStudentDetailModal(student);
+      
+      // Also refresh the main spreadsheet behind it
+      await loadSpreadsheetData();
+      
+      alert('Payment record deleted.');
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      alert('Failed to delete payment. Please try again.');
+    }
   }
 };
 
