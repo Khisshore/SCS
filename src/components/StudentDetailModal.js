@@ -1081,7 +1081,7 @@ async function saveInlinePayment(studentId, semester) {
     alert('Payment recorded successfully!');
   } catch (error) {
     console.error('Error saving inline payment:', error);
-    alert('Failed to save payment. Please try again.');
+    alert(error.message || 'Failed to save payment. Please try again.');
   }
 }
 
@@ -1219,7 +1219,7 @@ async function updateInlinePayment(studentId, paymentId, semester) {
     alert('Payment updated successfully!');
   } catch (error) {
     console.error('Error updating inline payment:', error);
-    alert('Failed to update payment. Please try again.');
+    alert(error.message || 'Failed to update payment. Please try again.');
   }
 }
 
@@ -1396,7 +1396,7 @@ async function saveFeeUpdate(studentId, type) {
     await openStudentDetailModal(updatedStudent);
   } catch (error) {
     console.error('Error saving fee update:', error);
-    alert('Failed to save update.');
+    alert(error.message || 'Failed to save update.');
   }
 }
 

@@ -4,6 +4,7 @@
  */
 
 import { db, STORES } from '../db/database.js';
+import { validateStudentId, validateEmail, validatePhone, validateAmount } from '../utils/validators.js';
 
 class StudentModel {
   /**
@@ -200,9 +201,8 @@ class StudentModel {
    * @param {object} data - Student data to validate
    */
   validate(data) {
-    if (!data.studentId || data.studentId.trim() === '') {
-      throw new Error('Student ID is required');
-    }
+    // Basic fields
+    validateStudentId(data.studentId);
 
     if (!data.name || data.name.trim() === '') {
       throw new Error('Student name is required');
@@ -212,13 +212,16 @@ class StudentModel {
       throw new Error('Program/Course is required');
     }
 
-    // Email validation (if provided)
-    if (data.email && data.email.trim() !== '') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(data.email)) {
-        throw new Error('Invalid email format');
-      }
-    }
+    // Contact info
+    validateEmail(data.email);
+    validatePhone(data.phone);
+
+    // Financial fields (optional but must be valid if present)
+    // We allow zero for fees/costs
+    if (data.totalFees !== undefined && data.totalFees !== '') validateAmount(data.totalFees, true);
+    if (data.institutionalCost !== undefined && data.institutionalCost !== '') validateAmount(data.institutionalCost, true);
+    if (data.registrationFee !== undefined && data.registrationFee !== '') validateAmount(data.registrationFee, true);
+    if (data.commission !== undefined && data.commission !== '') validateAmount(data.commission, true);
   }
 
   /**
