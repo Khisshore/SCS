@@ -253,6 +253,7 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
       
       await fileSystem.savePDF(
         student.course || 'Other',
+        student.program || 'General',
         student.name,
         semesterLabel,
         baseFilename,
@@ -260,6 +261,168 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
       );
     } catch (error) {
       console.error('❌ Failed to save receipt to file system:', error);
+    }
+  }
+
+  return doc;
+}
+
+/**
+ * Generate and download a receipt PDF for Fee (Registration/Commission)
+ * @param {object} student - Student object
+ * @param {string} feeType - 'Registration Fee' or 'Commission Fee'
+ * @param {number} amount - Amount paid
+ * @param {string} receiptNo - Receipt number
+ * @param {string} paidTo - Optional 'Paid To' info for commission
+ */
+export async function generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo = null) {
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const currency = await db.getSetting('currency') || 'RM';
+  const institutionName = "Spectrum International College of Technology (TVET)";
+  const addressLine1 = "No 13G, Jalan OP 1/2, One Puchong Business Park,";
+  const addressLine2 = "Puchong, Selangor, Malaysia";
+
+  // Configuration
+  const margin = 15;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let currentY = 15;
+
+  // --- HEADER SECTION ---
+  try {
+    const isTwintech = (student.program || '').toLowerCase().includes('twintech') || 
+                      (student.course || '').toLowerCase().includes('twintech');
+    const logoSrc = isTwintech ? Icons.twintech : Icons.spectrum;
+    doc.addImage(logoSrc, 'PNG', margin, currentY, 30, 30);
+  } catch (error) {
+    console.warn('Could not add logo to PDF:', error);
+    doc.setFontSize(10);
+    doc.text('[Logo]', margin + 10, currentY + 15);
+  }
+
+  // Institution Name & Address
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(institutionName, margin + 45, currentY + 10);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(addressLine1, margin + 45, currentY + 18);
+  doc.text(addressLine2, margin + 45, currentY + 24);
+
+  currentY += 40;
+
+  // --- RECEIPT INFO BAR ---
+  doc.setLineWidth(0.5);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(`${feeType} Receipt`, margin + 2, currentY + 6);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Receipt No.: ${receiptNo || 'N/A'}`, pageWidth / 2, currentY + 6, { align: 'center' });
+  
+  // Use today's date since we don't store fee payment date
+  const today = new Date();
+  doc.text(`Date: ${formatDate(today, 'malaysian')}`, pageWidth - margin - 2, currentY + 6, { align: 'right' });
+  
+  doc.line(margin, currentY + 10, pageWidth - margin, currentY + 10);
+  currentY += 10;
+
+  // --- STUDENT INFO ---
+  // Reuse similar layout to semester receipt but simplified
+  doc.setFontSize(9);
+  const col1X = margin + 2;
+  const col2X = margin + 45;
+  
+  currentY += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Student Name', col1X, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text((student.name || '').toUpperCase(), col2X, currentY);
+  
+  currentY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Programme', col1X, currentY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(student.program || student.course || 'N/A', col2X, currentY);
+
+  if (paidTo) {
+    currentY += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Paid To', col1X, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(paidTo, col2X, currentY);
+  }
+
+  currentY += 10;
+
+  // --- PARTICULARS TABLE ---
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  doc.line(margin, currentY + 8, pageWidth - margin, currentY + 8);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Particulars', margin + 2, currentY + 6);
+  doc.text(`Amount (${currency})`, pageWidth - margin - 2, currentY + 6, { align: 'right' });
+  
+  currentY += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`1. ${feeType}`, margin + 2, currentY);
+  doc.text(formatCurrencyValue(amount), pageWidth - margin - 2, currentY, { align: 'right' });
+
+  // --- TOTAL ---
+  currentY += 10;
+  doc.setLineWidth(0.2);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  
+  currentY += 10;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margin, currentY, pageWidth - (margin * 2), 10, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Total Paid', pageWidth - margin - 60, currentY + 7);
+  doc.text(formatCurrencyValue(amount), pageWidth - margin - 2, currentY + 7, { align: 'right' });
+
+  // Border
+  doc.rect(margin, 55, pageWidth - (margin * 2), currentY + 10 - 55);
+
+  currentY += 18;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('Thank you for your payment. This is a computer-generated receipt.', margin, currentY);
+
+  // Save to file system
+  if (fileSystem.isDesktopApp()) {
+    try {
+      const pdfData = doc.output('arraybuffer');
+      const baseFilename = `${feeType.replace(/\s+/g, '_')}_Receipt_${student.name.replace(/\s+/g, '_')}`;
+      
+      // Pass null for semester to save in student root folder
+      const result = await fileSystem.savePDF(
+        student.course || 'Other',
+        student.program || 'General',
+        student.name,
+        null, // No semester folder for fees
+        baseFilename,
+        pdfData
+      );
+
+      if (result.success) {
+        // Notify user of success and location
+        setTimeout(() => alert(`✅ Receipt saved to:\n${result.path}`), 100);
+      } else {
+        alert(`❌ Failed to save receipt: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save fee receipt to file system:', error);
+      alert(`❌ Error saving receipt: ${error.message}`);
     }
   }
 

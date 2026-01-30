@@ -59,9 +59,9 @@
   --surface-elevated: #21262D;
   --surface-hover: #2D333B;
   
-  --text-primary: #C9D1D9;
-  --text-secondary: #8B949E;
-  --text-tertiary: #6E7681;
+  --text-primary: #F0F6FC;
+  --text-secondary: #B1BAC4;
+  --text-tertiary: #8B949E;
   --text-inverse: #0D1117;
   
   --border-color: #30363D;
@@ -807,21 +807,51 @@ p {
   color: var(--danger-600);
 }
 
+/* Dark Mode Badge Overrides */
+[data-theme="dark"] .badge-primary {
+  background: rgba(88, 166, 255, 0.15);
+  color: #58A6FF;
+  border: 1px solid rgba(88, 166, 255, 0.2);
+}
+
+[data-theme="dark"] .badge-success {
+  background: rgba(63, 185, 80, 0.15);
+  color: #3FB950;
+  border: 1px solid rgba(63, 185, 80, 0.2);
+}
+
+[data-theme="dark"] .badge-warning {
+  background: rgba(224, 155, 19, 0.15);
+  color: #E09B13;
+  border: 1px solid rgba(224, 155, 19, 0.2);
+}
+
+[data-theme="dark"] .badge-danger {
+  background: rgba(248, 81, 73, 0.15);
+  color: #F85149;
+  border: 1px solid rgba(248, 81, 73, 0.2);
+}
+
+[data-theme="dark"] .badge-secondary {
+  background: rgba(139, 148, 158, 0.15);
+  color: #B1BAC4;
+  border: 1px solid rgba(139, 148, 158, 0.2);
+}
+
 /* Modal */
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: var(--z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--space-xl);
   opacity: 0;
-  animation: fadeIn var(--transition-base) forwards;
+  animation: fadeIn 0.3s ease-out forwards;
 }
 
 @keyframes fadeIn {
@@ -832,17 +862,21 @@ p {
   background: var(--surface);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-2xl);
+  width: 100%;
   max-width: 600px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  transform: scale(0.9);
-  animation: modalAppear var(--transition-spring) forwards;
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(20px);
+  opacity: 0;
+  animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes modalAppear {
   to {
-    transform: scale(1);
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
@@ -877,6 +911,8 @@ p {
 
 .modal-body {
   padding: var(--space-xl);
+  overflow-y: auto;
+  flex: 1;
 }
 
 .modal-footer {

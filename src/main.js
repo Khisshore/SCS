@@ -9,7 +9,8 @@ import { db } from './db/database.js';
 import { Icons } from './utils/icons.js';
 import { renderDashboard } from './components/Dashboard.js';
 import { renderStudents } from './components/Students.js';
-import { renderPayments } from './components/Payments.js';
+
+import { renderReports } from './components/Reports.js';
 import { renderSpreadsheet } from './components/Spreadsheet.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
 import { createThemeToggle, initTheme, setupThemeToggle } from './components/ThemeToggle.js';
@@ -159,9 +160,6 @@ async function navigateToPage(page) {
         await renderStudents();
         break;
       
-      case 'payments':
-        await renderPayments();
-        break;
       
       case 'reports':
         await renderReports();
@@ -273,141 +271,7 @@ function showError(message) {
 /**
  * Render Reports page (placeholder)
  */
-async function renderReports() {
-  const container = document.getElementById('app-content');
-  const { Payment } = await import('./models/Payment.js');
-  const { formatCurrency, formatDate, getMonthName } = await import('./utils/formatting.js');
-  
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth() + 1;
-  
-  container.innerHTML = `
-    <div style="animation: fadeIn 0.5s ease-in-out;">
-      <h1 class="mb-xl">Financial Reports</h1>
 
-      <div class="card mb-xl">
-        <div class="card-header">
-          <h3 class="card-title">Generate Monthly Report</h3>
-        </div>
-        <div class="card-body">
-          <div class="grid grid-3 gap-md">
-            <div class="form-group">
-              <label class="form-label">Year</label>
-              <input type="number" id="reportYear" class="form-input" value="${currentYear}" min="2020" max="2050" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Month</label>
-              <select id="reportMonth" class="form-select">
-                ${Array.from({ length: 12 }, (_, i) => `
-                  <option value="${i + 1}" ${i + 1 === currentMonth ? 'selected' : ''}>
-                    ${getMonthName(i + 1)}
-                  </option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">&nbsp;</label>
-              <button class="btn btn-primary" id="generateReportBtn" style="width: 100%;">
-                <span class="icon">${Icons.chartBar}</span>
-                Generate Report
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="reportResults"></div>
-    </div>
-
-    <style>
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    </style>
-  `;
-
-  document.getElementById('generateReportBtn').addEventListener('click', async () => {
-    const year = parseInt(document.getElementById('reportYear').value);
-    const month = parseInt(document.getElementById('reportMonth').value);
-    
-    showLoading(true);
-    
-    const startDate = new Date(year, month - 1, 1).toISOString();
-    const endDate = new Date(year, month, 0).toISOString();
-    
-    const payments = await Payment.findByDateRange(startDate, endDate);
-    const stats = await Payment.getStatistics({ startDate, endDate });
-    const currency = await db.getSetting('currency') || 'RM';
-    
-    const resultsContainer = document.getElementById('reportResults');
-    resultsContainer.innerHTML = `
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Monthly Report - ${getMonthName(month)} ${year}</h3>
-          <span class="badge badge-success">${stats.totalPayments} payments</span>
-        </div>
-        <div class="card-body">
-          <div class="grid grid-3 gap-lg mb-xl">
-            <div style="text-align: center; padding: 2rem; background: var(--primary-50); border-radius: var(--radius-lg);">
-              <div style="font-size: var(--font-size-3xl); font-weight: 800; color: var(--primary-600);">
-                ${formatCurrency(stats.totalAmount, currency)}
-              </div>
-              <div style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-top: 0.5rem;">
-                Total Revenue
-              </div>
-            </div>
-            <div style="text-align: center; padding: 2rem; background: var(--success-50); border-radius: var(--radius-lg);">
-              <div style="font-size: var(--font-size-3xl); font-weight: 800; color: var(--success-600);">
-                ${stats.totalPayments}
-              </div>
-              <div style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-top: 0.5rem;">
-                Total Transactions
-              </div>
-            </div>
-            <div style="text-align: center; padding: 2rem; background: var(--warning-50); border-radius: var(--radius-lg);">
-              <div style="font-size: var(--font-size-3xl); font-weight: 800; color: var(--warning-600);">
-                ${formatCurrency(stats.totalAmount / stats.totalPayments || 0, currency)}
-              </div>
-              <div style="font-size: var(--font-size-sm); color: var(--text-secondary); margin-top: 0.5rem;">
-                Average Payment
-              </div>
-            </div>
-          </div>
-
-          <h4>Payment Methods Breakdown</h4>
-          <div class="table-container">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Payment Method</th>
-                  <th>Count</th>
-                  <th>Total Amount</th>
-                  <th>Percentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${Object.entries(stats.byMethod)
-                  .filter(([_, data]) => data.count > 0)
-                  .map(([method, data]) => `
-                    <tr>
-                      <td><span class="badge badge-primary">${method.replace('_', ' ').toUpperCase()}</span></td>
-                      <td>${data.count}</td>
-                      <td><strong>${formatCurrency(data.amount, currency)}</strong></td>
-                      <td>${((data.amount / stats.totalAmount) * 100).toFixed(1)}%</td>
-                    </tr>
-                  `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    showLoading(false);
-  });
-}
 
 /**
  * Render Settings page (placeholder)

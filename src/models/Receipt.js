@@ -49,19 +49,20 @@ class ReceiptModel {
 
   /**
    * Get next receipt number (sequential)
+   * @param {string} prefix - Optional prefix for the receipt (default: RCP)
    * @returns {Promise<string>} - Next receipt number
    */
-  async getNextReceiptNumber() {
+  async getNextReceiptNumber(prefix = 'RCP') {
     const lastNumber = await db.getSetting('lastReceiptNumber') || 0;
     const nextNumber = lastNumber + 1;
     
     // Update the setting
     await db.setSetting('lastReceiptNumber', nextNumber);
     
-    // Format: RCP-2026-00001
+    // Format: PREFIX-2026-00001
     const year = new Date().getFullYear();
     const paddedNumber = String(nextNumber).padStart(5, '0');
-    return `RCP-${year}-${paddedNumber}`;
+    return `${prefix}-${year}-${paddedNumber}`;
   }
 
   /**

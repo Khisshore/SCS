@@ -10,8 +10,8 @@ import { StudentRemarks } from '../models/StudentRemarks.js';
 import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
-import { showPaymentForm } from './Payments.js';
-import { generateReceiptPDF, previewPDF } from '../utils/pdfGenerator.js';
+import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/pdfGenerator.js';
+import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
 
 // Available courses (removed 'Other')
 const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
@@ -92,47 +92,6 @@ export async function renderSpreadsheet() {
 
       <!-- Summary Cards -->
       <div id="summaryCards"></div>
-
-      <!-- Student Detail Modal -->
-      <div id="studentDetailModal" class="student-modal" style="display: none;">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <div class="modal-header-info">
-              <div class="modal-student-title">
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <h2 id="modalStudentName"></h2>
-                  <span class="status-badge" id="modalStudentStatus">ACTIVE</span>
-                </div>
-                <p class="modal-student-meta" id="modalStudentMeta"></p>
-              </div>
-            </div>
-            <button class="modal-close-btn" id="modalCloseBtn">
-              <span class="icon">${Icons.close}</span>
-            </button>
-          </div>
-
-          <div class="modal-body">
-            <div class="modal-info-grid" id="modalInfoGrid"></div>
-            
-            <div id="modalPaymentBreakdown"></div>
-          </div>
-
-          <div class="modal-footer">
-            <div class="modal-totals">
-              <div>
-                <div class="modal-total-label">Total Amount Paid</div>
-                <div class="modal-total-value paid" id="modalTotalPaid">RM 0.00</div>
-              </div>
-              <div class="modal-divider"></div>
-              <div>
-                <div class="modal-total-label">Remaining Balance</div>
-                <div class="modal-total-value balance" id="modalRemainingBalance">RM 0.00</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <style>
@@ -824,7 +783,7 @@ export async function renderSpreadsheet() {
       .student-modal {
         position: fixed;
         inset: 0;
-        z-index: 1000;
+        z-index: var(--z-modal);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -837,12 +796,12 @@ export async function renderSpreadsheet() {
         inset: 0;
         background: rgba(15, 23, 42, 0.4);
         backdrop-filter: blur(4px);
-        z-index: 1;
+        z-index: var(--z-modal-backdrop);
       }
 
       .modal-content {
         position: relative;
-        z-index: 10;
+        z-index: var(--z-modal);
         width: 100%;
         max-width: 72rem;
         max-height: 90vh;
@@ -1385,8 +1344,59 @@ export async function renderSpreadsheet() {
         }
       }
 
+
+      .btn-icon-xs {
+        width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        color: var(--text-tertiary);
+        background: var(--surface);
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 0;
+      }
+
+      .btn-icon-xs:hover {
+        background: var(--primary-50);
+        color: var(--primary-600);
+        border-color: var(--primary-200);
+      }
+
+      .btn-icon-xs svg {
+        width: 0.875rem;
+        height: 0.875rem;
+      }
+
+      .gap-xs {
+        gap: 0.25rem;
+      }
+
+      .fee-edit-form .form-group label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+      }
+
+      .fee-edit-form .form-input {
+        width: 100%;
+        padding: 0.375rem 0.625rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--background-primary);
+        font-size: 0.875rem;
+      }
     </style>
   `;
+
+  // Initialize shared modal
+  initStudentDetailModal();
 
   // Setup event listeners
   setupEventListeners();
@@ -1485,31 +1495,10 @@ function setupEventListeners() {
     await loadSpreadsheetData();
   };
 
-  // Student Detail Modal Event Listeners
-  const modal = document.getElementById('studentDetailModal');
-  const modalCloseBtn = document.getElementById('modalCloseBtn');
-  const modalCloseFooterBtn = document.getElementById('modalCloseFooterBtn');
-  const modalBackdrop = modal?.querySelector('.modal-backdrop');
-
-  // Close modal function
-  const closeModal = () => {
-    if (modal) {
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-    }
+  // Student Detail Modal Close Event
+  window.onStudentModalClose = async () => {
+    await loadSpreadsheetData();
   };
-
-  // Close button clicks
-  modalCloseBtn?.addEventListener('click', closeModal);
-  modalCloseFooterBtn?.addEventListener('click', closeModal);
-  modalBackdrop?.addEventListener('click', closeModal);
-
-  // ESC key to close
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal?.style.display !== 'none') {
-      closeModal();
-    }
-  });
 
   // Student row click handler (Event Delegation)
   document.getElementById('tableContainer')?.addEventListener('click', async (e) => {
@@ -1530,534 +1519,8 @@ function setupEventListeners() {
       await openStudentDetailModal(student);
     }
   });
-
-  // Global receipt download trigger
-  window.downloadReceipt = async (studentId, paymentId) => {
-    try {
-      const student = await Student.findById(studentId);
-      const payment = await Payment.findById(paymentId);
-      const allPayments = await Payment.findByStudent(studentId);
-      
-      if (!student || !payment) {
-        alert('Error: Could not find student or payment data.');
-        return;
-      }
-      
-      const doc = await generateReceiptPDF(student, payment, allPayments);
-      const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}.pdf`;
-      doc.save(filename);
-    } catch (error) {
-      console.error('Error generating receipt:', error);
-      alert('Failed to generate receipt. Please try again.');
-    }
-  };
-
-  // Global receipt preview trigger
-  window.previewReceipt = async (studentId, paymentId) => {
-    try {
-      const student = await Student.findById(studentId);
-      const payment = await Payment.findById(paymentId);
-      const allPayments = await Payment.findByStudent(studentId);
-      
-      if (!student || !payment) {
-        alert('Error: Could not find student or payment data.');
-        return;
-      }
-      
-      const doc = await generateReceiptPDF(student, payment, allPayments);
-      const title = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
-      previewPDF(doc, title);
-    } catch (error) {
-      console.error('Error previewing receipt:', error);
-      alert('Failed to preview receipt. Please try again.');
-    }
-  };
 }
 
-/**
- * Open student detail modal with payment breakdown
- */
-async function openStudentDetailModal(student) {
-  const modal = document.getElementById('studentDetailModal');
-  if (!modal) return;
-
-  // Get currency
-  const currency = await db.getSetting('currency') || 'RM';
-
-  // Get student payments
-  const payments = await Payment.findByStudent(student.id);
-  const { grouped: paymentsBySemester, maxSemester } = await Payment.getStudentPaymentsBySemester(student.id);
-
-  // Calculate totals
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-  const balance = (student.totalFees || 0) - totalPaid;
-
-  // Populate header
-  document.getElementById('modalStudentName').textContent = student.name;
-  document.getElementById('modalStudentMeta').textContent = 
-    `${student.course || 'Course'} • ${student.program || 'Program'}`;
-
-  // Populate info grid
-  const infoGrid = document.getElementById('modalInfoGrid');
-  infoGrid.innerHTML = `
-    <div class="modal-info-item">
-      <div class="modal-info-label">Intake Period</div>
-      <div class="modal-info-value">${student.intake ? formatMonthYear(student.intake) : 'Not set'}</div>
-    </div>
-    <div class="modal-info-item">
-      <div class="modal-info-label">Expected Completion</div>
-      <div class="modal-info-value">${student.completionDate ? formatMonthYear(student.completionDate) : 'Not set'}</div>
-    </div>
-    <div class="modal-info-item">
-      <div class="modal-info-label">Registration Fees</div>
-      <div class="modal-info-value">${formatCurrency(student.registrationFees || 0, currency)}</div>
-    </div>
-    <div class="modal-info-item">
-      <div class="modal-info-label">Commission Fees</div>
-      <div class="modal-info-value">${formatCurrency(student.commission || 0, currency)}</div>
-    </div>
-    <div class="modal-info-item">
-      <div class="modal-info-label">Program Cost</div>
-      <div class="modal-info-value">${formatCurrency(student.institutionalCost || 0, currency)}</div>
-    </div>
-    <div class="modal-info-item">
-      <div class="modal-info-label">Total Fees</div>
-      <div class="modal-info-value highlight">${formatCurrency(student.totalFees || 0, currency)}</div>
-    </div>
-  `;
-
-  // Render breakdown container with Add Semester button
-  const breakdownContainer = document.getElementById('modalPaymentBreakdown');
-  breakdownContainer.innerHTML = `
-    <div class="modal-section-header">
-      <div class="modal-section-title">
-        <span class="icon">${Icons.dollarSign}</span>
-        Payment Breakdown
-      </div>
-      <button class="btn-add-semester" id="btnAddSemester">
-        <span class="icon" style="font-size: 1rem;">${Icons.plus}</span>
-        Add Semester
-      </button>
-    </div>
-    <div id="semesterList"></div>
-  `;
-
-  const semesterList = document.getElementById('semesterList');
-  let breakdownHTML = '';
-
-  // Determine how many semesters to show
-  const semestersToShow = Math.max(student.totalSemesters || 1, maxSemester);
-
-  for (let sem = 1; sem <= semestersToShow; sem++) {
-    const semesterData = paymentsBySemester[sem];
-    const hasPayments = semesterData && semesterData.payments.length > 0;
-
-    breakdownHTML += `
-      <div class="semester-group">
-        <div class="semester-header">
-          <div class="semester-title-box">
-            <h4 class="semester-title">Semester ${sem}</h4>
-            <span class="semester-status ${hasPayments ? 'paid' : 'pending'}">
-              ${hasPayments ? 'PAID' : 'PENDING'}
-            </span>
-          </div>
-          <button class="btn-edit-semester btn-delete-semester" title="Delete Semester" onclick="window.editSemester(${student.id}, ${sem})">
-            <span class="icon" style="font-size: 1rem;">${Icons.trash}</span>
-          </button>
-        </div>
-        <div class="semester-card ${!hasPayments ? 'pending' : ''}">
-          ${hasPayments ? `
-            <table class="payment-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Amount Paid</th>
-                  <th>Method</th>
-                  <th>Receipt</th>
-                  <th style="text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${semesterData.payments.map(payment => `
-                  <tr>
-                    <td>${new Date(payment.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td class="amount">${formatCurrency(payment.amount, currency)}</td>
-                    <td>${formatPaymentMethod(payment.method)}</td>
-                    <td>
-                      ${payment.reference ? `
-                        <a href="#" class="receipt-link" onclick="window.previewReceipt(${student.id}, ${payment.id}); return false;">
-                          <span class="icon">${Icons.file}</span>
-                          ${payment.reference}
-                        </a>
-                      ` : '-'}
-                    </td>
-                    <td>
-                      <div class="payment-actions">
-                        <button class="payment-action-btn" title="Download" onclick="window.downloadReceipt(${student.id}, ${payment.id})">
-                          <span class="icon">${Icons.download}</span>
-                        </button>
-                        <button class="payment-action-btn" title="Edit" onclick="window.editPaymentEntry(${student.id}, ${sem}, ${payment.id})">
-                          <span class="icon">${Icons.edit}</span>
-                        </button>
-                        <button class="payment-action-btn" title="Delete" onclick="window.deletePaymentEntry(${student.id}, ${payment.id})" style="color: var(--danger-color);">
-                          <span class="icon">${Icons.trash}</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : `
-            <div class="empty-semester">
-              <p>No payments recorded for this semester yet.</p>
-              <button onclick="window.addPaymentEntry(${student.id}, ${sem})">
-                <span class="icon" style="font-size: 1rem;">${Icons.plus}</span>
-                Add Entry
-              </button>
-            </div>
-          `}
-        </div>
-      </div>
-    `;
-  }
-
-  semesterList.innerHTML = breakdownHTML;
-
-  // Add Semester button click
-  document.getElementById('btnAddSemester').addEventListener('click', () => {
-    addSemester(student.id);
-  });
-
-  // Populate footer totals
-  document.getElementById('modalTotalPaid').textContent = formatCurrency(totalPaid, currency);
-  document.getElementById('modalRemainingBalance').textContent = formatCurrency(balance, currency);
-
-  // Show modal
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-/**
- * Add a new semester to a student
- */
-async function addSemester(studentId) {
-  try {
-    const student = await Student.findById(studentId);
-    if (!student) return;
-
-    const newTotal = (student.totalSemesters || 1) + 1;
-    await Student.update(studentId, { totalSemesters: newTotal });
-    
-    // Refresh modal
-    const updatedStudent = await Student.findById(studentId);
-    await openStudentDetailModal(updatedStudent);
-  } catch (error) {
-    console.error('Error adding semester:', error);
-  }
-}
-
-/**
- * Global edit semester function
- */
-window.editSemester = async function(studentId, semester) {
-  try {
-    const student = await Student.findById(studentId);
-    if (!student) return;
-
-    // Basic implementation: if it's the last semester, allow removal
-    if (semester === student.totalSemesters && semester > 1) {
-      if (confirm(`Are you sure you want to remove Semester ${semester}? This will not delete recorded payments.`)) {
-        await Student.update(studentId, { totalSemesters: student.totalSemesters - 1 });
-        const updatedStudent = await Student.findById(studentId);
-        await openStudentDetailModal(updatedStudent);
-      }
-    } else {
-      alert(`Editing details for Semester ${semester} - This feature is coming soon in the next update!`);
-    }
-  } catch (error) {
-    console.error('Error editing semester:', error);
-  }
-};
-
-/**
- * Global add payment entry function - Renders inline form
- */
-window.addPaymentEntry = function(studentId, semester) {
-  const container = document.querySelector(`.semester-group:nth-child(${semester}) .semester-card`);
-  
-  // If already open, ignore
-  if (container.querySelector('.inline-payment-form')) return;
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const formHTML = `
-    <div class="inline-payment-form" id="inlineForm-${semester}">
-      <h5 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 700;">Record Payment - Semester ${semester}</h5>
-      
-      <div class="inline-form-grid">
-        <div class="inline-form-group">
-          <label class="inline-form-label">Amount (RM)</label>
-          <input type="number" id="inlineAmount-${semester}" class="inline-form-input" placeholder="0.00" step="0.01" required />
-        </div>
-        <div class="inline-form-group">
-          <label class="inline-form-label">Date</label>
-          <input type="date" id="inlineDate-${semester}" class="inline-form-input" value="${today}" required />
-        </div>
-      </div>
-
-      <div class="inline-form-grid">
-        <div class="inline-form-group">
-          <label class="inline-form-label">Method</label>
-          <select id="inlineMethod-${semester}" class="inline-form-select">
-            <option value="cash">Cash</option>
-            <option value="card">Credit Card</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="online">Online Payment</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="inline-form-group">
-          <label class="inline-form-label">Reference (Optional)</label>
-          <input type="text" id="inlineRef-${semester}" class="inline-form-input" placeholder="Ref #" />
-        </div>
-      </div>
-
-      <div class="inline-form-group">
-        <label class="inline-form-label">Description</label>
-        <input type="text" id="inlineDesc-${semester}" class="inline-form-input" placeholder="Payment description" />
-      </div>
-
-      <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel</button>
-        <button class="btn-inline-save" onclick="window.saveInlinePayment(${studentId}, ${semester})">
-          <span class="icon" style="margin-right: 0.5rem; font-size: 0.875rem;">${Icons.check}</span>
-          Save Payment
-        </button>
-      </div>
-    </div>
-  `;
-
-  // Update empty state or table
-  const emptyState = container.querySelector('.empty-semester');
-  if (emptyState) {
-    emptyState.style.display = 'none';
-  }
-  
-  container.insertAdjacentHTML('beforeend', formHTML);
-};
-
-/**
- * Save inline payment
- */
-window.saveInlinePayment = async function(studentId, semester) {
-  const amount = document.getElementById(`inlineAmount-${semester}`).value;
-  const date = document.getElementById(`inlineDate-${semester}`).value;
-  const method = document.getElementById(`inlineMethod-${semester}`).value;
-  const reference = document.getElementById(`inlineRef-${semester}`).value;
-  const description = document.getElementById(`inlineDesc-${semester}`).value;
-
-  if (!amount || parseFloat(amount) <= 0) {
-    alert('Please enter a valid amount.');
-    return;
-  }
-
-  try {
-    const paymentData = {
-      studentId: parseInt(studentId),
-      amount: parseFloat(amount),
-      date: new Date(date).toISOString(),
-      method: method,
-      semester: parseInt(semester),
-      reference: reference.trim(),
-      description: description.trim()
-    };
-
-    // Use existing Payment model (we need to import it or use a global)
-    // In this context, Payment is already imported at the top of the file
-    await Payment.create(paymentData);
-    
-    // Refresh modal
-    const student = await Student.findById(studentId);
-    await openStudentDetailModal(student);
-    
-    // Also refresh the main spreadsheet behind it
-    await loadSpreadsheetData();
-    
-    alert('Payment recorded successfully!');
-  } catch (error) {
-    console.error('Error saving inline payment:', error);
-    alert('Failed to save payment. Please try again.');
-  }
-};
-
-/**
- * Cancel inline payment
- */
-window.cancelInlinePayment = function(semester) {
-  const form = document.getElementById(`inlineForm-${semester}`);
-  if (!form) return;
-  
-  const container = form.parentElement;
-  form.remove();
-  
-  const emptyState = container.querySelector('.empty-semester');
-  if (emptyState) {
-    emptyState.style.display = 'block';
-  }
-};
-
-/**
- * Edit payment entry - Renders inline form with existing data
- */
-window.editPaymentEntry = async function(studentId, semester, paymentId) {
-  const container = document.querySelector(`.semester-group:nth-child(${semester}) .semester-card`);
-  
-  // If already open, ignore
-  if (container.querySelector('.inline-payment-form')) return;
-
-  const payment = await Payment.findById(paymentId);
-  if (!payment) {
-    alert('Payment not found.');
-    return;
-  }
-
-  const paymentDate = new Date(payment.date).toISOString().split('T')[0];
-
-  const formHTML = `
-    <div class="inline-payment-form" id="inlineForm-${semester}">
-      <h5 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 700;">Edit Payment - Semester ${semester}</h5>
-      
-      <div class="inline-form-grid">
-        <div class="inline-form-group">
-          <label class="inline-form-label">Amount (RM)</label>
-          <input type="number" id="inlineAmount-${semester}" class="inline-form-input" value="${payment.amount}" step="0.01" required />
-        </div>
-        <div class="inline-form-group">
-          <label class="inline-form-label">Date</label>
-          <input type="date" id="inlineDate-${semester}" class="inline-form-input" value="${paymentDate}" required />
-        </div>
-      </div>
-
-      <div class="inline-form-grid">
-        <div class="inline-form-group">
-          <label class="inline-form-label">Method</label>
-          <select id="inlineMethod-${semester}" class="inline-form-select">
-            <option value="cash" ${payment.method === 'cash' ? 'selected' : ''}>Cash</option>
-            <option value="card" ${payment.method === 'card' ? 'selected' : ''}>Credit Card</option>
-            <option value="bank_transfer" ${payment.method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
-            <option value="online" ${payment.method === 'online' ? 'selected' : ''}>Online Payment</option>
-            <option value="other" ${payment.method === 'other' ? 'selected' : ''}>Other</option>
-          </select>
-        </div>
-        <div class="inline-form-group">
-          <label class="inline-form-label">Reference (Optional)</label>
-          <input type="text" id="inlineRef-${semester}" class="inline-form-input" value="${payment.reference || ''}" placeholder="Ref #" />
-        </div>
-      </div>
-
-      <div class="inline-form-group">
-        <label class="inline-form-label">Description</label>
-        <input type="text" id="inlineDesc-${semester}" class="inline-form-input" value="${payment.description || ''}" placeholder="Payment description" />
-      </div>
-
-      <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel</button>
-        <button class="btn-inline-save" onclick="window.updateInlinePayment(${studentId}, ${paymentId}, ${semester})">
-          <span class="icon" style="margin-right: 0.5rem; font-size: 0.875rem;">${Icons.check}</span>
-          Update Payment
-        </button>
-      </div>
-    </div>
-  `;
-
-  container.insertAdjacentHTML('beforeend', formHTML);
-};
-
-/**
- * Update inline payment
- */
-window.updateInlinePayment = async function(studentId, paymentId, semester) {
-  const amountInput = document.getElementById(`inlineAmount-${semester}`);
-  const dateInput = document.getElementById(`inlineDate-${semester}`);
-  const methodInput = document.getElementById(`inlineMethod-${semester}`);
-  const referenceInput = document.getElementById(`inlineRef-${semester}`);
-  const descriptionInput = document.getElementById(`inlineDesc-${semester}`);
-
-  if (!amountInput) return;
-
-  const amount = amountInput.value;
-  const date = dateInput.value;
-  const method = methodInput.value;
-  const reference = referenceInput.value;
-  const description = descriptionInput.value;
-
-  if (!amount || parseFloat(amount) <= 0) {
-    alert('Please enter a valid amount.');
-    return;
-  }
-
-  try {
-    const updates = {
-      amount: parseFloat(amount),
-      date: new Date(date).toISOString(),
-      method: method,
-      reference: reference.trim(),
-      description: description.trim()
-    };
-
-    await Payment.update(paymentId, updates);
-    
-    // Refresh modal
-    const student = await Student.findById(studentId);
-    await openStudentDetailModal(student);
-    
-    // Also refresh the main spreadsheet behind it
-    await loadSpreadsheetData();
-    
-    alert('Payment updated successfully!');
-  } catch (error) {
-    console.error('Error updating inline payment:', error);
-    alert('Failed to update payment. Please try again.');
-  }
-};
-
-/**
- * Delete payment entry
- */
-window.deletePaymentEntry = async function(studentId, paymentId) {
-  if (confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
-    try {
-      await Payment.delete(paymentId);
-      
-      // Refresh modal
-      const student = await Student.findById(studentId);
-      await openStudentDetailModal(student);
-      
-      // Also refresh the main spreadsheet behind it
-      await loadSpreadsheetData();
-      
-      alert('Payment record deleted.');
-    } catch (error) {
-      console.error('Error deleting payment:', error);
-      alert('Failed to delete payment. Please try again.');
-    }
-  }
-};
-
-/**
- * Format payment method for display
- */
-function formatPaymentMethod(method) {
-  const methods = {
-    'cash': 'Cash',
-    'card': 'Credit Card',
-    'bank_transfer': 'Bank Transfer',
-    'online': 'Online Payment',
-    'other': 'Other'
-  };
-  return methods[method] || method;
-}
 
 /**
  * Load and render spreadsheet data

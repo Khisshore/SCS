@@ -6,8 +6,11 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { Programme } from '../models/Programme.js';
+import { Receipt } from '../models/Receipt.js';
 import { Icons } from '../utils/icons.js';
 import { formatDate } from '../utils/formatting.js';
+import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
+import { renderReceiptInput } from './ReceiptInput.js';
 
 let currentSort = { field: 'name', dir: 'asc' };
 
@@ -91,8 +94,16 @@ export async function renderStudents() {
     </style>
   `;
 
+  // Initialize the shared student detail modal
+  initStudentDetailModal();
+
   // Load students
   await loadStudents();
+
+  // Set up modal close callback to refresh list
+  window.onStudentModalClose = async () => {
+    await loadStudents();
+  };
 
   // Debounce helper for search
   let searchTimeout;
@@ -217,16 +228,10 @@ async function loadStudents() {
                   <button
                     class="btn btn-sm btn-primary"
                     onclick="window.viewStudent(${student.id})"
-                    title="View Details"
+                    title="View & Edit Details"
                   >
                     <span class="icon icon-sm">${Icons.eye}</span>
-                  </button>
-                  <button
-                    class="btn btn-sm btn-secondary"
-                    onclick="window.editStudent(${student.id})"
-                    title="Edit"
-                  >
-                    <span class="icon icon-sm">${Icons.edit}</span>
+                    <span>View & Edit</span>
                   </button>
                   <button
                     class="btn btn-sm btn-danger"
@@ -275,27 +280,27 @@ function showStudentForm(studentId = null) {
   const modal = document.getElementById('modal-container');
   modal.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal" style="max-width: 700px;">
+      <div class="modal" style="max-width: 1100px; width: 95%;">
         <div class="modal-header">
           <h2 class="modal-title">${isEdit ? 'Edit Student' : 'Add New Student'}</h2>
           <button class="modal-close" onclick="window.closeModal()">×</button>
         </div>
-        <form id="studentForm">
-          <div class="modal-body" style="overflow-y: auto;">
+        <form id="studentForm" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
+          <div class="modal-body">
             <!-- Basic Info Section -->
             <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
               <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
                 <span class="icon icon-sm text-primary-600">${Icons.user}</span> Basic Information
               </h4>
               
-              <div class="grid grid-2 gap-md">
-                <div class="form-group">
-                  <label class="form-label">Student ID</label>
-                  <input type="text" id="studentId" class="form-input" placeholder="e.g., S2024001" />
+              <div class="grid grid-3 gap-md">
+                <div class="form-group" style="grid-column: span 1;">
+                  <label class="form-label required">Student ID</label>
+                  <input type="text" id="studentId" class="form-input" placeholder="e.g., S2024001" required />
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Full Name</label>
-                  <input type="text" id="studentName" class="form-input" placeholder="e.g., John Doe" />
+                <div class="form-group" style="grid-column: span 2;">
+                  <label class="form-label required">Full Name</label>
+                  <input type="text" id="studentName" class="form-input" placeholder="e.g., John Doe" required />
                 </div>
               </div>
 
@@ -393,11 +398,20 @@ function showStudentForm(studentId = null) {
               <div class="grid grid-2 gap-md mt-md">
                 <div class="form-group">
                   <label class="form-label">Registration Fee (RM)</label>
-                  <input type="number" id="studentRegistrationFee" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                  <div class="grid" style="grid-template-columns: 1fr 1.5fr; gap: var(--space-sm);">
+                    <input type="number" id="studentRegistrationFee" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                    <div id="regReceiptContainer"></div>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Commission (RM)</label>
-                  <input type="number" id="studentCommission" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                  <div class="flex flex-col gap-sm">
+                    <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--space-sm);">
+                      <input type="number" id="studentCommission" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                      <div id="commReceiptContainer"></div>
+                    </div>
+                    <input type="text" id="studentCommissionPaidTo" class="form-input" placeholder="Paid To" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -442,6 +456,19 @@ function showStudentForm(studentId = null) {
 
   populateDateSelects('studentIntakeMonth', 'studentIntakeYear');
   populateDateSelects('studentCompletionMonth', 'studentCompletionYear');
+
+  // Initialize Smart Receipt Inputs
+  renderReceiptInput('regReceiptContainer', {
+    id: 'studentRegistrationFeeReceipt',
+    placeholder: 'Receipt #',
+    context: 'REG'
+  });
+
+  renderReceiptInput('commReceiptContainer', {
+    id: 'studentCommissionReceipt',
+    placeholder: 'Receipt #',
+    context: 'COM'
+  });
 
   // Helper to update programme options
   window.updateProgrammeOptions = async (selectedProgram = null) => {
@@ -585,7 +612,10 @@ async function loadStudentData(studentId) {
   document.getElementById('studentTotalFees').value = student.totalFees || '';
   document.getElementById('studentInstitutionalCost').value = student.institutionalCost || '';
   document.getElementById('studentRegistrationFee').value = student.registrationFee || '';
+  document.getElementById('studentRegistrationFeeReceipt').value = student.registrationFeeReceipt || '';
   document.getElementById('studentCommission').value = student.commission || '';
+  document.getElementById('studentCommissionReceipt').value = student.commissionReceipt || '';
+  document.getElementById('studentCommissionPaidTo').value = student.commissionPaidTo || '';
   document.getElementById('studentRemarks').value = student.remarks || '';
 }
 
@@ -623,6 +653,20 @@ async function saveStudent(studentId) {
       return (m && y) ? `${y}-${m}` : '';
     };
 
+    const regFee = document.getElementById('studentRegistrationFee').value || 0;
+    let regReceipt = document.getElementById('studentRegistrationFeeReceipt').value.trim();
+    
+    const commFee = document.getElementById('studentCommission').value || 0;
+    let commReceipt = document.getElementById('studentCommissionReceipt').value.trim();
+
+    // Auto-generate receipts if not provided but amount exists
+    if (parseFloat(regFee) > 0 && !regReceipt) {
+      regReceipt = await Receipt.getNextReceiptNumber();
+    }
+    if (parseFloat(commFee) > 0 && !commReceipt) {
+      commReceipt = await Receipt.getNextReceiptNumber();
+    }
+
     const studentData = {
       studentId: document.getElementById('studentId').value.trim(),
       name: document.getElementById('studentName').value.trim(),
@@ -636,8 +680,11 @@ async function saveStudent(studentId) {
       status: 'active', // Default to active since field removed
       totalFees: document.getElementById('studentTotalFees').value || 0,
       institutionalCost: document.getElementById('studentInstitutionalCost').value || 0,
-      registrationFee: document.getElementById('studentRegistrationFee').value || 0,
-      commission: document.getElementById('studentCommission').value || 0,
+      registrationFee: regFee,
+      registrationFeeReceipt: regReceipt,
+      commission: commFee,
+      commissionReceipt: commReceipt,
+      commissionPaidTo: document.getElementById('studentCommissionPaidTo').value.trim(),
       remarks: document.getElementById('studentRemarks').value.trim()
     };
 
@@ -661,79 +708,13 @@ async function saveStudent(studentId) {
 }
 
 /**
- * View student details
+ * View student details using shared modal
  */
 async function viewStudent(studentId) {
   const student = await Student.findById(studentId);
   if (!student) return;
 
-  const payments = await Payment.findByStudent(student.studentId);
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-
-  const modal = document.getElementById('modal-container');
-  modal.innerHTML = `
-    <div class="modal-backdrop">
-      <div class="modal" style="max-width: 800px;">
-        <div class="modal-header">
-          <h2 class="modal-title">Student Details</h2>
-          <button class="modal-close" onclick="window.closeModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="grid grid-2 gap-lg mb-lg">
-            <div>
-              <h4>Personal Information</h4>
-              <div style="background: var(--gray-50); padding: 1rem; border-radius: var(--radius-lg);">
-                <p><strong>Student ID:</strong> ${student.studentId}</p>
-                <p><strong>Name:</strong> ${student.name}</p>
-                <p><strong>Program:</strong> ${student.program}</p>
-                <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
-                <p><strong>Phone:</strong> ${student.phone || 'N/A'}</p>
-                <p><strong>Status:</strong> <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-danger'}">${student.status}</span></p>
-              </div>
-            </div>
-            <div>
-              <h4>Payment Summary</h4>
-              <div style="background: var(--primary-50); padding: 1rem; border-radius: var(--radius-lg);">
-                <p><strong>Total Payments:</strong> ${payments.length}</p>
-                <p><strong>Total Amount:</strong> RM ${totalPaid.toFixed(2)}</p>
-                <p><strong>Last Payment:</strong> ${payments[0] ? formatDate(payments[0].date, 'short') : 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-
-          <h4>Payment History</h4>
-          ${payments.length > 0 ? `
-            <div class="table-container" style="max-height: 300px; overflow-y: auto;">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Method</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${payments.map(payment => `
-                    <tr>
-                      <td>${formatDate(payment.date, 'short')}</td>
-                      <td><strong>RM ${payment.amount.toFixed(2)}</strong></td>
-                      <td><span class="badge badge-primary">${payment.method}</span></td>
-                      <td>${payment.description || '-'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : '<p style="text-align: center; color: var(--text-tertiary); padding: 2rem;">No payment history</p>'}
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="window.closeModal()">Close</button>
-          <button class="btn btn-primary" onclick="window.closeModal(); window.editStudent(${student.id})">Edit Student</button>
-        </div>
-      </div>
-    </div>
-  `;
+  await openStudentDetailModal(student);
 }
 
 /**

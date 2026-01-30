@@ -86,29 +86,37 @@ class FileSystemService {
 
   /**
    * Generate student folder path
-   * Path: {baseFolder}/NeoTrackr/{Course}/{StudentName}/{Semester}/
+   * Path: {baseFolder}/NeoTrackr/{Course}/{Program}/{StudentName}/{Semester}/
+   * If semester is null/empty, returns path to Student folder
    */
-  getStudentFolderPath(course, studentName, semester) {
+  getStudentFolderPath(course, program, studentName, semester = null) {
     if (!this.baseFolder) {
       throw new Error('Base folder not set');
     }
 
-    const sanitizedCourse = this.sanitizeName(course);
+    const sanitizedCourse = this.sanitizeName(course || 'Other');
+    const sanitizedProgram = this.sanitizeName(program || 'General');
     const sanitizedStudent = this.sanitizeName(studentName);
-    const sanitizedSemester = this.sanitizeName(semester);
+    
+    let path = `${this.baseFolder}\\${sanitizedCourse}\\${sanitizedProgram}\\${sanitizedStudent}`;
+    
+    if (semester) {
+      const sanitizedSemester = this.sanitizeName(semester);
+      path += `\\${sanitizedSemester}`;
+    }
 
-    return `${this.baseFolder}\\${sanitizedCourse}\\${sanitizedStudent}\\${sanitizedSemester}`;
+    return path;
   }
 
   /**
    * Create folder structure for a student
    */
-  async createFolderStructure(course, studentName, semester) {
+  async createFolderStructure(course, program, studentName, semester = null) {
     if (!this.isElectron) {
       return { success: true, path: null }; // No-op for web version
     }
 
-    const folderPath = this.getStudentFolderPath(course, studentName, semester);
+    const folderPath = this.getStudentFolderPath(course, program, studentName, semester);
     const result = await window.electronAPI.createFolder(folderPath);
 
     if (result.success) {
@@ -121,8 +129,8 @@ class FileSystemService {
   /**
    * Generate PDF file path
    */
-  getPDFFilePath(course, studentName, semester, fileName) {
-    const folderPath = this.getStudentFolderPath(course, studentName, semester);
+  getPDFFilePath(course, program, studentName, semester, fileName) {
+    const folderPath = this.getStudentFolderPath(course, program, studentName, semester);
     const sanitizedFileName = this.sanitizeName(fileName);
     return `${folderPath}\\${sanitizedFileName}.pdf`;
   }
@@ -130,14 +138,14 @@ class FileSystemService {
   /**
    * Save PDF to file system
    */
-  async savePDF(course, studentName, semester, fileName, pdfData) {
+  async savePDF(course, program, studentName, semester, fileName, pdfData) {
     if (!this.isElectron) {
       console.log('📄 Web version - PDF not saved to disk');
       return { success: true, path: null };
     }
 
     // Ensure folder exists
-    await this.createFolderStructure(course, studentName, semester);
+    await this.createFolderStructure(course, program, studentName, semester);
 
     // Generate file path
     const filePath = this.getPDFFilePath(course, studentName, semester, fileName);
@@ -176,15 +184,15 @@ class FileSystemService {
     return await window.electronAPI.readPDF(filePath);
   }
 
-  /**
+   /**
    * List files in a student's semester folder
    */
-  async listStudentFiles(course, studentName, semester) {
+  async listStudentFiles(course, program, studentName, semester = null) {
     if (!this.isElectron) {
       return { success: true, files: [] };
     }
 
-    const folderPath = this.getStudentFolderPath(course, studentName, semester);
+    const folderPath = this.getStudentFolderPath(course, program, studentName, semester);
     const exists = await window.electronAPI.folderExists(folderPath);
 
     if (!exists) {
@@ -197,15 +205,15 @@ class FileSystemService {
   /**
    * Open folder in system file explorer
    */
-  async openInExplorer(course, studentName, semester) {
+  async openInExplorer(course, program, studentName, semester = null) {
     if (!this.isElectron) {
       throw new Error('Explorer integration only available in desktop app');
     }
 
-    const folderPath = this.getStudentFolderPath(course, studentName, semester);
+    const folderPath = this.getStudentFolderPath(course, program, studentName, semester);
     
     // Create folder if it doesn't exist
-    await this.createFolderStructure(course, studentName, semester);
+    await this.createFolderStructure(course, program, studentName, semester);
     
     return await window.electronAPI.openFolderInExplorer(folderPath);
   }

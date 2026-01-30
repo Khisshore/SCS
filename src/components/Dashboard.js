@@ -102,7 +102,7 @@ export async function renderDashboard() {
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">Recent Payments</h3>
-            <a href="#payments" class="nav-link" style="padding: 0.5rem 1rem; margin: 0;">View All →</a>
+            <a href="#spreadsheet" class="nav-link" style="padding: 0.5rem 1rem; margin: 0;">View All →</a>
           </div>
           <div class="card-body">
             ${recentPayments.length > 0 ? `
@@ -168,7 +168,7 @@ export async function renderDashboard() {
 
   // Attach event listeners
   document.getElementById('quickPaymentBtn')?.addEventListener('click', () => {
-    window.location.hash = '#payments';
+    window.location.hash = '#spreadsheet';
   });
 
   document.getElementById('quickStudentBtn')?.addEventListener('click', async () => {
@@ -244,6 +244,12 @@ async function renderPaymentTrendChart(months = 6) {
   const ctx = document.getElementById('paymentTrendChart');
   if (!ctx) return;
 
+  // Detect current theme
+  const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)';
+  const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+  const tooltipBg = isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(0, 0, 0, 0.8)';
+
   // Destroy existing chart if it exists
   if (window.dashboardChart) {
     window.dashboardChart.destroy();
@@ -275,7 +281,7 @@ async function renderPaymentTrendChart(months = 6) {
         tooltip: {
           mode: 'index',
           intersect: false,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: tooltipBg,
           padding: 12,
           titleFont: {
             size: 14,
@@ -304,10 +310,10 @@ async function renderPaymentTrendChart(months = 6) {
             font: {
               size: 11
             },
-            color: 'rgba(0, 0, 0, 0.6)'
+            color: textColor
           },
           grid: {
-            color: 'rgba(0, 0, 0, 0.05)',
+            color: gridColor,
             drawBorder: false
           }
         },
@@ -316,7 +322,7 @@ async function renderPaymentTrendChart(months = 6) {
             font: {
               size: 11
             },
-            color: 'rgba(0, 0, 0, 0.6)'
+            color: textColor
           },
           grid: {
             display: false
