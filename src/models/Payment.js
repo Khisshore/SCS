@@ -4,6 +4,7 @@
  */
 
 import { db, STORES } from '../db/database.js';
+import { validateAmount, validatePaymentMethod, validateDate } from '../utils/validators.js';
 
 class PaymentModel {
   /**
@@ -177,17 +178,11 @@ class PaymentModel {
       throw new Error('Student ID is required');
     }
 
-    if (!data.amount || isNaN(parseFloat(data.amount)) || parseFloat(data.amount) <= 0) {
-      throw new Error('Valid payment amount is required');
-    }
+    validateAmount(data.amount); // checks > 0
+    validatePaymentMethod(data.method);
 
-    if (!data.method) {
-      throw new Error('Payment method is required');
-    }
-
-    const validMethods = ['cash', 'card', 'bank_transfer', 'online', 'other'];
-    if (!validMethods.includes(data.method)) {
-      throw new Error('Invalid payment method');
+    if (data.date) {
+      validateDate(data.date);
     }
   }
 
