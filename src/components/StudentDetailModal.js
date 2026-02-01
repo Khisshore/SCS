@@ -10,6 +10,8 @@ import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/pdfGenerator.js';
 import { renderReceiptInput } from './ReceiptInput.js';
+import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
+import { fileSystem } from '../services/fileSystem.js';
 
 /**
  * Initialize the Student Detail Modal
@@ -27,21 +29,19 @@ export function initStudentDetailModal() {
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-header-info">
-          <div class="modal-student-title">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <h2 id="modalStudentName"></h2>
-              <span class="status-badge" id="modalStudentStatus">ACTIVE</span>
-            </div>
-            <p class="modal-student-meta" id="modalStudentMeta"></p>
+        <div class="modal-student-title">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h2 id="modalStudentName"></h2>
+            <span class="status-badge" id="modalStudentStatus">ACTIVE</span>
           </div>
+          <p class="modal-student-meta" id="modalStudentMeta"></p>
         </div>
         <div class="modal-header-actions">
-          <button class="btn btn-secondary btn-sm" id="modalEditStudentBtn">
+          <button class="btn-header" id="modalEditStudentBtn">
             <span class="icon">${Icons.edit}</span>
             <span>Edit Student</span>
           </button>
-          <button class="modal-close-btn" id="modalCloseBtn">
+          <button class="modal-close-btn" id="modalCloseBtn" title="Close">
             <span class="icon">${Icons.close}</span>
           </button>
         </div>
@@ -55,24 +55,20 @@ export function initStudentDetailModal() {
 
       <div class="modal-footer">
         <div class="modal-totals">
-          <div>
+          <div class="modal-total-item">
             <div class="modal-total-label">Total Amount Paid</div>
             <div class="modal-total-value paid" id="modalTotalPaid">RM 0.00</div>
           </div>
-          <div class="modal-divider"></div>
-          <div>
+          <div class="modal-total-item">
             <div class="modal-total-label">Remaining Balance</div>
             <div class="modal-total-value balance" id="modalRemainingBalance">RM 0.00</div>
           </div>
-        </div>
-        <div class="flex gap-md" style="margin-left: auto;">
-            <button class="btn btn-secondary" id="modalCloseFooterBtn">Close</button>
         </div>
       </div>
     </div>
 
     <style>
-      /* Student Detail Modal Styles */
+      /* --- Premium Student Detail Modal Styles (True Theme Support) --- */
       .student-modal {
         position: fixed;
         inset: 0;
@@ -81,18 +77,18 @@ export function initStudentDetailModal() {
         align-items: center;
         justify-content: center;
         padding: 2rem;
-        animation: modalFadeIn 0.2s ease-out;
+        animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       @keyframes modalFadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from { opacity: 0; backdrop-filter: blur(0); }
+        to { opacity: 1; backdrop-filter: blur(8px); }
       }
 
       .modal-backdrop {
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, 0.4);
+        background: rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(4px);
         z-index: var(--z-modal-backdrop);
       }
@@ -101,82 +97,80 @@ export function initStudentDetailModal() {
         position: relative;
         z-index: var(--z-modal);
         width: 100%;
-        max-width: 80rem;
-        max-height: 90vh;
+        max-width: 85rem;
+        max-height: 92vh;
         background: var(--surface);
-        border-radius: var(--radius-2xl);
+        border: 1px solid var(--border-color);
+        border-radius: 2rem;
         box-shadow: var(--shadow-2xl);
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        animation: modalSlideUp 0.3s ease-out;
+        animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       @keyframes modalSlideUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
 
       .modal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 1.5rem 2rem;
+        padding: 1.5rem 2.5rem;
         border-bottom: 1px solid var(--border-color);
-        background: var(--surface);
+        background: var(--surface-hover);
         position: sticky;
         top: 0;
         z-index: 20;
       }
 
-      .modal-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      .modal-header-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      .modal-student-title {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-      }
-
       .modal-student-title h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 1.75rem;
+        font-weight: 800;
         color: var(--text-primary);
         margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        letter-spacing: -0.02em;
       }
 
-      .status-badge {
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius-full);
-        background: var(--success-100);
-        color: var(--success-600);
-        font-size: 0.6875rem;
+      .btn-header {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.5rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        font-size: 0.875rem;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-header:hover {
+        background: var(--surface-hover);
+        border-color: var(--primary-300);
+        color: var(--primary-600);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
       }
 
       .modal-student-meta {
-        font-size: 0.875rem;
+        font-size: 1rem;
         color: var(--text-secondary);
-        font-weight: 500;
-        margin: 0;
+        font-weight: 600;
+        margin-top: 0.25rem;
+      }
+
+      .modal-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
       }
 
       .modal-close-btn {
@@ -196,44 +190,52 @@ export function initStudentDetailModal() {
       .modal-close-btn:hover {
         background: var(--danger-50);
         color: var(--danger-600);
+        transform: rotate(90deg);
       }
 
       .modal-body {
         flex: 1;
         overflow-y: auto;
-        padding: 2rem;
+        padding: 2.5rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-color) transparent;
       }
 
       .modal-info-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 2rem;
-        margin-bottom: 2.5rem;
+        margin-bottom: 3.5rem;
+        background: var(--background-secondary);
+        padding: 2rem;
+        border-radius: 1.5rem;
+        border: 1px solid var(--border-color);
       }
 
       .modal-info-item {
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
+        gap: 0.5rem;
       }
 
       .modal-info-label {
         font-size: 0.6875rem;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--text-tertiary);
         text-transform: uppercase;
         letter-spacing: 0.1em;
       }
 
       .modal-info-value {
-        font-size: 1rem;
-        font-weight: 600;
+        font-size: 1.125rem;
+        font-weight: 700;
         color: var(--text-primary);
       }
 
       .modal-info-value.highlight {
-        color: var(--primary-600);
-        font-weight: 700;
+        color: var(--primary-500);
+        font-size: 1.25rem;
+        font-weight: 800;
       }
 
       .modal-section-header {
@@ -241,34 +243,145 @@ export function initStudentDetailModal() {
         align-items: center;
         justify-content: space-between;
         margin-bottom: 2rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 2px solid var(--border-light);
       }
 
       .modal-section-title {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 1.125rem;
-        font-weight: 700;
+        gap: 1rem;
+        font-size: 1.5rem;
+        font-weight: 800;
         color: var(--text-primary);
-        margin: 0;
+        letter-spacing: -0.01em;
+      }
+
+      .btn-semester-action {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .btn-semester-action:hover {
+        background: var(--primary-50);
+        border-color: var(--primary-300);
+        color: var(--primary-700);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .btn-semester-action.danger:hover {
+        background: var(--danger-50);
+        border-color: var(--danger-300);
+        color: var(--danger-700);
+      }
+
+      .btn-semester-action.icon-only {
+        width: 2.25rem;
+        height: 2.25rem;
+        padding: 0;
+        justify-content: center;
+      }
+
+      .btn-semester-action .icon {
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .semester-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
       }
 
       .btn-add-semester {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border: 1px solid var(--primary-100);
+        gap: 0.625rem;
+        padding: 0.625rem 1.375rem;
+        background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+        color: white;
+        border: none;
+        border-radius: var(--radius-xl);
+        font-size: 0.9375rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      }
+
+      .btn-add-semester:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        filter: brightness(1.1);
+      }
+
+      .btn-add-semester:active {
+        transform: translateY(0);
+      }
+
+      /* Payment Table Action Icons */
+      .payment-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+      }
+
+      .payment-action-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
-        font-size: 0.875rem;
-        font-weight: 600;
+        color: var(--text-tertiary);
         cursor: pointer;
         transition: all 0.2s;
       }
 
-      .btn-add-semester:hover {
+      .payment-action-btn:hover {
+        background: var(--primary-50);
+        color: var(--primary-600);
+        border-color: var(--primary-200);
+        transform: translateY(-1px);
+      }
+
+      .payment-action-btn.danger:hover {
+        background: var(--danger-50);
+        color: var(--danger-600);
+        border-color: var(--danger-200);
+      }
+
+      .receipt-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.875rem;
+        background: var(--primary-50);
+        color: var(--primary-700);
+        border-radius: var(--radius-lg);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        text-decoration: none;
+        border: 1px solid var(--primary-100);
+        transition: all 0.2s;
+      }
+
+      .receipt-link:hover {
         background: var(--primary-100);
         transform: translateY(-1px);
       }
@@ -282,369 +395,154 @@ export function initStudentDetailModal() {
         align-items: center;
         justify-content: space-between;
         margin-bottom: 1rem;
-        padding: 0 0.5rem;
-      }
-
-      .semester-title-box {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
       }
 
       .semester-title {
-        font-size: 1.125rem;
-        font-weight: 700;
+        font-size: 1.25rem;
+        font-weight: 800;
         color: var(--text-primary);
         margin: 0;
       }
 
-      .btn-edit-semester {
-        width: 2rem;
-        height: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-md);
-        color: var(--text-tertiary);
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-edit-semester:hover {
-        background: var(--surface-hover);
-        color: var(--primary-600);
-      }
-
-      .btn-delete-semester:hover {
-        background: var(--danger-50) !important;
-        color: var(--danger-600) !important;
-        transform: scale(1.1);
-      }
-
       .semester-card {
-        background: var(--background-secondary);
+        background: var(--surface-hover);
         border: 1px solid var(--border-color);
-        border-radius: var(--radius-2xl);
-        padding: 1.5rem;
-      }
-
-      .semester-card.pending {
-        background: transparent;
-        border: 2px dashed var(--border-color);
-      }
-
-      .semester-status {
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius-full);
-        font-size: 0.6875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .semester-status.paid {
-        background: var(--success-100);
-        color: var(--success-600);
-      }
-
-      .semester-status.pending {
-        background: var(--danger-50);
-        color: var(--danger-600);
+        border-radius: 1.5rem;
+        overflow: hidden;
       }
 
       .payment-table {
         width: 100%;
-        font-size: 0.875rem;
-      }
-
-      .payment-table thead {
-        border-bottom: 1px solid var(--border-color);
+        border-collapse: collapse;
       }
 
       .payment-table th {
-        padding: 0.75rem 0.5rem;
+        padding: 1rem 1.25rem;
         text-align: left;
-        font-size: 0.75rem;
-        font-weight: 700;
+        font-size: 0.6875rem;
+        font-weight: 800;
         color: var(--text-tertiary);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        background: var(--background-secondary);
+        border-bottom: 1px solid var(--border-color);
       }
 
       .payment-table td {
-        padding: 0.75rem 0.5rem;
+        padding: 1.25rem;
         border-bottom: 1px solid var(--border-color);
         color: var(--text-secondary);
+        font-weight: 500;
       }
 
-      .payment-table tbody tr:last-child td {
-        border-bottom: none;
-      }
-
-      .payment-table .amount {
-        font-weight: 700;
+      .amount {
+        font-weight: 800;
         color: var(--text-primary);
-      }
-
-      .payment-table .receipt-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.25rem 0.625rem;
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border-radius: var(--radius-lg);
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.2s;
-      }
-
-      .payment-table .receipt-link:hover {
-        background: var(--primary-600);
-        color: white;
-      }
-
-      .payment-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-      }
-
-      .payment-action-btn {
-        padding: 0.375rem;
-        background: transparent;
-        border: none;
-        border-radius: var(--radius-lg);
-        color: var(--text-tertiary);
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .payment-action-btn:hover {
-        background: var(--surface);
-        color: var(--primary-600);
-      }
-
-      .empty-semester {
-        text-align: center;
-        padding: 2rem;
-      }
-
-      .empty-semester p {
-        color: var(--text-tertiary);
-        font-size: 0.875rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .empty-semester button {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        background: transparent;
-        border: none;
-        color: var(--primary-600);
-        font-size: 0.875rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .empty-semester button:hover {
-        text-decoration: underline;
-      }
-
-      .inline-payment-form {
-        background: var(--surface);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-xl);
-        padding: 1.5rem;
-        margin-top: 1rem;
-        animation: formSlideDown 0.3s ease-out;
-      }
-
-      @keyframes formSlideDown {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      .inline-form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .inline-form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: left;
-      }
-
-      .inline-form-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .inline-form-input, .inline-form-select {
-        padding: 0.625rem 0.875rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        background: var(--background-secondary);
-        color: var(--text-primary);
-        font-size: 0.875rem;
-        transition: all 0.2s;
-        width: 100%;
-      }
-
-      .inline-form-input:focus, .inline-form-select:focus {
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 3px var(--primary-50);
-        outline: none;
-      }
-
-      .inline-form-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
-      }
-
-      .btn-inline-save {
-        padding: 0.625rem 1.25rem;
-        background: var(--success-600);
-        color: white;
-        border: none;
-        border-radius: var(--radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .btn-inline-save:hover {
-        background: var(--success-500);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-      }
-
-      .btn-inline-cancel {
-        padding: 0.625rem 1.25rem;
-        background: transparent;
-        color: var(--text-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-inline-cancel:hover {
-        background: var(--surface-hover);
-        border-color: var(--text-tertiary);
-        color: var(--text-primary);
+        font-size: 1.125rem;
       }
 
       .modal-footer {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        padding: 1.5rem 2rem;
-        background: var(--background-secondary);
+        padding: 2rem 3rem;
+        background: var(--surface-hover);
         border-top: 1px solid var(--border-color);
       }
 
       .modal-totals {
         display: flex;
         align-items: center;
-        gap: 3rem;
+        gap: 4rem;
+      }
+
+      .modal-total-item {
+        text-align: right;
       }
 
       .modal-total-label {
-        font-size: 0.625rem;
-        font-weight: 700;
+        font-size: 0.75rem;
+        font-weight: 800;
         color: var(--text-tertiary);
         text-transform: uppercase;
-        letter-spacing: 0.1em;
         margin-bottom: 0.25rem;
       }
 
       .modal-total-value {
-        font-size: 1.5rem;
+        font-size: 2rem;
         font-weight: 900;
+        letter-spacing: -1px;
       }
 
-      .modal-total-value.paid {
-        color: var(--success-600);
-      }
+      .modal-total-value.paid { color: var(--success-500); }
+      .modal-total-value.balance { color: var(--danger-500); }
 
-      .modal-total-value.balance {
-        color: var(--danger-600);
-      }
-
-      .modal-divider {
-        width: 1px;
-        height: 2.5rem;
-        background: var(--border-color);
-      }
-
-      .btn-icon-xs {
-        width: 1.5rem;
-        height: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
-        color: var(--text-tertiary);
+      /* Form Polish */
+      .inline-payment-form {
         background: var(--surface);
-        border: 1px solid var(--border-color);
-        cursor: pointer;
-        transition: all 0.2s;
-        padding: 0;
+        border: 2px solid var(--primary-500);
+        border-radius: 1.5rem;
+        padding: 2.5rem;
+        margin: 1.5rem;
+        box-shadow: var(--shadow-xl);
       }
 
-      .btn-icon-xs:hover {
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border-color: var(--primary-200);
-      }
-
-      .btn-icon-xs svg {
-        width: 0.875rem;
-        height: 0.875rem;
-      }
-
-      .gap-xs {
-        gap: 0.25rem;
-      }
-
-      .fee-edit-form .form-group label {
-        display: block;
-        margin-bottom: 0.25rem;
-        font-size: 0.7rem;
+      .inline-form-input, .inline-form-select {
+        padding: 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        background: var(--background);
+        color: var(--text-primary);
+        font-size: 1rem;
         font-weight: 600;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
+        width: 100%;
+        transition: all 0.2s;
       }
 
-      .fee-edit-form .form-input {
-        width: 100%;
-        padding: 0.375rem 0.625rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--background-primary);
-        font-size: 0.875rem;
+      .inline-form-input:focus, .inline-form-select:focus {
+        border-color: var(--primary-500);
+        box-shadow: 0 0 0 4px var(--primary-50);
+        outline: none;
+      }
+
+      /* Removal of spin buttons for number input */
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+      }
+      input[type=number] { -moz-appearance: textfield; }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.85rem;
+        border-radius: var(--radius-full);
+        background: var(--success-100);
+        color: var(--success-700);
+        font-size: 0.725rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border: 1px solid var(--success-200);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .status-badge.paid {
+        background: var(--success-100);
+        color: var(--success-700);
+        border-color: var(--success-200);
+      }
+
+      .status-badge.pending {
+        background: var(--warning-100);
+        color: var(--warning-700);
+        border-color: var(--warning-200);
+      }
+
+      .status-badge.inactive {
+        background: var(--border-light);
+        color: var(--text-tertiary);
+        border-color: var(--border-color);
       }
     </style>
   `;
@@ -659,14 +557,12 @@ export function initStudentDetailModal() {
   const closeModal = () => {
     modalContainer.style.display = 'none';
     document.body.style.overflow = '';
-    // Optional: refresh the underlying page if something changed
     if (window.onStudentModalClose) {
         window.onStudentModalClose();
     }
   };
 
   modalCloseBtn?.addEventListener('click', closeModal);
-  modalCloseFooterBtn?.addEventListener('click', closeModal);
   modalBackdrop?.addEventListener('click', closeModal);
 
   // Edit Student button
@@ -725,6 +621,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
   const modal = document.getElementById('studentDetailModal');
   if (!modal) {
     initStudentDetailModal();
+    initPdfPreviewModal();
     return openStudentDetailModal(student);
   }
 
@@ -747,7 +644,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
   const statusBadge = document.getElementById('modalStudentStatus');
   if (statusBadge) {
       statusBadge.textContent = (student.status || 'ACTIVE').toUpperCase();
-      statusBadge.className = `status-badge ${student.status === 'inactive' ? 'pending' : ''}`;
+      statusBadge.className = `status-badge ${student.status === 'inactive' ? 'inactive' : 'active'}`;
   }
 
   // Populate info grid
@@ -847,13 +744,16 @@ export async function openStudentDetailModal(studentIdOrObject) {
         <div class="semester-header">
           <div class="semester-title-box">
             <h4 class="semester-title">Semester ${sem}</h4>
-            <span class="semester-status ${hasPayments ? 'paid' : 'pending'}">
-              ${hasPayments ? 'PAID' : 'PENDING'}
-            </span>
           </div>
-          <button class="btn-edit-semester btn-delete-semester" title="Delete Semester" onclick="window.editSemester(${student.id}, ${sem})">
-            <span class="icon" style="font-size: 1rem;">${Icons.trash}</span>
-          </button>
+          <div class="semester-header-actions">
+            <button class="btn-semester-action" onclick="window.addPaymentEntry(${student.id}, ${sem})">
+              <span class="icon">${Icons.plus}</span>
+              Add Payment
+            </button>
+            <button class="btn-semester-action danger icon-only" title="Delete Semester" onclick="window.editSemester(${student.id}, ${sem})">
+              <span class="icon">${Icons.trash}</span>
+            </button>
+          </div>
         </div>
         <div class="semester-card ${!hasPayments ? 'pending' : ''}">
           ${hasPayments ? `
@@ -861,6 +761,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Description</th>
                   <th>Amount Paid</th>
                   <th>Method</th>
                   <th>Receipt</th>
@@ -871,6 +772,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
                 ${semesterData.payments.map(payment => `
                   <tr>
                     <td>${new Date(payment.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td style="font-weight: 600;">${payment.description || '-'}</td>
                     <td class="amount">${formatCurrency(payment.amount, currency)}</td>
                     <td>${formatPaymentMethod(payment.method)}</td>
                     <td>
@@ -884,13 +786,13 @@ export async function openStudentDetailModal(studentIdOrObject) {
                     <td>
                       <div class="payment-actions">
                         <button class="payment-action-btn" title="Download" onclick="window.downloadReceipt(${student.id}, ${payment.id})">
-                          <span class="icon">${Icons.download}</span>
+                          <span class="icon" style="width: 1rem; height: 1rem;">${Icons.download}</span>
                         </button>
                         <button class="payment-action-btn" title="Edit" onclick="window.editPaymentEntry(${student.id}, ${sem}, ${payment.id})">
-                          <span class="icon">${Icons.edit}</span>
+                          <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
                         </button>
-                        <button class="payment-action-btn" title="Delete" onclick="window.deletePaymentEntry(${student.id}, ${payment.id})" style="color: var(--danger-color);">
-                          <span class="icon">${Icons.trash}</span>
+                        <button class="payment-action-btn danger" title="Delete" onclick="window.deletePaymentEntry(${student.id}, ${payment.id})">
+                          <span class="icon" style="width: 1rem; height: 1rem;">${Icons.trash}</span>
                         </button>
                       </div>
                     </td>
@@ -900,10 +802,10 @@ export async function openStudentDetailModal(studentIdOrObject) {
             </table>
           ` : `
             <div class="empty-semester">
-              <p>No payments recorded for this semester yet.</p>
-              <button onclick="window.addPaymentEntry(${student.id}, ${sem})">
-                <span class="icon" style="font-size: 1rem;">${Icons.plus}</span>
-                Add Entry
+              <p style="margin-bottom: 1.5rem; font-weight: 600; color: var(--slate-400);">No payments recorded for this semester yet.</p>
+              <button class="inner-add-btn" onclick="window.addPaymentEntry(${student.id}, ${sem})">
+                <span class="icon">${Icons.plus}</span>
+                Record First Payment
               </button>
             </div>
           `}
@@ -985,7 +887,12 @@ function addPaymentEntry(studentId, semester) {
 
   const formHTML = `
     <div class="inline-payment-form" id="inlineForm-${semester}">
-      <h5 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 700;">Record Payment - Semester ${semester}</h5>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+        <h5 style="margin: 0; font-size: 1.125rem; font-weight: 800; color: var(--slate-900);">
+          <span style="color: var(--primary-600);">Record Payment</span> — Semester ${semester}
+        </h5>
+        <div class="status-badge" style="background: var(--primary-50); color: var(--primary-700); border-color: var(--primary-200);">NEW ENTRY</div>
+      </div>
       
       <div class="inline-form-grid">
         <div class="inline-form-group">
@@ -996,9 +903,6 @@ function addPaymentEntry(studentId, semester) {
           <label class="inline-form-label">Date</label>
           <input type="date" id="inlineDate-${semester}" class="inline-form-input" value="${today}" required />
         </div>
-      </div>
-
-      <div class="inline-form-grid">
         <div class="inline-form-group">
           <label class="inline-form-label">Method</label>
           <select id="inlineMethod-${semester}" class="inline-form-select">
@@ -1009,22 +913,24 @@ function addPaymentEntry(studentId, semester) {
             <option value="other">Other</option>
           </select>
         </div>
+      </div>
+
+      <div class="inline-form-grid" style="grid-template-columns: 2fr 1fr;">
         <div class="inline-form-group">
-          <label class="inline-form-label">Reference (Optional)</label>
+          <label class="inline-form-label">Description (What is this payment for?)</label>
+          <input type="text" id="inlineDesc-${semester}" class="inline-form-input" placeholder="e.g. Tuition Fee Part 1, Exam Fee, etc." />
+        </div>
+        <div class="inline-form-group">
+          <label class="inline-form-label">Reference (Receipt #)</label>
           <div id="inlineRefContainer-${semester}"></div>
         </div>
       </div>
 
-      <div class="inline-form-group">
-        <label class="inline-form-label">Description</label>
-        <input type="text" id="inlineDesc-${semester}" class="inline-form-input" placeholder="Payment description" />
-      </div>
-
       <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel</button>
+        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Discard</button>
         <button class="btn-inline-save" onclick="window.saveInlinePayment(${studentId}, ${semester})">
-          <span class="icon" style="margin-right: 0.5rem; font-size: 0.875rem;">${Icons.check}</span>
-          Save Payment
+          <span class="icon" style="margin-right: 0.625rem;">${Icons.check}</span>
+          Save Payment Record
         </button>
       </div>
     </div>
@@ -1072,8 +978,19 @@ async function saveInlinePayment(studentId, semester) {
       description: description.trim()
     };
 
-    await Payment.create(paymentData);
+    const newPayment = await Payment.create(paymentData);
     
+    // Auto-generate receipt PDF if reference exists
+    if (reference.trim()) {
+      try {
+        const student = await Student.findById(studentId);
+        const allPayments = await Payment.findByStudent(studentId);
+        await generateReceiptPDF(student, newPayment, allPayments);
+      } catch (err) {
+        console.error('Auto-receipt generation failed:', err);
+      }
+    }
+
     // Refresh modal
     const student = await Student.findById(studentId);
     await openStudentDetailModal(student);
@@ -1122,7 +1039,12 @@ async function editPaymentEntry(studentId, semester, paymentId) {
 
   const formHTML = `
     <div class="inline-payment-form" id="inlineForm-${semester}">
-      <h5 style="margin: 0 0 1rem 0; font-size: 0.875rem; font-weight: 700;">Edit Payment - Semester ${semester}</h5>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+        <h5 style="margin: 0; font-size: 1.125rem; font-weight: 800; color: var(--slate-900);">
+          <span style="color: var(--primary-600);">Update Payment</span> — Semester ${semester}
+        </h5>
+        <div class="status-badge" style="background: var(--warning-50); color: var(--warning-700); border-color: var(--warning-200);">EDITING</div>
+      </div>
       
       <div class="inline-form-grid">
         <div class="inline-form-group">
@@ -1133,9 +1055,6 @@ async function editPaymentEntry(studentId, semester, paymentId) {
           <label class="inline-form-label">Date</label>
           <input type="date" id="inlineDate-${semester}" class="inline-form-input" value="${paymentDate}" required />
         </div>
-      </div>
-
-      <div class="inline-form-grid">
         <div class="inline-form-group">
           <label class="inline-form-label">Method</label>
           <select id="inlineMethod-${semester}" class="inline-form-select">
@@ -1146,22 +1065,24 @@ async function editPaymentEntry(studentId, semester, paymentId) {
             <option value="other" ${payment.method === 'other' ? 'selected' : ''}>Other</option>
           </select>
         </div>
+      </div>
+
+      <div class="inline-form-grid" style="grid-template-columns: 2fr 1fr;">
         <div class="inline-form-group">
-          <label class="inline-form-label">Reference (Optional)</label>
+          <label class="inline-form-label">Description</label>
+          <input type="text" id="inlineDesc-${semester}" class="inline-form-input" value="${payment.description || ''}" />
+        </div>
+        <div class="inline-form-group">
+          <label class="inline-form-label">Reference (Receipt #)</label>
           <div id="inlineRefContainer-${semester}"></div>
         </div>
       </div>
 
-      <div class="inline-form-group">
-        <label class="inline-form-label">Description</label>
-        <input type="text" id="inlineDesc-${semester}" class="inline-form-input" value="${payment.description || ''}" placeholder="Payment description" />
-      </div>
-
       <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel</button>
+        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">Cancel Changes</button>
         <button class="btn-inline-save" onclick="window.updateInlinePayment(${studentId}, ${paymentId}, ${semester})">
-          <span class="icon" style="margin-right: 0.5rem; font-size: 0.875rem;">${Icons.check}</span>
-          Update Payment
+          <span class="icon" style="margin-right: 0.625rem;">${Icons.check}</span>
+          Update Entry
         </button>
       </div>
     </div>
@@ -1202,6 +1123,9 @@ async function updateInlinePayment(studentId, paymentId, semester) {
   }
 
   try {
+    const oldPayment = await Payment.findById(paymentId);
+    const student = await Student.findById(studentId);
+
     const updates = {
       amount: parseFloat(amount),
       date: new Date(date).toISOString(),
@@ -1212,8 +1136,32 @@ async function updateInlinePayment(studentId, paymentId, semester) {
 
     await Payment.update(paymentId, updates);
     
+    // Manage local files
+    if (fileSystem.isDesktopApp()) {
+      // If reference changed and old one existed, delete old PDF
+      if (oldPayment.reference && oldPayment.reference !== updates.reference) {
+         try {
+           const oldFilename = `Receipt_${oldPayment.reference}_${student.name.replace(/\s+/g, '_')}`;
+           const semesterLabel = oldPayment.semester ? `Semester ${oldPayment.semester}` : 'General';
+           await fileSystem.deletePDF(student.course, student.program, student.name, semesterLabel, oldFilename);
+         } catch (err) {
+           console.warn('Could not delete old PDF:', err);
+         }
+      }
+
+      // Generate new PDF (always if updated, to keep data sync)
+      if (updates.reference) {
+        try {
+          const updatedPayment = await Payment.findById(paymentId);
+          const allPayments = await Payment.findByStudent(studentId);
+          await generateReceiptPDF(student, updatedPayment, allPayments);
+        } catch (err) {
+          console.error('New receipt generation failed:', err);
+        }
+      }
+    }
+
     // Refresh modal
-    const student = await Student.findById(studentId);
     await openStudentDetailModal(student);
     
     alert('Payment updated successfully!');
@@ -1229,10 +1177,23 @@ async function updateInlinePayment(studentId, paymentId, semester) {
 async function deletePaymentEntry(studentId, paymentId) {
   if (confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
     try {
+      const payment = await Payment.findById(paymentId);
+      const student = await Student.findById(studentId);
+
+      // Delete local PDF if exists
+      if (payment && payment.reference && fileSystem.isDesktopApp()) {
+        try {
+          const baseFilename = `Receipt_${payment.reference}_${student.name.replace(/\s+/g, '_')}`;
+          const semesterLabel = payment.semester ? `Semester ${payment.semester}` : 'General';
+          await fileSystem.deletePDF(student.course, student.program, student.name, semesterLabel, baseFilename);
+        } catch (err) {
+          console.warn('Failed to delete associated PDF:', err);
+        }
+      }
+
       await Payment.delete(paymentId);
       
       // Refresh modal
-      const student = await Student.findById(studentId);
       await openStudentDetailModal(student);
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -1279,8 +1240,8 @@ async function previewReceipt(studentId, paymentId) {
     }
     
     const doc = await generateReceiptPDF(student, payment, allPayments);
-    const title = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
-    previewPDF(doc, title);
+    const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
+    openPdfPreviewModal(doc, filename);
   } catch (error) {
     console.error('Error previewing receipt:', error);
     alert('Failed to preview receipt. Please try again.');
@@ -1313,8 +1274,8 @@ async function previewFeeReceipt(studentId, feeType, amount, receiptNo, paidTo =
     if (!student) return;
     
     const doc = await generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo);
-    const title = `${feeType} Receipt - ${student.name}`;
-    previewPDF(doc, title);
+    const filename = `${feeType} Receipt - ${student.name}`;
+    openPdfPreviewModal(doc, filename);
   } catch (error) {
     console.error('Error previewing fee receipt:', error);
     alert('Failed to preview receipt.');
@@ -1379,6 +1340,8 @@ async function saveFeeUpdate(studentId, type) {
   const paidTo = paidToEl ? paidToEl.value : null;
 
   try {
+    const oldStudent = await Student.findById(studentId);
+    
     const updates = {};
     if (type === 'registration') {
       updates.registrationFee = parseFloat(amount) || 0;
@@ -1390,9 +1353,38 @@ async function saveFeeUpdate(studentId, type) {
     }
 
     await Student.update(studentId, updates);
+    const updatedStudent = await Student.findById(studentId);
+
+    // Sync files
+    if (fileSystem.isDesktopApp()) {
+      const isReg = type === 'registration';
+      const oldReceipt = isReg ? oldStudent.registrationFeeReceipt : oldStudent.commissionReceipt;
+      const newReceipt = isReg ? updates.registrationFeeReceipt : updates.commissionReceipt;
+      const feeLabel = isReg ? 'Registration Fee' : 'Commission Fee';
+
+      // 1. Delete old if changed
+      if (oldReceipt && oldReceipt !== newReceipt) {
+        try {
+          const oldFilename = `${feeLabel.replace(/\s+/g, '_')}_Receipt_${oldStudent.name.replace(/\s+/g, '_')}`;
+          await fileSystem.deletePDF(oldStudent.course, oldStudent.program, oldStudent.name, null, oldFilename);
+        } catch (err) {
+          console.warn('Could not delete old fee PDF:', err);
+        }
+      }
+
+      // 2. Generate new if reference exists
+      if (newReceipt) {
+        try {
+           const feeAmount = isReg ? updates.registrationFee : updates.commission;
+           const feePaidTo = isReg ? null : updates.commissionPaidTo;
+           await generateFeeReceiptPDF(updatedStudent, feeLabel, feeAmount, newReceipt, feePaidTo);
+        } catch (err) {
+           console.error('Fee receipt generation failed:', err);
+        }
+      }
+    }
     
     // Refresh modal
-    const updatedStudent = await Student.findById(studentId);
     await openStudentDetailModal(updatedStudent);
   } catch (error) {
     console.error('Error saving fee update:', error);

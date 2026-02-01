@@ -12,6 +12,7 @@ import { renderStudents } from './components/Students.js';
 
 import { renderReports } from './components/Reports.js';
 import { renderSpreadsheet } from './components/Spreadsheet.js';
+import { Student } from './models/Student.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
 import { createThemeToggle, initTheme, setupThemeToggle } from './components/ThemeToggle.js';
 import { setupPacmanEasterEgg } from './components/PacmanEasterEgg.js';
@@ -67,6 +68,9 @@ async function init() {
       await fileSystem.init();
       console.log('✅ File system ready');
     }
+
+    // Auto-sync student statuses based on completion dates
+    await Student.syncStatusWithCompletionDate();
 
     // Setup theme toggle
     const toggleContainer = document.getElementById('theme-toggle-container');
@@ -164,7 +168,6 @@ async function navigateToPage(page) {
       case 'reports':
         await renderReports();
         break;
-      
       case 'spreadsheet':
         await renderSpreadsheet();
         break;
@@ -267,11 +270,6 @@ function showLoading(show) {
 function showError(message) {
   alert(`❌ Error: ${message}`);
 }
-
-/**
- * Render Reports page (placeholder)
- */
-
 
 /**
  * Render Settings page (placeholder)

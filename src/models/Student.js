@@ -234,6 +234,53 @@ class StudentModel {
       inactive: students.filter(s => s.status === 'inactive').length
     };
   }
+
+  /**
+   * Sync student status with completion date
+   * Transitions 'active' students to 'inactive' if completion date has passed
+   */
+  async syncStatusWithCompletionDate() {
+    try {
+      const students = await db.getAll(STORES.STUDENTS);
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-11
+      
+      let updatedCount = 0;
+
+      for (const student of students) {
+        // Skip students without completion date or already inactive
+        if (student.status !== 'active' || !student.completionDate) continue;
+
+        const compDate = new Date(student.completionDate);
+        if (isNaN(compDate.getTime())) continue;
+
+        const compYear = compDate.getFullYear();
+        const compMonth = compDate.getMonth();
+
+        // Check if completion month has passed
+        // e.g. If current is Dec-2024 and completion was Nov-2024
+        const hasPassed = (currentYear > compYear) || (currentYear === compYear && currentMonth > compMonth);
+
+        if (hasPassed) {
+          await this.update(student.id, { 
+            status: 'inactive',
+            completionStatus: 'Completed'
+          });
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        console.log(`📊 Auto-completed ${updatedCount} students based on completion date`);
+      }
+      
+      return updatedCount;
+    } catch (error) {
+      console.error('Error syncing student statuses:', error);
+      return 0;
+    }
+  }
 }
 
 // Export singleton instance

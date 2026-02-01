@@ -10,8 +10,12 @@ import { StudentRemarks } from '../models/StudentRemarks.js';
 import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/pdfGenerator.js';
 import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
+import { SpreadsheetExporter } from '../utils/spreadsheetExporter.js';
+import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
 
 // Available courses (removed 'Other')
 const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
@@ -22,8 +26,6 @@ let spreadsheetData = [];
 let searchQuery = '';
 let sortBy = 'name';
 let sortOrder = 'asc'; // 'asc' or 'desc'
-let currentPage = 1;
-const itemsPerPage = 10;
 
 /**
  * Render the Spreadsheet page
@@ -47,9 +49,9 @@ export async function renderSpreadsheet() {
               <span class="icon icon-sm">▼</span>
             </button>
             <div class="export-menu" id="exportMenu">
-              <a href="#" id="exportCsvBtn">
+              <a href="#" id="exportXlsxBtn">
                 <span class="icon">${Icons.file}</span>
-                CSV Spreadsheet
+                Excel Spreadsheet
               </a>
               <a href="#" id="exportPdfBtn">
                 <span class="icon">${Icons.file}</span>
@@ -603,7 +605,7 @@ export async function renderSpreadsheet() {
 
       .summary-cards {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 1.5rem;
         margin-top: 2rem;
       }
@@ -1392,11 +1394,38 @@ export async function renderSpreadsheet() {
         background: var(--background-primary);
         font-size: 0.875rem;
       }
+
+      .inactive-row {
+        background: var(--background-secondary) !important;
+        opacity: 0.6;
+      }
+
+      .inactive-row td.sticky-col {
+        background: var(--background-secondary) !important;
+      }
+
+      .inactive-row .student-name {
+        color: var(--text-secondary) !important;
+      }
+      
+      .status-tag {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 0.125rem 0.5rem;
+        border-radius: var(--radius-full);
+        background: var(--border-color);
+        color: var(--text-tertiary);
+        margin-left: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-style: normal;
+      }
     </style>
   `;
 
-  // Initialize shared modal
+  // Initialize shared modals
   initStudentDetailModal();
+  initPdfPreviewModal();
 
   // Setup event listeners
   setupEventListeners();
@@ -1413,7 +1442,7 @@ function setupEventListeners() {
   document.querySelectorAll('.course-pill').forEach(pill => {
     pill.addEventListener('click', async () => {
       currentCourse = pill.dataset.course;
-      currentPage = 1;
+      currentCourse = pill.dataset.course;
       
       document.querySelectorAll('.course-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
@@ -1427,7 +1456,6 @@ function setupEventListeners() {
   if (searchInput) {
     searchInput.addEventListener('input', debounce(async (e) => {
       searchQuery = e.target.value.toLowerCase();
-      currentPage = 1;
       await loadSpreadsheetData();
     }, 300));
   }
@@ -1461,10 +1489,17 @@ function setupEventListeners() {
     });
   }
 
-  // Export CSV
-  document.getElementById('exportCsvBtn')?.addEventListener('click', (e) => {
+  // Export XLSX
+  document.getElementById('exportXlsxBtn').addEventListener('click', (e) => {
     e.preventDefault();
-    exportToCSV();
+    const exporter = new SpreadsheetExporter({
+      title: `Student Payment Spreadsheet - ${currentCourse}`,
+      subtitle: `Generated: ${new Date().toLocaleString()}`,
+      rows: spreadsheetData,
+      currency: 'RM',
+      course: currentCourse
+    });
+    exporter.exportToXLSX();
   });
 
   // Export PDF
@@ -1475,14 +1510,15 @@ function setupEventListeners() {
 
   // Print
   document.getElementById('printBtn')?.addEventListener('click', () => {
-    window.print();
+    printSpreadsheet();
   });
 
   // Expose clear filters to window for the empty state button
   window.clearFilters = async () => {
     searchQuery = '';
     currentCourse = 'Diploma'; // Reset to default
-    currentPage = 1;
+    searchQuery = '';
+    currentCourse = 'Diploma'; // Reset to default
     
     // Update UI elements if they exist
     const searchInput = document.getElementById('searchInput');
@@ -1541,7 +1577,7 @@ async function loadSpreadsheetData() {
     // Get students
     let students = currentCourse === 'All Programs' 
       ? await Student.findAll()
-      : await Student.findByCourse(currentCourse);
+      : await Student.findAll({ course: currentCourse });
     
     if (students.length === 0) {
       tableContainer.innerHTML = `
@@ -1581,8 +1617,8 @@ async function loadSpreadsheetData() {
       students = filteredStudents;
     }
 
-    // Get currency
     const currency = await db.getSetting('currency') || 'RM';
+    const courseName = currentCourse || 'All Programs';
 
     // Calculate payment data for each student
     const studentData = [];
@@ -1647,14 +1683,34 @@ async function loadSpreadsheetData() {
       return 0;
     });
 
-    // Group by program
-    const programGroups = {};
+    // Group by course then program
+    const courseGroups = {};
     studentData.forEach(data => {
+      const course = data.student.course || 'Unassigned Course';
       const program = data.student.program || 'General Program';
-      if (!programGroups[program]) {
-        programGroups[program] = [];
+      
+      if (!courseGroups[course]) {
+        courseGroups[course] = {};
       }
-      programGroups[program].push(data);
+      if (!courseGroups[course][program]) {
+        courseGroups[course][program] = [];
+      }
+      courseGroups[course][program].push(data);
+    });
+
+    // Sort course names according to COURSES array (except 'All Programs')
+    const sortedCourses = Object.keys(courseGroups).sort((a, b) => {
+      const idxA = COURSES.indexOf(a);
+      const idxB = COURSES.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    const finalGrouping = {};
+    sortedCourses.forEach(c => {
+      finalGrouping[c] = courseGroups[c];
     });
 
     // Calculate summary statistics
@@ -1663,11 +1719,15 @@ async function loadSpreadsheetData() {
     const totalFees = studentData.reduce((sum, d) => sum + (d.student.totalFees || 0), 0);
     const collectionProgress = totalFees > 0 ? Math.round((totalCollected / totalFees) * 100) : 0;
 
+    // Update global state for exports
+    spreadsheetData = studentData;
+
     // Render table
-    renderTable(programGroups, currency);
+    renderTable(finalGrouping, currency);
     
     // Render summary cards
-    renderSummaryCards(totalCollected, totalOutstanding, students.length, collectionProgress, currency);
+    const activeEnrollments = students.filter(s => s.status === 'active').length;
+    renderSummaryCards(totalCollected, totalOutstanding, activeEnrollments, currency);
     
   } catch (error) {
     console.error('Error loading spreadsheet data:', error);
@@ -1684,15 +1744,15 @@ async function loadSpreadsheetData() {
 /**
  * Render the table
  */
-function renderTable(programGroups, currency) {
+function renderTable(courseGroups, currency) {
   const tableContainer = document.getElementById('tableContainer');
   
-  const programs = Object.keys(programGroups);
+  const courses = Object.keys(courseGroups);
   
-  if (programs.length === 0) {
+  if (courses.length === 0) {
     tableContainer.innerHTML = `
       <div class="empty-state">
-        <div class="icon-lg">${Icons.search}</div>
+        <div class="empty-state-icon">${Icons.search}</div>
         <h3>No results found</h3>
         <p>Try adjusting your search or filters.</p>
       </div>
@@ -1700,134 +1760,108 @@ function renderTable(programGroups, currency) {
     return;
   }
 
-  let tableRows = '';
-  let rowNumber = 1;
+  let fullHtml = '';
   
-  programs.forEach(program => {
-    const students = programGroups[program];
-    
-    // Standardize branding for all programs using the new institute icon
-    const logoHtml = Icons.institute;
-    
-    // Program header
-    tableRows += `
-      <tr class="institution-header">
-        <td colspan="8">
-          <div class="institution-name">
-            <div class="program-logo">${logoHtml}</div>
-            <span>${program}</span>
-          </div>
-        </td>
-      </tr>
+  courses.forEach(courseName => {
+    const programGroups = courseGroups[courseName];
+    const programs = Object.keys(programGroups);
+
+    // Course Header
+    fullHtml += `
+      <div class="course-header" style="margin-top: 3rem; margin-bottom: 2rem; padding: 1rem 0; border-bottom: 2px solid var(--primary-600);">
+        <h1 style="font-size: 2rem; font-weight: 800; color: var(--primary-600); margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+          ${courseName}
+        </h1>
+      </div>
     `;
-    
-    // Student rows
-    students.forEach(data => {
-      const { student, totalPaid, balance, misc, cost } = data;
-      const initials = getInitials(student.name);
+
+    programs.forEach(program => {
+      const students = programGroups[program];
       
-      tableRows += `
-        <tr>
-          <td>${rowNumber++}</td>
-          <td class="sticky-col">
-            <div class="student-cell">
-              <div class="student-info">
-                <div class="student-name">${escapeHtml(student.name)}</div>
+      // Calculate program sub-totals
+      const subTotalCost = students.reduce((sum, d) => sum + Number(d.cost || 0), 0);
+      const subTotalFees = students.reduce((sum, d) => sum + Number(d.student.totalFees || 0), 0);
+      const subTotalPaid = students.reduce((sum, d) => sum + Number(d.totalPaid || 0), 0);
+      const subTotalBalance = students.reduce((sum, d) => sum + Number(d.balance || 0), 0);
+
+      let rowsHtml = '';
+      let rowNumber = 1;
+
+      students.forEach(data => {
+        const { student, totalPaid, balance, cost } = data;
+        
+        rowsHtml += `
+          <tr class="${student.status === 'inactive' ? 'inactive-row' : ''}">
+            <td>${rowNumber++}</td>
+            <td class="sticky-col">
+              <div class="student-name">
+                ${escapeHtml(student.name)}
+                ${student.status === 'inactive' ? '<span class="status-tag">Completed</span>' : ''}
               </div>
+            </td>
+            <td>${student.intake ? formatMonthYear(student.intake) : '-'}</td>
+            <td>${student.completionDate ? formatMonthYear(student.completionDate) : '-'}</td>
+            <td class="amount-bold">${formatCurrency(cost, currency)}</td>
+            <td class="amount-bold">${formatCurrency(student.totalFees || 0, currency)}</td>
+            <td class="amount-paid">${formatCurrency(totalPaid, currency)}</td>
+            <td class="${balance >= 0.01 ? 'amount-outstanding' : 'amount-paid'}">
+              ${formatCurrency(balance, currency)}
+            </td>
+          </tr>
+        `;
+      });
+
+      fullHtml += `
+        <div class="program-section">
+          <h2 class="program-title">
+            <span class="program-indicator"></span>
+            ${program}
+            <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-tertiary); margin-left: auto;">
+              ${students.length} Students
+            </span>
+          </h2>
+          <div class="table-card" style="margin-bottom: 2.5rem;">
+            <div class="table-scroll">
+              <table class="spreadsheet-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">NO.</th>
+                    <th class="sticky-col">STUDENT NAME</th>
+                    <th>INTAKE</th>
+                    <th>COMPLETION</th>
+                    <th>INST. COST</th>
+                    <th>TOTAL FEES</th>
+                    <th>TOTAL PAID</th>
+                    <th>BALANCE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+                <tfoot style="background: var(--background-secondary); border-top: 2px solid var(--border-color);">
+                  <tr>
+                    <td colspan="4" style="text-align: right; font-weight: 700; color: var(--text-primary);">Program Sub-Totals:</td>
+                    <td class="amount-bold">${formatCurrency(subTotalCost, currency)}</td>
+                    <td class="amount-bold">${formatCurrency(subTotalFees, currency)}</td>
+                    <td class="amount-paid">${formatCurrency(subTotalPaid, currency)}</td>
+                    <td class="amount-bold ${subTotalBalance > 0 ? 'amount-outstanding' : ''}">${formatCurrency(subTotalBalance, currency)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          </td>
-          <td>${student.intake ? formatMonthYear(student.intake) : '-'}</td>
-          <td>${student.completionDate ? formatMonthYear(student.completionDate) : '-'}</td>
-          <td class="amount-bold">${formatCurrency(cost, currency)}</td>
-          <td class="amount-bold">${formatCurrency(student.totalFees || 0, currency)}</td>
-          <td class="amount-paid">
-            ${formatCurrency(totalPaid, currency)}
-          </td>
-          <td class="${balance >= 0.01 ? 'amount-outstanding' : 'amount-paid'}">
-            ${formatCurrency(balance, currency)}
-          </td>
-        </tr>
+          </div>
+        </div>
       `;
     });
   });
 
-  const totalStudents = Object.values(programGroups).reduce((sum, arr) => sum + arr.length, 0);
-  const startIndex = (currentPage - 1) * itemsPerPage + 1;
-  const endIndex = Math.min(currentPage * itemsPerPage, totalStudents);
-  const totalPages = Math.ceil(totalStudents / itemsPerPage);
-
-  tableContainer.innerHTML = `
-    <div class="program-section">
-      <h2 class="program-title">
-        <span class="program-indicator"></span>
-        ${currentCourse}
-      </h2>
-      <div class="table-card">
-        <div class="table-scroll">
-          <table class="spreadsheet-table">
-            <thead>
-              <tr>
-                <th class="${sortBy === 'no' ? 'active-sort' : ''}" data-sort="no">
-                  No. ${sortBy === 'no' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="sticky-col ${sortBy === 'name' ? 'active-sort' : ''}" data-sort="name">
-                  Student Name ${sortBy === 'name' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'intake' ? 'active-sort' : ''}" data-sort="intake">
-                  Intake ${sortBy === 'intake' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'completion' ? 'active-sort' : ''}" data-sort="completion">
-                  Completion ${sortBy === 'completion' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'cost' ? 'active-sort' : ''}" data-sort="cost">
-                  Cost ${sortBy === 'cost' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'fees' ? 'active-sort' : ''}" data-sort="fees">
-                  Total Fees ${sortBy === 'fees' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'paid' ? 'active-sort' : ''}" data-sort="paid">
-                  Total Paid ${sortBy === 'paid' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-                <th class="${sortBy === 'balance' ? 'active-sort' : ''}" data-sort="balance">
-                  Balance ${sortBy === 'balance' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-        </div>
-        <div class="table-footer">
-          <div class="pagination-info">
-            Showing <strong>${startIndex} to ${endIndex}</strong> of ${totalStudents} students
-          </div>
-          <div class="pagination-controls">
-            <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window.changePage(${currentPage - 1})">
-              ◀
-            </button>
-            ${Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-              const page = i + 1;
-              return `
-                <button class="page-number ${page === currentPage ? 'active' : ''}" onclick="window.changePage(${page})">
-                  ${page}
-                </button>
-              `;
-            }).join('')}
-            <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="window.changePage(${currentPage + 1})">
-              ▶
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  tableContainer.innerHTML = fullHtml;
 }
 
 /**
  * Render summary cards
  */
-function renderSummaryCards(totalCollected, totalOutstanding, activeEnrollments, collectionProgress, currency) {
+function renderSummaryCards(totalCollected, totalOutstanding, activeEnrollments, currency) {
   const summaryCardsContainer = document.getElementById('summaryCards');
   
   summaryCardsContainer.innerHTML = `
@@ -1835,48 +1869,21 @@ function renderSummaryCards(totalCollected, totalOutstanding, activeEnrollments,
       <div class="summary-card">
         <div class="summary-card-label">Total Fees Collected</div>
         <div class="summary-card-value success">${formatCurrency(totalCollected, currency)}</div>
-        <div class="summary-card-meta success">
-          <span>▲</span>
-          <span>12% from last month</span>
-        </div>
       </div>
       
       <div class="summary-card">
         <div class="summary-card-label">Pending Balance</div>
         <div class="summary-card-value danger">${formatCurrency(totalOutstanding, currency)}</div>
-        <div class="summary-card-meta danger">
-          <span>⚠</span>
-          <span>High balance alert</span>
-        </div>
       </div>
       
       <div class="summary-card">
         <div class="summary-card-label">Active Enrollments</div>
         <div class="summary-card-value primary">${activeEnrollments}</div>
-        <div class="summary-card-meta primary">
-          <span>+</span>
-          <span>8 new this intake</span>
-        </div>
-      </div>
-      
-      <div class="summary-card">
-        <div class="summary-card-label">Collection Progress</div>
-        <div class="summary-card-value primary">${collectionProgress}%</div>
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: ${collectionProgress}%"></div>
-        </div>
       </div>
     </div>
   `;
 }
 
-/**
- * Change page
- */
-window.changePage = async function(page) {
-  currentPage = page;
-  await loadSpreadsheetData();
-};
 
 /**
  * Get initials from name
@@ -1906,17 +1913,174 @@ function debounce(func, wait) {
 }
 
 /**
+ * Prepare export data from current spreadsheet state
+ */
+async function prepareExportData() {
+  // Get current students based on filters
+  let students = currentCourse === 'All Programs' 
+    ? await Student.findAll()
+    : await Student.findByCourse(currentCourse);
+  
+  // Apply search filter
+  if (searchQuery) {
+    students = students.filter(s => 
+      s.name.toLowerCase().includes(searchQuery) ||
+      s.studentId.toLowerCase().includes(searchQuery) ||
+      (s.intake && s.intake.toLowerCase().includes(searchQuery))
+    );
+  }
+  
+  // Get currency and context info
+  const currency = await db.getSetting('currency') || 'RM';
+  const courseName = currentCourse || 'All Programs';
+  const totalStudentsCount = students.length;
+  
+  // Calculate payment data for each student
+  const studentData = [];
+  for (const student of students) {
+    const payments = await Payment.findAll({ studentId: student.id });
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const balance = (student.totalFees || 0) - totalPaid;
+    
+    studentData.push({
+      student,
+      totalPaid,
+      balance,
+      cost: student.institutionalCost || 0
+    });
+  }
+  
+  // Group by course then program
+  const courseGroups = {};
+  studentData.forEach(data => {
+    const course = data.student.course || 'Unassigned Course';
+    const program = data.student.program || 'General Program';
+    if (!courseGroups[course]) courseGroups[course] = {};
+    if (!courseGroups[course][program]) courseGroups[course][program] = [];
+    courseGroups[course][program].push(data);
+  });
+  
+  // Build rows for export
+  const rows = [];
+  
+  Object.keys(courseGroups).forEach(groupCourseName => {
+    // Add Course Header
+    rows.push({
+      type: 'course_header',
+      course: groupCourseName
+    });
+
+    const programGroups = courseGroups[groupCourseName];
+    Object.keys(programGroups).forEach(program => {
+      const students = programGroups[program];
+      let rowNumber = 1; // Reset for each program block
+      
+      // Add program header
+      rows.push({
+        type: 'header',
+        program: program
+      });
+      
+      // Add student rows
+      students.forEach(data => {
+        rows.push({
+          type: 'data',
+          no: rowNumber++,
+          studentName: data.student.name,
+          intake: data.student.intake || '',
+          completion: data.student.completionDate || '',
+          cost: data.cost,
+          totalFees: data.student.totalFees || 0,
+          totalPaid: data.totalPaid,
+          balance: data.balance
+        });
+      });
+
+      // Add program summary row - ensuring numeric addition
+      const subTotalCost = students.reduce((sum, d) => sum + Number(d.cost || 0), 0);
+      const subTotalFees = students.reduce((sum, d) => sum + Number(d.student.totalFees || 0), 0);
+      const subTotalPaid = students.reduce((sum, d) => sum + Number(d.totalPaid || 0), 0);
+      const subTotalBalance = students.reduce((sum, d) => sum + Number(d.balance || 0), 0);
+
+      rows.push({
+        type: 'summary',
+        program: program,
+        subTotalCost,
+        subTotalFees,
+        subTotalPaid,
+        subTotalBalance
+      });
+    });
+  });
+  
+  // Calculate summary
+  const totalCollected = studentData.reduce((sum, d) => sum + d.totalPaid, 0);
+  const totalOutstanding = studentData.reduce((sum, d) => sum + d.balance, 0);
+  
+  return {
+    title: `Student Payment Spreadsheet - ${courseName}`,
+    course: courseName,
+    subtitle: `Generated on ${new Date().toLocaleDateString('en-GB')}`,
+    currency: currency,
+    columns: [
+      { key: 'no', label: 'NO', width: 50, align: 'center' },
+      { key: 'studentName', label: 'STUDENT NAME', width: 200 },
+      { key: 'intake', label: 'INTAKE', width: 100 },
+      { key: 'completion', label: 'COMPLETION', width: 100 },
+      { key: 'cost', label: 'COST', width: 100, align: 'right' },
+      { key: 'totalFees', label: 'TOTAL FEES', width: 120, align: 'right' },
+      { key: 'totalPaid', label: 'TOTAL PAID', width: 120, align: 'right' },
+      { key: 'balance', label: 'BALANCE', width: 120, align: 'right' }
+    ],
+    rows: rows,
+    summary: {
+      totalStudents: totalStudentsCount,
+      totalCollected: totalCollected,
+      totalOutstanding: totalOutstanding
+    }
+  };
+}
+
+/**
  * Export to CSV
  */
 async function exportToCSV() {
-  alert('CSV export functionality - to be implemented');
+  try {
+    const data = await prepareExportData();
+    const exporter = new SpreadsheetExporter(data);
+    await exporter.exportToCSV();
+  } catch (error) {
+    console.error('Error exporting to CSV:', error);
+    alert('Failed to export CSV. Please try again.');
+  }
 }
 
 /**
  * Export to PDF
  */
 async function exportToPDF() {
-  alert('PDF export functionality - to be implemented');
+  try {
+    const data = await prepareExportData();
+    const exporter = new SpreadsheetExporter(data);
+    await exporter.exportToPDF();
+  } catch (error) {
+    console.error('Error exporting to PDF:', error);
+    alert('Failed to export PDF. Please try again.');
+  }
+}
+
+/**
+ * Print spreadsheet
+ */
+async function printSpreadsheet() {
+  try {
+    const data = await prepareExportData();
+    const exporter = new SpreadsheetExporter(data);
+    await exporter.printSpreadsheet();
+  } catch (error) {
+    console.error('Error printing spreadsheet:', error);
+    alert('Failed to print spreadsheet. Please try again.');
+  }
 }
 
 /**

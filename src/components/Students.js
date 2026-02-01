@@ -122,9 +122,6 @@ export async function renderStudents() {
 /**
  * Load and display students
  */
-/**
- * Load and display students
- */
 async function loadStudents() {
   const search = document.getElementById('studentSearch')?.value || '';
   const status = document.getElementById('statusFilter')?.value || '';
@@ -135,7 +132,6 @@ async function loadStudents() {
 
   let students = await Student.findAll(filters);
 
-  // Sorting
   // Sorting
   students.sort((a, b) => {
     // Priority 1: Search Relevance (if searching)
@@ -609,7 +605,6 @@ async function loadStudentData(studentId) {
 
   document.getElementById('studentCompletionStatus').value = student.completionStatus || 'In Progress';
   document.getElementById('studentTotalFees').value = student.totalFees || '';
-  document.getElementById('studentTotalFees').value = student.totalFees || '';
   document.getElementById('studentInstitutionalCost').value = student.institutionalCost || '';
   document.getElementById('studentRegistrationFee').value = student.registrationFee || '';
   document.getElementById('studentRegistrationFeeReceipt').value = student.registrationFeeReceipt || '';
@@ -619,9 +614,6 @@ async function loadStudentData(studentId) {
   document.getElementById('studentRemarks').value = student.remarks || '';
 }
 
-/**
- * Save student (create or update)
- */
 /**
  * Save student (create or update)
  */

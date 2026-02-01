@@ -148,7 +148,7 @@ class FileSystemService {
     await this.createFolderStructure(course, program, studentName, semester);
 
     // Generate file path
-    const filePath = this.getPDFFilePath(course, studentName, semester, fileName);
+    const filePath = this.getPDFFilePath(course, program, studentName, semester, fileName);
 
     // Save PDF
     const result = await window.electronAPI.savePDF(filePath, pdfData);
@@ -182,6 +182,33 @@ class FileSystemService {
     }
 
     return await window.electronAPI.readPDF(filePath);
+  }
+
+  /**
+   * Delete PDF from file system
+   */
+  async deletePDF(course, program, studentName, semester, fileName) {
+    if (!this.isElectron) {
+      return { success: true };
+    }
+
+    const filePath = this.getPDFFilePath(course, program, studentName, semester, fileName);
+    const result = await window.electronAPI.deleteFile(filePath);
+
+    if (result.success) {
+      console.log('🗑️ PDF deleted:', filePath);
+      // Remove from metadata cache if we have it
+      try {
+        const existing = await db.getByIndex('fileMetadata', 'filePath', filePath);
+        if (existing && existing.length > 0) {
+          await db.delete('fileMetadata', existing[0].id);
+        }
+      } catch (err) {
+        console.warn('Metadata removal failed:', err);
+      }
+    }
+
+    return result;
   }
 
    /**

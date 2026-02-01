@@ -415,8 +415,8 @@ export async function generateFeeReceiptPDF(student, feeType, amount, receiptNo,
       );
 
       if (result.success) {
-        // Notify user of success and location
-        setTimeout(() => alert(`✅ Receipt saved to:\n${result.path}`), 100);
+        // Log success instead of alert for smoother experience
+        console.log(`✅ Receipt saved to: ${result.path}`);
       } else {
         alert(`❌ Failed to save receipt: ${result.error}`);
       }
