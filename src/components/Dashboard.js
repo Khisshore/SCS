@@ -6,8 +6,9 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { formatCurrency, formatDate, getRelativeTime } from '../utils/formatting.js';
-import { db } from '../db/database.js';
+import { db, STORES } from '../db/database.js';
 import { Icons } from '../utils/icons.js';
+import { fileSystem } from '../services/fileSystem.js';
 import Chart from 'chart.js/auto';
 
 export async function renderDashboard() {
@@ -37,7 +38,14 @@ export async function renderDashboard() {
           <h1 style="margin-bottom: 0.5rem;">Dashboard</h1>
           <p style="margin: 0; color: var(--text-secondary);">Welcome back! Here's your overview.</p>
         </div>
-        <div class="flex gap-md">
+        <div class="flex gap-md items-center">
+          <div id="syncPillContainer" class="sync-pill" onclick="window.location.hash = '#transfer'" title="Data Transfer & Sync Hub">
+            <div class="icon">${Icons.refresh}</div>
+            <div class="flex flex-column" style="display: flex; flex-direction: column;">
+              <span id="syncStatusIndicator">Syncing...</span>
+              <span id="lastSyncTime" style="font-size: 10px; opacity: 0.7; font-weight: 400; margin-top: -2px;">Checking...</span>
+            </div>
+          </div>
           <button class="btn btn-success" id="quickPaymentBtn">
             <span class="icon">${Icons.dollarSign}</span>
             Record Payment
@@ -165,6 +173,51 @@ export async function renderDashboard() {
       }
     </style>
   `;
+
+  // Update Sync Status with premium design
+  const updateSyncStatus = async () => {
+    const indicator = document.getElementById('syncStatusIndicator');
+    const pill = document.getElementById('syncPillContainer');
+    const timeLabel = document.getElementById('lastSyncTime');
+    const icon = pill?.querySelector('.icon');
+    
+    if (!indicator || !pill) return;
+    
+    const snapshot = await fileSystem.checkSnapshot();
+    const lastSync = await db.getSetting('lastSyncTimestamp');
+    
+    if (snapshot) {
+      pill.classList.add('synced');
+      indicator.textContent = 'Data Synced';
+      
+      if (lastSync) {
+        try {
+          const syncDate = new Date(lastSync);
+          if (!isNaN(syncDate.getTime())) {
+            const timeStr = getRelativeTime(syncDate);
+            timeLabel.textContent = `Last sync: ${timeStr}`;
+          } else {
+            timeLabel.textContent = 'Recently';
+          }
+        } catch (e) {
+          timeLabel.textContent = 'Synced';
+        }
+      } else {
+        timeLabel.textContent = 'Ready';
+      }
+      
+      // Add a brief pulse if synced in the last 10 seconds
+      if (lastSync && typeof lastSync === 'number' && (Date.now() - lastSync < 10000)) {
+        icon?.classList.add('sync-pill-pulse');
+        setTimeout(() => icon?.classList.remove('sync-pill-pulse'), 5000);
+      }
+    } else {
+      pill.classList.remove('synced');
+      indicator.textContent = 'Not Synced';
+      timeLabel.textContent = 'Set up library';
+    }
+  };
+  updateSyncStatus();
 
   // Attach event listeners
   document.getElementById('quickPaymentBtn')?.addEventListener('click', () => {

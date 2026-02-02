@@ -266,6 +266,115 @@ class FileSystemService {
   }
 
   /**
+   * Save a full system snapshot to the library folder
+   * This is the heart of the "Portable Library" feature
+   * Enhanced with conflict detection
+   */
+  async saveSystemSnapshot(force = false) {
+    if (!this.baseFolder || !this.isElectron) return { success: false, reason: 'unsupported' };
+
+    try {
+      const snapshotPath = `${this.baseFolder}\\sync_data.json`;
+      
+      // Conflict Detection: Only check if NOT forced
+      if (!force) {
+        const existing = await this.checkSnapshot();
+        if (existing) {
+          const lastSavedLocally = await db.getSetting('lastSyncTimestamp');
+          const diskModified = new Date(existing.modified).getTime();
+          
+          // If disk version is newer than our last known sync, we have a potential conflict
+          if (lastSavedLocally && diskModified > lastSavedLocally + 2000) { // 2s buffer
+             console.warn('⚠️ Conflict detected: Disk version is newer than last local sync');
+             return { success: false, reason: 'conflict', diskTime: existing.modified };
+          }
+        }
+      }
+
+      const data = await db.exportData();
+      const timestamp = Date.now();
+      data.syncTimestamp = timestamp;
+
+      const result = await window.electronAPI.writeFile(snapshotPath, JSON.stringify(data, null, 2));
+      
+      if (result.success) {
+        // [Safety Guard] Prevent this metadata update from triggering another sync
+        db.isImporting = true;
+        await db.setSetting('lastSyncTimestamp', timestamp);
+        db.isImporting = false;
+        
+        console.log('🔄 System snapshot updated in library');
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('❌ Failed to save system snapshot:', error);
+    }
+    return { success: false, reason: 'error' };
+  }
+
+  /**
+   * Create a local backup file before risky operations (like Import)
+   */
+  async createLocalEmergencyBackup() {
+    if (!this.isElectron) return null;
+    
+    try {
+      const data = await db.exportData();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = `${this.baseFolder}\\backups\\auto-backup-${timestamp}.json`;
+      
+      // Ensure backup folder exists
+      await window.electronAPI.createFolder(`${this.baseFolder}\\backups`);
+      
+      const result = await window.electronAPI.writeFile(backupPath, JSON.stringify(data, null, 2));
+      return result.success ? backupPath : null;
+    } catch (e) {
+      console.error('Failed to create emergency backup:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Check if a snapshot exists and is valid
+   */
+  async checkSnapshot() {
+    if (!this.baseFolder || !this.isElectron) return null;
+    
+    const snapshotPath = `${this.baseFolder}\\sync_data.json`;
+    const exists = await window.electronAPI.folderExists(snapshotPath); // Note: stats work for files too in our bridge usually, but let's check
+    
+    // Actually our bridge might need a fileExists. Looking at preload/main... 
+    // main.js has list-files and folder-exists. folder-exists uses fs.stat and checks isDirectory.
+    // I should check if there's a better tool or if I can use list-files.
+    
+    const files = await window.electronAPI.listFiles(this.baseFolder);
+    if (files.success) {
+      const snapshot = files.files.find(f => f.name === 'sync_data.json');
+      return snapshot || null;
+    }
+    return null;
+  }
+
+  /**
+   * Load system snapshot from library folder
+   */
+  async loadSystemSnapshot() {
+    if (!this.baseFolder || !this.isElectron) return null;
+
+    const snapshotPath = `${this.baseFolder}\\sync_data.json`;
+    const result = await window.electronAPI.readFile(snapshotPath);
+    
+    if (result.success) {
+      try {
+        return JSON.parse(result.data);
+      } catch (e) {
+        console.error('Failed to parse snapshot JSON');
+      }
+    }
+    return null;
+  }
+
+  /**
    * Get file metadata from IndexedDB
    */
   async getFileMetadata(filePath) {

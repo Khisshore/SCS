@@ -12,6 +12,7 @@ import { renderStudents } from './components/Students.js';
 
 import { renderReports } from './components/Reports.js';
 import { renderSpreadsheet } from './components/Spreadsheet.js';
+import { renderTransferHub } from './components/TransferHub.js';
 import { Student } from './models/Student.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
 import { createThemeToggle, initTheme, setupThemeToggle } from './components/ThemeToggle.js';
@@ -67,6 +68,23 @@ async function init() {
     if (fileSystem.isDesktopApp()) {
       await fileSystem.init();
       console.log('✅ File system ready');
+      
+      // Auto-Sync Logic: Update snapshot whenever data changes
+      db.onChange = () => {
+        if (!db.isImporting) {
+          fileSystem.saveSystemSnapshot();
+        }
+      };
+
+      // Migration Detection: If local DB is empty but library has a snapshot
+      const students = await db.getAll('students');
+      if (students.length === 0) {
+        const snapshot = await fileSystem.checkSnapshot();
+        if (snapshot) {
+          console.log('📂 Migration snapshot detected!');
+          await showRestorationPrompt();
+        }
+      }
     }
 
     // Auto-sync student statuses based on completion dates
@@ -81,9 +99,6 @@ async function init() {
 
     // Setup navigation
     setupNavigation();
-
-    // Setup quick action buttons
-    setupQuickActions();
 
     // Setup Pac-Man Easter egg (5 clicks on logo)
     setupPacmanEasterEgg();
@@ -176,6 +191,10 @@ async function navigateToPage(page) {
         await renderSettings();
         break;
       
+      case 'transfer':
+        await renderTransferHub();
+        break;
+      
       default:
         await renderDashboard();
     }
@@ -187,66 +206,6 @@ async function navigateToPage(page) {
   }
 }
 
-/**
- * Setup quick action buttons in sidebar
- */
-function setupQuickActions() {
-  const saveBtn = document.getElementById('sidebarSaveBtn');
-  const importBtn = document.getElementById('sidebarImportBtn');
-
-  if (saveBtn) {
-    saveBtn.addEventListener('click', async () => {
-      const textSpan = document.getElementById('saveButtonText');
-      const originalText = textSpan.textContent;
-      
-      try {
-        // Show loading state
-        saveBtn.disabled = true;
-        textSpan.textContent = 'Checking...';
-        
-        // Count records
-        const receipts = await db.getAll('receipts');
-        const isDesktop = typeof window.electronAPI !== 'undefined';
-        
-        // Simulate brief check
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Check if files have paths
-        const filesWithPaths = receipts.filter(r => r.filePath && r.filePath.length > 0);
-        const allSaved = filesWithPaths.length === receipts.length;
-        
-        // Show success state
-        if (allSaved || receipts.length === 0) {
-          textSpan.textContent = receipts.length === 0 ? 'No files yet' : 'All saved ✓';
-        } else {
-          textSpan.textContent = `${filesWithPaths.length}/${receipts.length} saved`;
-        }
-        
-        // Reset after 3 seconds
-        setTimeout(() => {
-          textSpan.textContent = originalText;
-          saveBtn.disabled = false;
-        }, 3000);
-        
-      } catch (error) {
-        textSpan.textContent = 'Error';
-        setTimeout(() => {
-          textSpan.textContent = originalText;
-          saveBtn.disabled = false;
-        }, 2000);
-      }
-    });
-  }
-
-  if (importBtn) {
-    importBtn.addEventListener('click', () => {
-      // Show Import Wizard
-      const wizardHTML = renderImportWizard();
-      document.body.insertAdjacentHTML('beforeend', wizardHTML);
-      initImportWizard();
-    });
-  }
-}
 
 /**
  * Show/hide loading overlay
@@ -442,6 +401,61 @@ async function renderSettings() {
     toggleContainer.innerHTML = createThemeToggle();
     setupThemeToggle();
   }
+}
+
+/**
+ * Show a prompt to restore data from a detected snapshot
+ */
+async function showRestorationPrompt() {
+  const modal = document.createElement('div');
+  modal.id = 'restoration-modal';
+  modal.innerHTML = `
+    <div class="modal-backdrop" style="z-index: 9999;">
+      <div class="modal" style="max-width: 500px; text-align: center; padding: 2rem;">
+        <div style="font-size: 3.5rem; margin-bottom: 1.5rem; color: var(--primary-600);">
+          <span class="icon">${Icons.folderOpen}</span>
+        </div>
+        <h2 style="margin-bottom: 1rem;">Existing Data Detected!</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem; line-height: 1.6;">
+          We found an existing <b>sync_data.json</b> in your library folder. Would you like to restore your students and payments from this folder?
+        </p>
+        <div class="flex gap-md justify-center">
+          <button class="btn btn-secondary" onclick="document.getElementById('restoration-modal').remove()">
+            No, start fresh
+          </button>
+          <button class="btn btn-primary" id="restoreSnapshotBtn">
+            Yes, restore everything
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  document.getElementById('restoreSnapshotBtn').addEventListener('click', async () => {
+    try {
+      showLoading(true);
+      const data = await fileSystem.loadSystemSnapshot();
+      if (data) {
+        // [New Safety Step] Create emergency backup of current (empty or stale) DB just in case
+        const backupPath = await fileSystem.createLocalEmergencyBackup();
+        console.log('🛡️ Emergency backup created before restoration:', backupPath);
+
+        db.isImporting = true;
+        await db.importData(data);
+        db.isImporting = false;
+        
+        document.getElementById('restoration-modal').remove();
+        alert(`🎉 Data restored successfully!\n\nSafety backup created at:\n${backupPath || 'Library/backups/'}`);
+        window.location.reload(); // Reload to refresh everything
+      }
+    } catch (error) {
+      console.error('Restoration failed:', error);
+      alert('Failed to restore data. The file might be corrupted or incompatible.');
+    } finally {
+      showLoading(false);
+    }
+  });
 }
 
 // Initialize app when DOM is ready

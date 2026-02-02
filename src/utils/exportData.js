@@ -4,6 +4,7 @@
  */
 
 import { db } from '../db/database.js';
+import { fileSystem } from '../services/fileSystem.js';
 
 /**
  * Export all database data to JSON file
@@ -45,15 +46,21 @@ export async function importDatabase(file) {
     const text = await file.text();
     const data = JSON.parse(text);
     
-    // Validate data structure
-    if (!data.students || !data.payments || !data.receipts) {
+    // Validate data structure using DB service
+    if (!db.validateData(data)) {
       throw new Error('Invalid backup file format');
     }
     
+    // [New Safety Step] Create emergency backup before clearing current DB
+    const backupPath = await fileSystem.createLocalEmergencyBackup();
+    console.log('🛡️ Emergency backup created before manual import:', backupPath);
+
     // Import data
+    db.isImporting = true;
     await db.importData(data);
+    db.isImporting = false;
     
-    return { success: true };
+    return { success: true, backupPath };
   } catch (error) {
     console.error('Import error:', error);
     return { success: false, error: error.message };

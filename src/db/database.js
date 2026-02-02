@@ -21,6 +21,8 @@ const STORES = {
 class Database {
   constructor() {
     this.db = null;
+    this.onChange = null;
+    this.isImporting = false;
   }
 
   /**
@@ -168,7 +170,10 @@ class Database {
       const store = transaction.objectStore(storeName);
       const request = store.add(data);
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        resolve(request.result);
+        if (this.onChange && !this.isImporting) this.onChange();
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -185,7 +190,10 @@ class Database {
       const store = transaction.objectStore(storeName);
       const request = store.put(data);
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        resolve(request.result);
+        if (this.onChange && !this.isImporting) this.onChange();
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -235,7 +243,10 @@ class Database {
       const store = transaction.objectStore(storeName);
       const request = store.delete(id);
 
-      request.onsuccess = () => resolve();
+      request.onsuccess = () => {
+        resolve();
+        if (this.onChange && !this.isImporting) this.onChange();
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -298,9 +309,32 @@ class Database {
       students: await this.getAll(STORES.STUDENTS),
       payments: await this.getAll(STORES.PAYMENTS),
       receipts: await this.getAll(STORES.RECEIPTS),
-      settings: await this.getAll(STORES.SETTINGS)
+      settings: await this.getAll(STORES.SETTINGS),
+      studentRemarks: await this.getAll(STORES.STUDENT_REMARKS),
+      programmes: await this.getAll(STORES.PROGRAMMES),
+      fileMetadata: await this.getAll(STORES.FILE_METADATA)
     };
     return data;
+  }
+
+  /**
+   * Validate backup data structure
+   * @param {object} data - Data to validate
+   * @returns {boolean}
+   */
+  validateData(data) {
+    if (!data || typeof data !== 'object') return false;
+    
+    // Check for required stores
+    const requiredStores = ['students', 'payments', 'settings'];
+    for (const store of requiredStores) {
+      if (!Array.isArray(data[store])) {
+        console.error(`❌ Validation failed: Missing or invalid store "${store}"`);
+        return false;
+      }
+    }
+    
+    return true;
   }
 
   /**
@@ -309,7 +343,13 @@ class Database {
    * @returns {Promise<void>}
    */
   async importData(data) {
+    this.isImporting = true; // Set flag to prevent onChange calls during import
     try {
+      // Validate first
+      if (!this.validateData(data)) {
+        throw new Error('Invalid backup file format');
+      }
+
       // Clear existing data
       await this.clearAllData();
 
@@ -333,10 +373,28 @@ class Database {
         await this.update(STORES.SETTINGS, setting);
       }
 
+      // Import student remarks
+      for (const remark of data.studentRemarks || []) {
+        await this.add(STORES.STUDENT_REMARKS, remark);
+      }
+
+      // Import programmes
+      for (const programme of data.programmes || []) {
+        await this.add(STORES.PROGRAMMES, programme);
+      }
+
+      // Import file metadata
+      for (const meta of data.fileMetadata || []) {
+        await this.add(STORES.FILE_METADATA, meta);
+      }
+
       console.log('✅ Data imported successfully');
+      if (this.onChange) this.onChange(); // Trigger onChange once after import
     } catch (error) {
       console.error('❌ Error importing data:', error);
       throw error;
+    } finally {
+      this.isImporting = false; // Reset flag
     }
   }
 
@@ -344,7 +402,7 @@ class Database {
    * Clear all data from the database
    */
   async clearAllData() {
-    const storeNames = [STORES.STUDENTS, STORES.PAYMENTS, STORES.RECEIPTS, STORES.SETTINGS, STORES.FILE_METADATA];
+    const storeNames = Object.values(STORES);
     
     for (const storeName of storeNames) {
       await new Promise((resolve, reject) => {
