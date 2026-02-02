@@ -31,7 +31,7 @@ export async function renderDashboard() {
   const monthTotal = monthPayments.reduce((sum, p) => sum + p.amount, 0);
   
   container.innerHTML = `
-    <div style="animation: fadeIn 0.5s ease-in-out;">
+    <div class="dashboard-page" style="animation: fadeIn 0.5s ease-in-out;">
       <!-- Page Header -->
       <div class="flex justify-between items-center mb-2xl">
         <div>
@@ -151,8 +151,8 @@ export async function renderDashboard() {
               <option value="12">Last Year</option>
             </select>
           </div>
-          <div class="card-body">
-            <canvas id="paymentTrendChart" style="max-height: 300px;"></canvas>
+          <div class="card-body" style="flex: 1; display: flex; flex-direction: column;">
+            <canvas id="paymentTrendChart"></canvas>
           </div>
         </div>
       </div>
@@ -326,7 +326,16 @@ async function renderPaymentTrendChart(months = 6) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
+      resizeDelay: 200, // Smooth transition during scaling
+      layout: {
+        padding: {
+          top: 10,
+          bottom: 0,
+          left: 10,
+          right: 10
+        }
+      },
       plugins: {
         legend: {
           display: false

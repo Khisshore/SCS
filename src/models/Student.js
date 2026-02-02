@@ -113,6 +113,10 @@ class StudentModel {
       students = students.filter(s => s.course === filters.course);
     }
 
+    if (filters.courses && Array.isArray(filters.courses)) {
+      students = students.filter(s => filters.courses.includes(s.course));
+    }
+
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       students = students.filter(s =>

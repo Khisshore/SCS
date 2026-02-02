@@ -24,6 +24,7 @@ const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
 let currentCourse = 'Diploma';
 let spreadsheetData = [];
 let searchQuery = '';
+let filterOutstanding = false;
 let sortBy = 'name';
 let sortOrder = 'asc'; // 'asc' or 'desc'
 
@@ -75,6 +76,12 @@ export async function renderSpreadsheet() {
                 ${course}
               </button>
             `).join('')}
+            
+            <div class="filter-divider"></div>
+            
+            <button class="course-pill status-filter ${filterOutstanding ? 'active' : ''}" id="balanceFilter">
+              With Balance
+            </button>
           </div>
           
           <div class="search-box">
@@ -89,16 +96,29 @@ export async function renderSpreadsheet() {
         </div>
       </div>
 
-      <!-- Table Container -->
-      <div id="tableContainer"></div>
+      <!-- Scaled Content Wrapper -->
+      <div class="spreadsheet-data-scaled">
+        <!-- Table Container -->
+        <div id="tableContainer"></div>
 
-      <!-- Summary Cards -->
-      <div id="summaryCards"></div>
+        <!-- Summary Cards -->
+        <div id="summaryCards"></div>
+      </div>
     </div>
 
     <style>
       .spreadsheet-page {
         animation: fadeIn 0.4s ease-out;
+      }
+
+      .spreadsheet-page.is-empty {
+        overflow: hidden !important;
+        height: auto !important;
+        min-height: calc(100vh - 12rem) !important;
+      }
+
+      .spreadsheet-page.is-empty .spreadsheet-data-scaled {
+        overflow: hidden !important;
       }
 
       @keyframes fadeIn {
@@ -230,6 +250,26 @@ export async function renderSpreadsheet() {
         box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
       }
 
+      .filter-divider {
+        width: 1.5px;
+        align-self: stretch;
+        background: #475569;
+        margin: 0.25rem 0.75rem;
+        opacity: 0.8;
+      }
+
+      [data-theme="dark"] .filter-divider {
+        background: #94A3B8;
+        opacity: 0.5;
+      }
+
+      .status-filter.active {
+        background: var(--danger-600);
+        color: white;
+        border-color: var(--danger-600);
+        box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+      }
+
 
 
       .search-box {
@@ -350,7 +390,7 @@ export async function renderSpreadsheet() {
       }
 
       .spreadsheet-table th {
-        padding: 1rem 1.5rem;
+        padding: 1rem;
         text-align: left;
         font-size: 0.6875rem;
         font-weight: 700;
@@ -392,7 +432,7 @@ export async function renderSpreadsheet() {
         left: 50px;
         background: var(--background-secondary);
         z-index: 25;
-        min-width: 280px;
+        min-width: 240px;
       }
 
       .spreadsheet-table td.sticky-col {
@@ -400,7 +440,7 @@ export async function renderSpreadsheet() {
         left: 50px;
         background: var(--surface);
         z-index: 10;
-        min-width: 280px;
+        min-width: 240px;
       }
 
       .spreadsheet-table tbody tr {
@@ -427,7 +467,7 @@ export async function renderSpreadsheet() {
       }
 
       .spreadsheet-table tbody tr.institution-header td {
-        padding: 1.25rem 1.5rem;
+        padding: 1.25rem 1rem;
       }
 
       .institution-name {
@@ -461,7 +501,7 @@ export async function renderSpreadsheet() {
       }
 
       .spreadsheet-table td {
-        padding: 1rem 1.5rem;
+        padding: 1rem;
         font-size: 0.875rem;
         color: var(--text-secondary);
       }
@@ -741,7 +781,7 @@ export async function renderSpreadsheet() {
         font-size: 0.875rem;
         color: var(--text-tertiary);
         margin: 0 0 1.5rem 0;
-        max-width: 320px;
+        max-width: 500px;
         line-height: 1.5;
       }
 
@@ -1396,16 +1436,11 @@ export async function renderSpreadsheet() {
       }
 
       .inactive-row {
-        background: var(--background-secondary) !important;
-        opacity: 0.6;
+        /* Removed grey background/opacity for completed students */
       }
-
-      .inactive-row td.sticky-col {
-        background: var(--background-secondary) !important;
-      }
-
+      
       .inactive-row .student-name {
-        color: var(--text-secondary) !important;
+        /* Keep standard color */
       }
       
       .status-tag {
@@ -1439,16 +1474,24 @@ export async function renderSpreadsheet() {
  */
 function setupEventListeners() {
   // Course pill clicks
-  document.querySelectorAll('.course-pill').forEach(pill => {
+  document.querySelectorAll('.course-pill:not(.status-filter)').forEach(pill => {
     pill.addEventListener('click', async () => {
       currentCourse = pill.dataset.course;
-      currentCourse = pill.dataset.course;
       
-      document.querySelectorAll('.course-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
+      // Update UI
+      document.querySelectorAll('.course-pill:not(.status-filter)').forEach(p => {
+        p.classList.toggle('active', p.dataset.course === currentCourse);
+      });
       
       await loadSpreadsheetData();
     });
+  });
+
+  // Balance filter
+  document.getElementById('balanceFilter')?.addEventListener('click', async () => {
+    filterOutstanding = !filterOutstanding;
+    document.getElementById('balanceFilter').classList.toggle('active', filterOutstanding);
+    await loadSpreadsheetData();
   });
 
   // Search input
@@ -1517,14 +1560,17 @@ function setupEventListeners() {
   window.clearFilters = async () => {
     searchQuery = '';
     currentCourse = 'Diploma'; // Reset to default
-    searchQuery = '';
-    currentCourse = 'Diploma'; // Reset to default
+    filterOutstanding = false;
     
     // Update UI elements if they exist
     const searchInput = document.getElementById('searchInput');
     if (searchInput) searchInput.value = '';
     
-    document.querySelectorAll('.course-pill').forEach(p => {
+    const balanceFilter = document.getElementById('balanceFilter');
+    if (balanceFilter) balanceFilter.classList.remove('active');
+    if (searchInput) searchInput.value = '';
+    
+    document.querySelectorAll('.course-pill:not(.status-filter)').forEach(p => {
       p.classList.toggle('active', p.dataset.course === currentCourse);
     });
     
@@ -1565,6 +1611,8 @@ async function loadSpreadsheetData() {
   const tableContainer = document.getElementById('tableContainer');
   const summaryCardsContainer = document.getElementById('summaryCards');
   
+  const page = document.querySelector('.spreadsheet-page');
+  
   // Show loading
   tableContainer.innerHTML = `
     <div style="text-align: center; padding: 3rem;">
@@ -1575,11 +1623,12 @@ async function loadSpreadsheetData() {
 
   try {
     // Get students
-    let students = currentCourse === 'All Programs' 
+    let students = currentCourse === 'All Programs'
       ? await Student.findAll()
       : await Student.findAll({ course: currentCourse });
     
     if (students.length === 0) {
+      if (page) page.classList.add('is-empty');
       tableContainer.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-icon">${Icons.users}</div>
@@ -1600,6 +1649,7 @@ async function loadSpreadsheetData() {
       );
 
       if (filteredStudents.length === 0) {
+        if (page) page.classList.add('is-empty');
         tableContainer.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">${Icons.search}</div>
@@ -1616,6 +1666,8 @@ async function loadSpreadsheetData() {
       }
       students = filteredStudents;
     }
+
+    if (page) page.classList.remove('is-empty');
 
     const currency = await db.getSetting('currency') || 'RM';
     const courseName = currentCourse || 'All Programs';
@@ -1634,6 +1686,24 @@ async function loadSpreadsheetData() {
         misc: student.commission || 0,
         cost: student.institutionalCost || 0
       });
+    }
+
+    // Apply "With Balance" filter
+    if (filterOutstanding) {
+      students = studentData
+        .filter(d => d.balance >= 0.01)
+        .map(d => d.student);
+      
+      // Re-map to final data structure
+      const filteredResults = [];
+      for (const student of students) {
+        const d = studentData.find(item => item.student.id === student.id);
+        if (d) filteredResults.push(d);
+      }
+      
+      // Re-calculate the studentData array with filtered results
+      studentData.length = 0;
+      studentData.push(...filteredResults);
     }
 
     // Apply sorting
@@ -1768,7 +1838,7 @@ function renderTable(courseGroups, currency) {
 
     // Course Header
     fullHtml += `
-      <div class="course-header" style="margin-top: 3rem; margin-bottom: 2rem; padding: 1rem 0; border-bottom: 2px solid var(--primary-600);">
+      <div class="course-header" style="margin-top: 1rem; margin-bottom: 1.5rem; padding: 1rem 0; border-bottom: 2px solid var(--primary-600);">
         <h1 style="font-size: 2rem; font-weight: 800; color: var(--primary-600); margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
           ${courseName}
         </h1>
@@ -1816,7 +1886,7 @@ function renderTable(courseGroups, currency) {
           <h2 class="program-title">
             <span class="program-indicator"></span>
             ${program}
-            <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-tertiary); margin-left: auto;">
+            <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-tertiary); margin-left: auto; margin-right: 2.5rem;">
               ${students.length} Students
             </span>
           </h2>

@@ -34,8 +34,8 @@ export async function renderStudents() {
       <!-- Search and Filter -->
       <div class="card mb-xl">
         <div class="card-body">
-          <div class="grid grid-4 gap-md">
-            <div class="form-group" style="margin-bottom: 0; grid-column: span 2;">
+          <div class="flex gap-md items-center">
+            <div class="form-group" style="margin-bottom: 0; flex: 2; min-width: 300px;">
               <input
                 type="text"
                 id="studentSearch"
@@ -43,15 +43,15 @@ export async function renderStudents() {
                 placeholder="🔍 Search students (name, ID, email, program)..."
               />
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 200px;">
               <select id="statusFilter" class="form-select">
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
             </div>
-            <button class="btn btn-secondary" id="refreshStudentsBtn" style="padding-left: 1rem; padding-right: 1rem;">
-              <span class="icon icon-sm">${Icons.refresh}</span>
+            <button class="btn btn-secondary" id="refreshStudentsBtn" style="padding: 0.75rem;">
+              <span class="icon">${Icons.refresh}</span>
             </button>
           </div>
         </div>
@@ -224,17 +224,18 @@ async function loadStudents() {
                   <button
                     class="btn btn-sm btn-primary"
                     onclick="window.viewStudent(${student.id})"
+                    style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="View & Edit Details"
                   >
-                    <span class="icon icon-sm">${Icons.eye}</span>
-                    <span>View & Edit</span>
+                    <span class="icon">${Icons.eye}</span>
                   </button>
                   <button
                     class="btn btn-sm btn-danger"
                     onclick="window.deleteStudent(${student.id})"
+                    style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="Deactivate"
                   >
-                    <span class="icon icon-sm">${Icons.trash}</span>
+                    <span class="icon">${Icons.trash}</span>
                   </button>
                 </div>
               </td>
