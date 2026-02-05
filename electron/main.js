@@ -280,6 +280,49 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
+// ==================== AUTO UPDATER ====================
+let autoUpdater;
+let updaterEnabled = false;
+
+try {
+  const updaterModule = require('electron-updater');
+  autoUpdater = updaterModule.autoUpdater;
+  updaterEnabled = true;
+
+  // Configure autoUpdater
+  autoUpdater.autoDownload = false; // We'll trigger download manually from UI
+  autoUpdater.allowPrerelease = false;
+
+  // Forward update events to renderer
+  function sendUpdateMessage(type, data) {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-message', { type, data });
+    }
+  }
+
+  autoUpdater.on('checking-for-update', () => sendUpdateMessage('checking'));
+  autoUpdater.on('update-available', (info) => sendUpdateMessage('available', info));
+  autoUpdater.on('update-not-available', (info) => sendUpdateMessage('not-available', info));
+  autoUpdater.on('error', (err) => sendUpdateMessage('error', err.message));
+  autoUpdater.on('download-progress', (progress) => sendUpdateMessage('progress', progress));
+  autoUpdater.on('update-downloaded', (info) => sendUpdateMessage('downloaded', info));
+} catch (error) {
+  console.warn('⚠️ electron-updater not found or failed to load. Auto-updates disabled.');
+  // Mock autoUpdater to prevent crashes
+  autoUpdater = {
+    checkForUpdates: async () => console.log('Updates disabled: electron-updater not available'),
+    downloadUpdate: async () => console.log('Updates disabled: electron-updater not available'),
+    quitAndInstall: () => console.log('Updates disabled: electron-updater not available'),
+    checkForUpdatesAndNotify: () => {}
+  };
+}
+
+// IPC Handlers for Updater
+ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates());
+ipcMain.handle('download-update', () => autoUpdater.downloadUpdate());
+ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall());
+
+
 /**
  * Delete file
  */
@@ -291,6 +334,18 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     console.error('Error deleting file:', error);
     return { success: false, error: error.message };
   }
+});
+
+/**
+ * Initialize auto-updater after window is ready
+ */
+app.whenReady().then(() => {
+  // Check for updates after a short delay
+  setTimeout(() => {
+    if (process.env.NODE_ENV !== 'development' && updaterEnabled) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
+  }, 5000);
 });
 
 console.log('✅ NeoTrackr main process initialized');

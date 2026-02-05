@@ -28,6 +28,20 @@
     "chart.js": "^4.5.1",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "electron-updater": "^6.3.9"
+  },
+  "build": {
+    "appId": "com.neotrackr.app",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "YOUR_GITHUB_USERNAME",
+        "repo": "YOUR_REPO_NAME"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }

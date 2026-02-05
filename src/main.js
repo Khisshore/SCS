@@ -20,6 +20,8 @@ import { setupPacmanEasterEgg } from './components/PacmanEasterEgg.js';
 import { renderFirstRunSetup, initFirstRunSetup, firstRunStyles } from './components/FirstRunSetup.js';
 import { renderImportWizard, initImportWizard } from './components/ImportWizard.js';
 import { fileSystem } from './services/fileSystem.js';
+import { autoUpdater } from './components/AutoUpdater.js';
+
 
 // Application state
 const app = {
@@ -106,8 +108,14 @@ async function init() {
     // Load initial page
     await navigateToPage('dashboard');
 
+    // Initialize Auto-Updater (Desktop Only)
+    if (fileSystem.isDesktopApp()) {
+      autoUpdater.init();
+    }
+
     app.initialized = true;
     console.log('✅ NeoTrackr initialized successfully');
+
 
   } catch (error) {
     console.error('❌ Initialization error:', error);
@@ -121,6 +129,19 @@ async function init() {
  * Setup navigation system
  */
 function setupNavigation() {
+  const sidebar = document.getElementById('sidebar');
+  
+  // Sidebar expansion logic (hover)
+  if (sidebar) {
+    sidebar.addEventListener('mouseenter', () => {
+      sidebar.classList.add('expanded');
+    });
+    
+    sidebar.addEventListener('mouseleave', () => {
+      sidebar.classList.remove('expanded');
+    });
+  }
+
   // Handle navigation clicks
   const navLinks = document.querySelectorAll('.nav-link');
   

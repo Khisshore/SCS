@@ -32,7 +32,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Platform detection
   isElectron: true,
-  platform: process.platform
+  platform: process.platform,
+
+  // Updater operations
+  updater: {
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    downloadUpdate: () => ipcRenderer.invoke('download-update'),
+    quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+    onUpdateMessage: (callback) => {
+      const subscription = (event, data) => callback(data);
+      ipcRenderer.on('update-message', subscription);
+      return () => ipcRenderer.removeListener('update-message', subscription);
+    }
+  }
 });
 
 console.log('✅ NeoTrackr preload script initialized');
