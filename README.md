@@ -1,8 +1,8 @@
-# NeoTrackr
+# SCS
 
-**Professional Payment Management for Educational Institutions**
+**Professional Student Collection System for Educational Institutions**
 
-NeoTrackr is a powerful offline-first desktop application built with Electron, designed to streamline payment management for educational institutions. With structured file organization, automatic PDF generation, and complete local data control, NeoTrackr empowers staff to manage student records and payments efficiently without relying on internet connectivity.
+SCS is a powerful offline-first desktop application built with Electron, designed to streamline payment management for educational institutions. With structured file organization, automatic PDF generation, and complete local data control, SCS empowers staff to manage student records and payments efficiently without relying on internet connectivity.
 
 ## ✨ Key Features
 
@@ -13,11 +13,11 @@ NeoTrackr is a powerful offline-first desktop application built with Electron, d
 - **Fast Performance**: Optimized for handling large datasets
 
 ### 📁 Structured File Management
-NeoTrackr automatically organizes all payment documents in a clear, hierarchical folder structure:
+SCS automatically organizes all payment documents in a clear, hierarchical folder structure:
 
 ```
 Your Folder/
-└── NeoTrackr/
+└── SCS/
     ├── Computer Science/
     │   ├── John Doe/
     │   │   ├── Semester 1/
@@ -46,8 +46,8 @@ Your Folder/
 ### 📄 Automatic PDF Generation
 - Professional receipts with sequential numbering
 - Receipts saved to:  
-  `/NeoTrackr/{Course}/{StudentName}/{Semester}/Receipt-{Number}.pdf`
-- Institution branding  customization
+  `/SCS/{Course}/{StudentName}/{Semester}/Receipt-{Number}.pdf`
+- Institution branding customization
 - Print or download receipts instantly
 
 ### 📊 Financial Reports
@@ -72,7 +72,7 @@ Your Folder/
 
 1. **Clone or download the project**
    ```bash
-   cd neotrackr
+   cd scs
    ```
 
 2. **Install dependencies**
@@ -93,9 +93,9 @@ Your Folder/
 
 ### First Run Setup
 
-1. Launch NeoTrackr
+1. Launch SCS
 2. Select a base folder for storing all payment files
-3. NeoTrackr will create a `NeoTrackr` folder inside your selected location
+3. SCS will create a `SCS` folder inside your selected location
 4. Start managing payments!
 
 ## 📖 Usage Guide
@@ -114,7 +114,7 @@ Your Folder/
 3. Select student, enter amount, and choose payment method
 4. Click **"💰 Record Payment"**
 5. Receipt is automatically generated and saved to:  
-   `/NeoTrackr/{Course}/{StudentName}/{Semester}/Receipt-{Number}.pdf`
+   `/SCS/{Course}/{StudentName}/{Semester}/Receipt-{Number}.pdf`
 
 ### Managing File Storage
 
@@ -144,7 +144,7 @@ Your Folder/
 **Scenario**: Move from Office PC to Home PC
 
 1.  **On Office PC**: Export backup to USB drive or cloud storage
-2. **On Home PC**: Install NeoTrackr
+2. **On Home PC**: Install SCS
 3. **First Run**: Select a base folder
 4. **Import Backup**: Settings → Import Data → Select backup file
 5. **All Done**: All students, payments, and PDFs are now on the new PC
@@ -163,7 +163,7 @@ Your Folder/
 ## 📁 Project Structure
 
 ```
-neotrackr/
+scs/
 ├── electron/               # Electron main and preload scripts
 │   ├── main.js            # Main process (app lifecycle, file system)
 │   └── preload.js         # Secure IPC bridge
@@ -203,7 +203,7 @@ neotrackr/
 1. **Backup Regularly**: Weekly backups recommended for active usage
 2. **Use Cloud Storage**: Store backups in Google Drive/Dropbox for extra safety
 3. **Test Restore**: Occasionally test restoration to ensure backups work
-4. **Keep Folder Path Safe**: Don't move or delete the base NeoTrackr folder
+4. **Keep Folder Path Safe**: Don't move or delete the base SCS folder
 5. **Use Descriptive Programs**: Use clear course/program names for better organization
 
 ## 🐛 Troubleshooting
@@ -213,7 +213,7 @@ neotrackr/
 - Clear browser data if testing in development mode
 
 ### Files Not Saving
-- Check folder permissions - ensure NeoTrackr can write to selected folder
+- Check folder permissions - ensure SCS can write to selected folder
 - Verify selected folder still exists
 - Check Settings → File Storage Location for current path
 
@@ -222,7 +222,7 @@ neotrackr/
 - Try changing the base folder in Settings
 
 ### Backup Won't Import
-- Verify the file is a valid NeoTrackr backup (`.json`)
+- Verify the file is a valid SCS backup (`.json`)
 - Ensure sufficient disk space for file extraction
 - Check browser console (F12) for error details
 
@@ -240,4 +240,4 @@ This project is provided for educational and business use.
 ---
 
 **Built with ❤️ for efficient payment management**  
-*NeoTrackr - Track Payments, Not Headaches*
+*SCS - Track Payments, Not Headaches*

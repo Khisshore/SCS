@@ -99,14 +99,37 @@ export function initStudentDetailModal() {
         width: 100%;
         max-width: 85rem;
         max-height: 92vh;
-        background: var(--surface);
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: 2rem;
-        box-shadow: var(--shadow-2xl);
+        box-shadow: var(--shadow-2xl), var(--glass-shadow);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .modal-content::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          var(--glass-highlight) 0%,
+          transparent 40%,
+          transparent 60%,
+          var(--glass-stroke) 100%
+        );
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 1060;
       }
 
       @keyframes modalSlideUp {
@@ -206,10 +229,13 @@ export function initStudentDetailModal() {
         grid-template-columns: repeat(3, 1fr);
         gap: 2rem;
         margin-bottom: 3.5rem;
-        background: var(--background-secondary);
-        padding: 2rem;
-        border-radius: 1.5rem;
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        padding: 2.25rem;
+        border-radius: 2rem;
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
       }
 
       .modal-info-item {
@@ -405,10 +431,13 @@ export function initStudentDetailModal() {
       }
 
       .semester-card {
-        background: var(--surface-hover);
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: 1.5rem;
         overflow: hidden;
+        box-shadow: var(--glass-shadow);
       }
 
       .payment-table {
@@ -444,9 +473,11 @@ export function initStudentDetailModal() {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        padding: 2rem 3rem;
-        background: var(--surface-hover);
-        border-top: 1px solid var(--border-color);
+        padding: 2.5rem 3rem;
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border-top: 1px solid var(--glass-border);
       }
 
       .modal-totals {
@@ -478,12 +509,14 @@ export function initStudentDetailModal() {
 
       /* Form Polish */
       .inline-payment-form {
-        background: var(--surface);
-        border: 2px solid var(--primary-500);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: 1.5rem;
         padding: 2.5rem;
         margin: 1.5rem;
-        box-shadow: var(--shadow-xl);
+        box-shadow: var(--glass-shadow), var(--shadow-xl);
       }
 
       .inline-form-input, .inline-form-select {

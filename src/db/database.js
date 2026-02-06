@@ -4,7 +4,7 @@
  * Provides a clean API for storing and retrieving students, payments, and receipts
  */
 
-const DB_NAME = 'NeoTrackrDB';
+const DB_NAME = 'SCSDB';
 const DB_VERSION = 4;
 
 // Object store names
@@ -115,7 +115,7 @@ class Database {
           }
         }
 
-        console.log('✅ NeoTrackr database schema created successfully');
+        console.log('✅ SCS database schema created successfully');
       };
 
       request.onsuccess = (event) => {

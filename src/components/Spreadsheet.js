@@ -354,11 +354,35 @@ export async function renderSpreadsheet() {
       }
 
       .table-card {
-        background: var(--surface);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-xl);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-2xl);
         overflow: hidden;
-        box-shadow: var(--shadow-sm);
+        box-shadow: var(--glass-shadow), var(--shadow-sm);
+        position: relative;
+      }
+
+      .table-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          var(--glass-highlight) 0%,
+          transparent 40%,
+          transparent 60%,
+          var(--glass-stroke) 100%
+        );
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 21;
       }
 
       .table-scroll {
@@ -675,12 +699,44 @@ export async function renderSpreadsheet() {
       }
 
       .summary-card {
-        background: var(--surface);
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-2xl);
-        padding: 1.25rem;
+        padding: 1.5rem;
         display: flex;
         flex-direction: column;
+        box-shadow: var(--glass-shadow);
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .summary-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--glass-shadow), var(--shadow-md);
+      }
+
+      .summary-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          var(--glass-highlight) 0%,
+          transparent 40%,
+          transparent 60%,
+          var(--glass-stroke) 100%
+        );
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 1;
       }
 
       .summary-card-label {
@@ -759,8 +815,10 @@ export async function renderSpreadsheet() {
         justify-content: center;
         padding: 5rem 2rem;
         text-align: center;
-        background: var(--surface);
-        border: 1px dashed var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px dashed var(--glass-border);
         border-radius: var(--radius-2xl);
         margin: 2rem 0;
         animation: fadeIn 0.4s ease-out;
@@ -860,13 +918,37 @@ export async function renderSpreadsheet() {
         width: 100%;
         max-width: 72rem;
         max-height: 90vh;
-        background: var(--surface);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
         border-radius: var(--radius-2xl);
-        box-shadow: var(--shadow-2xl);
+        box-shadow: var(--shadow-2xl), var(--glass-shadow);
+        border: 1px solid var(--glass-border);
         display: flex;
         flex-direction: column;
         overflow: hidden;
         animation: slideUp 0.3s ease-out;
+      }
+
+      .modal-content::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          var(--glass-highlight) 0%,
+          transparent 40%,
+          transparent 60%,
+          var(--glass-stroke) 100%
+        );
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 1060;
       }
 
       @keyframes slideUp {
@@ -1080,10 +1162,13 @@ export async function renderSpreadsheet() {
       }
 
       .semester-card {
-        background: var(--background-secondary);
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-2xl);
         padding: 1.5rem;
+        box-shadow: var(--glass-shadow);
       }
 
       .semester-card.pending {
@@ -1214,11 +1299,14 @@ export async function renderSpreadsheet() {
       }
 
       .inline-payment-form {
-        background: var(--surface);
-        border: 1px solid var(--border-color);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
         border-radius: var(--radius-xl);
         padding: 1.5rem;
         margin-top: 1rem;
+        box-shadow: var(--glass-shadow);
         animation: slideDown 0.3s ease-out;
       }
 

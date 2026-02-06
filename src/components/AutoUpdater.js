@@ -1,7 +1,7 @@
 /**
  * AUTO UPDATER COMPONENT (Vanilla JS Version)
  * Handles the UI for application updates
- * Matches NeoTrackr professional design language
+ * Matches SCS professional design language
  */
 import './AutoUpdater.css';
 

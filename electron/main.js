@@ -1,5 +1,5 @@
 /**
- * NEOTRACKR - ELECTRON MAIN PROCESS
+ * SCS - ELECTRON MAIN PROCESS
  * Handles application lifecycle, window creation, and native file system operations
  */
 
@@ -27,7 +27,7 @@ function createWindow() {
     backgroundColor: '#0f0f23',
     show: false,
     autoHideMenuBar: true,
-    title: 'NeoTrackr'
+    title: 'SCS'
   });
 
   // Load the app
@@ -71,7 +71,7 @@ app.on('activate', () => {
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory', 'createDirectory'],
-    title: 'Select Base Folder for NeoTrackr',
+    title: 'Select Base Folder for SCS',
     buttonLabel: 'Select Folder'
   });
 
@@ -217,10 +217,10 @@ ipcMain.handle('get-app-version', () => {
  */
 ipcMain.handle('export-backup', async (event, defaultFileName) => {
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Export NeoTrackr Backup',
+    title: 'Export SCS Backup',
     defaultPath: defaultFileName,
     filters: [
-      { name: 'NeoTrackr Backup', extensions: ['json'] }
+      { name: 'SCS Backup', extensions: ['json'] }
     ],
     buttonLabel: 'Export'
   });
@@ -237,9 +237,9 @@ ipcMain.handle('export-backup', async (event, defaultFileName) => {
  */
 ipcMain.handle('import-backup', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Import NeoTrackr Backup',
+    title: 'Import SCS Backup',
     filters: [
-      { name: 'NeoTrackr Backup', extensions: ['json'] }
+      { name: 'SCS Backup', extensions: ['json'] }
     ],
     properties: ['openFile'],
     buttonLabel: 'Import'
@@ -348,4 +348,4 @@ app.whenReady().then(() => {
   }, 5000);
 });
 
-console.log('✅ NeoTrackr main process initialized');
+console.log('✅ SCS main process initialized');

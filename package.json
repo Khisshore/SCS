@@ -1,9 +1,9 @@
 {
-  "name": "neotrackr",
-  "productName": "NeoTrackr",
+  "name": "scs",
+  "productName": "SCS",
   "version": "1.0.0",
-  "description": "Professional offline-first payment management system for educational institutions",
-  "author": "NeoTrackr Team",
+  "description": "Professional offline-first Student Collection System for educational institutions",
+  "author": "SCS Team",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -16,23 +16,34 @@
     "clean": "rimraf dist dist-electron node_modules/.vite"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.24",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
+    "postcss": "^8.5.6",
     "rimraf": "^6.1.2",
+    "tailwindcss": "^3.4.19",
     "vite": "^7.2.4",
     "wait-on": "^9.0.3"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@types/three": "^0.182.0",
+    "@vitejs/plugin-react": "^5.1.3",
     "chart.js": "^4.5.1",
+    "electron-updater": "^6.3.9",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
-    "xlsx": "^0.18.5",
-    "electron-updater": "^6.3.9"
+    "ogl": "^1.0.11",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "three": "^0.182.0",
+    "xlsx": "^0.18.5"
   },
   "build": {
-    "appId": "com.neotrackr.app",
+    "appId": "com.scs.app",
     "publish": [
       {
         "provider": "github",
@@ -41,7 +52,8 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "public/icon.png"
     }
   }
 }

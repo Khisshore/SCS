@@ -89,7 +89,7 @@ export async function renderTransferHub() {
                 <div>
                   <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; color: var(--text-primary);">Connect to Cloud (Optional)</div>
                   <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                    Move your <b>NeoTrackr</b> folder to <b>Google Drive</b> or <b>OneDrive</b>. Your data will now sync across computers automatically.
+                    Move your <b>SCS</b> folder to <b>Google Drive</b> or <b>OneDrive</b>. Your data will now sync across computers automatically.
                   </p>
                 </div>
               </div>
@@ -99,7 +99,7 @@ export async function renderTransferHub() {
                 <div>
                   <div style="font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; color: var(--text-primary);">Move to New Device</div>
                   <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                    Copy the folder to a USB or another drive. On the new device, install NeoTrackr.
+                    Copy the folder to a USB or another drive. On the new device, install SCS.
                   </p>
                 </div>
               </div>

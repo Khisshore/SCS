@@ -1,4 +1,4 @@
-# NeoTrackr - Optimization Summary
+# SCS - Optimization Summary
 
 ## 🎯 Optimizations Applied
 
@@ -202,8 +202,8 @@ Chart.register(
 
 ### 1. `electron-builder.yml`
 ```yaml
-appId: com.neotrackr.app
-productName: NeoTrackr
+appId: com.scs.app
+productName: SCS
 compression: maximum
 asar: true
 win:

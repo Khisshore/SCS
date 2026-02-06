@@ -1,6 +1,6 @@
-appId: com.neotrackr.app
-productName: NeoTrackr
-copyright: Copyright © 2026 NeoTrackr
+appId: com.scs.app
+productName: SCS
+copyright: Copyright © 2026 SCS
 
 directories:
   output: dist-electron
@@ -37,7 +37,7 @@ nsis:
   deleteAppDataOnUninstall: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: NeoTrackr
+  shortcutName: SCS
 
 compression: maximum
 

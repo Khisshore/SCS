@@ -60,7 +60,7 @@ export async function renderDashboard() {
       <!-- Statistics Cards -->
       <div class="grid grid-5 mb-2xl">
         <!-- Total Students -->
-        <div class="stat-card">
+        <div class="stat-card" style="--card-accent: linear-gradient(90deg, #3b82f6, #8b5cf6);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">
             <span class="icon">${Icons.users}</span>
           </div>
@@ -69,7 +69,7 @@ export async function renderDashboard() {
         </div>
 
         <!-- Active Students -->
-        <div class="stat-card">
+        <div class="stat-card" style="--card-accent: linear-gradient(90deg, #22c55e, #10b981);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white;">
             <span class="icon">${Icons.userCheck}</span>
           </div>
@@ -78,7 +78,7 @@ export async function renderDashboard() {
         </div>
 
         <!-- Today's Payments -->
-        <div class="stat-card">
+        <div class="stat-card" style="--card-accent: linear-gradient(90deg, #f59e0b, #ef4444);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
             <span class="icon">${Icons.creditCard}</span>
           </div>
@@ -87,7 +87,7 @@ export async function renderDashboard() {
         </div>
 
         <!-- Today's Total -->
-        <div class="stat-card">
+        <div class="stat-card" style="--card-accent: linear-gradient(90deg, #ec4899, #f43f5e);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #f43f5e, #e11d48); color: white;">
             <span class="icon">${Icons.dollarSign}</span>
           </div>
@@ -96,7 +96,7 @@ export async function renderDashboard() {
         </div>
 
         <!-- Monthly Total -->
-        <div class="stat-card">
+        <div class="stat-card" style="--card-accent: linear-gradient(90deg, #8b5cf6, #3b82f6);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
             <span class="icon">${Icons.trendingUp}</span>
           </div>
@@ -107,12 +107,11 @@ export async function renderDashboard() {
 
       <div class="grid grid-2 mb-2xl">
         <!-- Recent Payments -->
-        <div class="card">
-          <div class="card-header">
+        <div class="card dashboard-sync-card">
+          <div class="card-header dashboard-card-header">
             <h3 class="card-title">Recent Payments</h3>
-            <a href="#spreadsheet" class="nav-link" style="padding: 0.5rem 1rem; margin: 0;">View All →</a>
           </div>
-          <div class="card-body">
+          <div class="card-body dashboard-card-body">
             ${recentPayments.length > 0 ? `
               <div class="table-container" style="box-shadow: none;">
                 <table class="table">
@@ -130,7 +129,7 @@ export async function renderDashboard() {
                 </table>
               </div>
             ` : `
-              <div style="text-align: center; padding: 2rem; color: var(--text-tertiary);">
+              <div style="text-align: center; padding: 2rem; color: var(--text-tertiary); height: 100%; display: flex; flex-direction: column; justify-content: center;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">
                   <span class="icon icon-xl" style="opacity: 0.5;">${Icons.inbox}</span>
                 </div>
@@ -141,18 +140,23 @@ export async function renderDashboard() {
         </div>
 
         <!-- Payment Trend Chart -->
-        <div class="card">
-          <div class="card-header">
+        <div class="card chart-card dashboard-sync-card">
+          <div class="card-header dashboard-card-header">
             <h3 class="card-title">Payment Trend</h3>
-            <select id="trendPeriodSelector" class="form-select" style="width: auto; padding: 0.5rem 1rem;">
-              <option value="1">Last Month</option>
-              <option value="3">Last 3 Months</option>
-              <option value="6" selected>Last 6 Months</option>
-              <option value="12">Last Year</option>
-            </select>
+            <div class="custom-select-wrapper">
+              <select id="trendPeriodSelector" class="premium-select">
+                <option value="1">Last Month</option>
+                <option value="3">Last 3 Months</option>
+                <option value="6" selected>Last 6 Months</option>
+                <option value="12">Last Year</option>
+              </select>
+              <span class="select-icon">${Icons.chevronDown}</span>
+            </div>
           </div>
-          <div class="card-body" style="flex: 1; display: flex; flex-direction: column;">
-            <canvas id="paymentTrendChart"></canvas>
+          <div class="card-body dashboard-card-body chart-card-body">
+            <div style="flex: 1; position: relative; width: 100%; height: 100%;">
+              <canvas id="paymentTrendChart"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -161,6 +165,110 @@ export async function renderDashboard() {
     </div>
 
     <style>
+      .chart-card {
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .dashboard-sync-card {
+        height: 520px;
+        display: flex;
+        flex-direction: column;
+        padding: 0; /* Let header and body handle padding */
+      }
+
+      .dashboard-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        height: 80px;
+        min-height: 80px;
+        border-bottom: 1px solid var(--border-light);
+        margin-bottom: 0;
+      }
+
+      .chart-card .dashboard-card-header {
+        border-bottom: none;
+      }
+
+      .card-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .dashboard-card-body {
+        flex: 1;
+        padding: 1.5rem 2rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chart-card-body {
+        padding-top: 0;
+      }
+
+      .premium-action-link {
+        color: var(--primary-500);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+        background: var(--primary-50);
+        white-space: nowrap;
+      }
+
+      .premium-action-link:hover {
+        background: var(--primary-100);
+        transform: translateY(-1px);
+      }
+
+      .custom-select-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .premium-select {
+        appearance: none;
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 0.6rem 2.5rem 0.6rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .premium-select:hover {
+        background: var(--surface-hover);
+        border-color: var(--primary-400);
+        transform: translateY(-1px);
+      }
+
+      .select-icon {
+        position: absolute;
+        right: 1rem;
+        pointer-events: none;
+        color: var(--text-tertiary);
+        width: 14px;
+        height: 14px;
+        display: flex;
+        align-items: center;
+      }
+
       @keyframes fadeIn {
         from {
           opacity: 0;
@@ -260,11 +368,24 @@ async function renderRecentPaymentRows(payments, currency) {
     const student = await Student.findById(payment.studentId);
     const studentName = student ? student.name : 'Unknown';
     
+    let badgeClass = 'badge-secondary';
+    const method = payment.method?.toUpperCase() || '';
+    
+    if (method.includes('CASH')) {
+      badgeClass = 'badge-success';
+    } else if (method.includes('ONLINE')) {
+      badgeClass = 'badge-info';
+    } else if (method.includes('TRANSFER') || method.includes('BANK')) {
+      badgeClass = 'badge-primary';
+    } else if (method.includes('CREDIT') || method.includes('CARD')) {
+      badgeClass = 'badge-danger';
+    }
+    
     rows.push(`
       <tr style="animation: slideIn 0.3s ease-out;">
         <td>${formatDate(payment.date, 'short')}</td>
         <td><strong>${formatCurrency(payment.amount, currency)}</strong></td>
-        <td><span class="badge badge-primary">${payment.method}</span></td>
+        <td><span class="badge ${badgeClass}">${payment.method}</span></td>
         <td style="color: var(--text-tertiary); font-size: var(--font-size-sm);">${getRelativeTime(payment.createdAt)}</td>
       </tr>
     `);
@@ -315,25 +436,49 @@ async function renderPaymentTrendChart(months = 6) {
       datasets: [{
         label: 'Total Payments',
         data: data,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+          gradient.addColorStop(0, '#14b8a6');
+          gradient.addColorStop(0.5, '#06b6d4');
+          gradient.addColorStop(1, '#3b82f6');
+          return gradient;
+        },
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(20, 184, 166, 0.4)');
+          gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.1)');
+          gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+          return gradient;
+        },
         tension: 0.4,
         fill: true,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        borderWidth: 2
+        pointRadius: 0, 
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#14b8a6',
+        pointBorderColor: 'rgba(255, 255, 255, 0.8)',
+        pointBorderWidth: 4,
+        borderWidth: 3,
+        pointHoverBorderWidth: 4,
+        pointHitRadius: 20,
+        clip: false // Prevent clipping of points at the edges
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      resizeDelay: 200, // Smooth transition during scaling
+      resizeDelay: 200,
       layout: {
         padding: {
-          top: 10,
-          bottom: 0,
+          top: 20,
+          bottom: 25, // More space at bottom for labels and points
           left: 10,
-          right: 10
+          right: 25
         }
       },
       plugins: {
@@ -341,60 +486,75 @@ async function renderPaymentTrendChart(months = 6) {
           display: false
         },
         tooltip: {
+          enabled: true,
           mode: 'index',
           intersect: false,
-          backgroundColor: tooltipBg,
-          padding: 12,
-          titleFont: {
-            size: 14,
-            weight: 'bold'
-          },
-          bodyFont: {
-            size: 13
-          },
-          borderColor: 'rgba(59, 130, 246, 0.5)',
-          borderWidth: 1
+          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)',
+          titleColor: isDarkMode ? '#1e293b' : '#f1f5f9',
+          bodyColor: '#14b8a6',
+          titleFont: { size: 14, weight: 'bold' },
+          bodyFont: { size: 16, weight: '900' },
+          padding: 16,
+          cornerRadius: 16,
+          displayColors: false,
+          borderColor: 'rgba(20, 184, 166, 0.2)',
+          borderWidth: 1,
+          boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.3)',
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => `amount : ${item.raw.toLocaleString()}`
+          }
+        },
+        hover: {
+          mode: 'index',
+          intersect: false
         }
       },
       scales: {
         y: {
           beginAtZero: true,
           ticks: {
-            maxTicksLimit: 6,
-            precision: 0,
+            maxTicksLimit: 5,
+            padding: 10,
             callback: function(value) {
-              // Format with proper currency and no unnecessary decimals
-              if (value >= 1000) {
-                return 'RM ' + (value / 1000).toFixed(1) + 'k';
-              }
-              return 'RM ' + value.toFixed(0);
+              return 'RM ' + value;
             },
             font: {
-              size: 11
+              size: 13,
+              weight: '600'
             },
             color: textColor
           },
+          border: {
+            display: true,
+            color: gridColor,
+            width: 1
+          },
           grid: {
             color: gridColor,
-            drawBorder: false
+            drawBorder: false,
+            borderDash: [5, 5], 
+            lineWidth: 1
           }
         },
         x: {
           ticks: {
+            padding: 15,
             font: {
-              size: 11
+              size: 13,
+              weight: '600'
             },
             color: textColor
+          },
+          border: {
+            display: true,
+            color: gridColor,
+            width: 1
           },
           grid: {
             display: false
           }
         }
-      },
-      interaction: {
-        mode: 'nearest',
-        axis: 'x',
-        intersect: false
       }
     }
   });

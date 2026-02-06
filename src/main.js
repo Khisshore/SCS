@@ -33,7 +33,7 @@ const app = {
  * Initialize the application
  */
 async function init() {
-  console.log('🚀 Initializing NeoTrackr...');
+  console.log('🚀 Initializing SCS...');
 
   // Initialize theme first (before showing anything)
   initTheme();
@@ -83,8 +83,14 @@ async function init() {
       if (students.length === 0) {
         const snapshot = await fileSystem.checkSnapshot();
         if (snapshot) {
-          console.log('📂 Migration snapshot detected!');
-          await showRestorationPrompt();
+          // Peek at data to ensure it's worth restoring
+          const data = await fileSystem.loadSystemSnapshot();
+          if (data && data.students && data.students.length > 0) {
+            console.log('📂 Migration snapshot with students detected!');
+            await showRestorationPrompt();
+          } else {
+             console.log('📂 Snapshot detected but contains no students - skipping restore prompt.');
+          }
         }
       }
     }
@@ -114,7 +120,7 @@ async function init() {
     }
 
     app.initialized = true;
-    console.log('✅ NeoTrackr initialized successfully');
+    console.log('✅ SCS initialized successfully');
 
 
   } catch (error) {
@@ -341,7 +347,7 @@ async function renderSettings() {
         </div>
         <div class="card-body">
           <p style="margin-bottom: 1rem; color: var(--text-secondary);">
-            All data and files are automatically saved as you work. ${isDesktop ? 'Receipt PDFs are stored in your NeoTrackr folder. ' : 'All data is stored locally in your browser. '}Use the sidebar Save button to check file sync status.
+            All data and files are automatically saved as you work. ${isDesktop ? 'Receipt PDFs are stored in your SCS folder. ' : 'All data is stored locally in your browser. '}Use the sidebar Save button to check file sync status.
           </p>
           <div style="padding: 1rem; background: var(--success-50); border-left: 4px solid var(--success-500); border-radius: var(--radius-md);">
             <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--success-700);">

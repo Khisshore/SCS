@@ -1,5 +1,5 @@
 /**
- * NEOTRACKR - ELECTRON PRELOAD SCRIPT
+ * SCS - ELECTRON PRELOAD SCRIPT
  * Secure bridge between renderer and main process using contextBridge
  */
 
@@ -47,4 +47,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 });
 
-console.log('✅ NeoTrackr preload script initialized');
+console.log('✅ SCS preload script initialized');

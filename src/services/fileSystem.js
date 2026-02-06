@@ -1,7 +1,7 @@
 /**
  * FILE SYSTEM SERVICE
- * Manages structured folder creation and PDF file operations for NeoTrackr
- * Folder Structure: NeoTrackr/{Course}/{StudentName}/{Semester}/
+ * Manages structured folder creation and PDF file operations for SCS
+ * Folder Structure: SCS/{Course}/{StudentName}/{Semester}/
  */
 
 import { db } from '../db/database.js';
@@ -55,15 +55,22 @@ class FileSystemService {
       return null; // User cancelled
     }
 
-    // Create NeoTrackr folder inside selected path
-    const neoTrackrPath = `${selectedPath}\\NeoTrackr`;
-    const result = await window.electronAPI.createFolder(neoTrackrPath);
+    // Check if the user selected the project folder directly (SCS or NeoTrackr)
+    const folderName = selectedPath.split('\\').pop();
+    let scsPath = selectedPath;
+    
+    // Only append \SCS if the selected folder isn't already the project folder
+    if (folderName !== 'SCS' && folderName !== 'NeoTrackr') {
+      scsPath = `${selectedPath}\\SCS`;
+    }
+
+    const result = await window.electronAPI.createFolder(scsPath);
 
     if (result.success) {
-      this.baseFolder = neoTrackrPath;
-      await db.setSetting('baseFolder', neoTrackrPath);
-      console.log('✅ Base folder set:', neoTrackrPath);
-      return neoTrackrPath;
+      this.baseFolder = scsPath;
+      await db.setSetting('baseFolder', scsPath);
+      console.log('✅ Base folder set:', scsPath);
+      return scsPath;
     }
 
     throw new Error(result.error);
@@ -86,7 +93,7 @@ class FileSystemService {
 
   /**
    * Generate student folder path
-   * Path: {baseFolder}/NeoTrackr/{Course}/{Program}/{StudentName}/{Semester}/
+   * Path: {baseFolder}/SCS/{Course}/{Program}/{StudentName}/{Semester}/
    * If semester is null/empty, returns path to Student folder
    */
   getStudentFolderPath(course, program, studentName, semester = null) {

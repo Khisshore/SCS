@@ -54,7 +54,7 @@ export async function parseSpreadsheet(file) {
 }
 
 /**
- * Intelligently map spreadsheet columns to NeoTrackr fields
+ * Intelligently map spreadsheet columns to SCS fields
  * Uses fuzzy matching to detect common column names
  * @param {Array<string>} headers - Column headers from spreadsheet
  * @returns {Object} Suggested mapping object

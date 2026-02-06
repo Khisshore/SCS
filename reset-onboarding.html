@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset NeoTrackr Onboarding</title>
+  <title>Reset SCS Onboarding</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -51,12 +51,12 @@
     <h1>Reset Onboarding</h1>
     <p>Click the button below to reset the first-run setup wizard. You'll see it again when you reload the app.</p>
     <button onclick="resetOnboarding()">Reset Setup Wizard</button>
-    <div class="success" id="success">✓ Reset successful! Close this and reload NeoTrackr.</div>
+    <div class="success" id="success">✓ Reset successful! Close this and reload SCS.</div>
   </div>
 
   <script>
     async function resetOnboarding() {
-      const dbName = 'NeoTrackrDB';
+      const dbName = 'SCSDB';
       const request = indexedDB.open(dbName);
       
       request.onsuccess = function(event) {

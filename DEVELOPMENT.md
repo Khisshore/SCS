@@ -1,4 +1,4 @@
-# NeoTrackr - Development Guide
+# SCS - Development Guide
 
 ## 🔄 Hot Reload vs Rebuild: Do I Need to Update Every Time?
 
@@ -46,7 +46,7 @@ npm run electron:build
 
 **Build output:**
 - Location: `dist-electron/`
-- File: `NeoTrackr-Setup-1.0.0.exe`
+- File: `SCS-Setup-1.0.0.exe`
 - Size: ~80-120MB (optimized)
 
 ---
@@ -215,7 +215,7 @@ npm install
 npm run electron:build
 
 # 4. Test installer
-# Run dist-electron/NeoTrackr-Setup-1.0.0.exe
+# Run dist-electron/SCS-Setup-1.0.0.exe
 
 # 5. Verify file size
 dir dist-electron\*.exe
@@ -312,7 +312,7 @@ npm run electron:dev
 npm run electron:build
 ```
 
-### When Updating NeoTrackr Code
+### When Updating SCS Code
 
 | File | Requires | Action |
 |------|----------|--------|
@@ -349,7 +349,7 @@ npm run electron:dev
 
 # Production testing (before release)
 npm run electron:build:dir
-./dist-electron/win-unpacked/NeoTrackr.exe
+./dist-electron/win-unpacked/SCS.exe
 ```
 
 ### 4. **Clean Regularly**
@@ -377,7 +377,7 @@ npm install
 npm run electron:build
 
 # 4. Test installer
-dist-electron/NeoTrackr-Setup-1.0.1.exe
+dist-electron/SCS-Setup-1.0.1.exe
 
 # 5. Distribute
 # Upload to Google Drive, website, etc.
