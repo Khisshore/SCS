@@ -96,19 +96,18 @@ export async function renderSpreadsheet() {
         </div>
       </div>
 
-      <!-- Scaled Content Wrapper -->
-      <div class="spreadsheet-data-scaled">
-        <!-- Table Container -->
-        <div id="tableContainer"></div>
+      <!-- Table Container -->
+      <div id="tableContainer"></div>
 
-        <!-- Summary Cards -->
-        <div id="summaryCards"></div>
-      </div>
+      <!-- Summary Cards -->
+      <div id="summaryCards"></div>
     </div>
 
     <style>
       .spreadsheet-page {
         animation: fadeIn 0.4s ease-out;
+        width: 100%;
+        max-width: none;
       }
 
       .spreadsheet-page.is-empty {
@@ -135,16 +134,18 @@ export async function renderSpreadsheet() {
       }
 
       .spreadsheet-header h1 {
-        font-size: 1.875rem;
-        font-weight: 700;
-        margin: 0 0 0.25rem 0;
+        font-size: var(--font-size-4xl);
+        font-weight: 800;
+        margin: 0 0 0.5rem 0;
         color: var(--text-primary);
+        letter-spacing: -0.025em;
       }
 
       .subtitle {
-        font-size: 0.875rem;
+        font-size: var(--font-size-base);
         color: var(--text-secondary);
         margin: 0;
+        opacity: 0.9;
       }
 
       .header-actions {
@@ -215,7 +216,7 @@ export async function renderSpreadsheet() {
 
       .filters-search-row {
         display: flex;
-        gap: 1.5rem;
+        gap: 2rem;
         align-items: center;
         justify-content: flex-start;
       }
@@ -227,13 +228,13 @@ export async function renderSpreadsheet() {
       }
 
       .course-pill {
-        padding: 0.5rem 1rem;
+        padding: 0.625rem 1.25rem;
         border-radius: 9999px;
         border: 1px solid var(--border-color);
         background: var(--surface);
         color: var(--text-secondary);
-        font-size: 0.875rem;
-        font-weight: 500;
+        font-size: var(--font-size-sm);
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
       }
@@ -275,7 +276,7 @@ export async function renderSpreadsheet() {
       .search-box {
         position: relative;
         flex: 1;
-        max-width: 320px;
+        max-width: 500px;
       }
 
       .search-icon {
@@ -294,14 +295,14 @@ export async function renderSpreadsheet() {
         border-radius: var(--radius-xl);
         background: var(--surface);
         color: var(--text-primary);
-        font-size: 0.875rem;
+        font-size: var(--font-size-sm);
         transition: all 0.2s;
       }
 
       .search-box input:focus {
         outline: none;
         border-color: var(--primary-500);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
       }
 
       .sort-control {
@@ -336,12 +337,13 @@ export async function renderSpreadsheet() {
       .program-title {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 1.25rem;
+        gap: 0.75rem;
+        font-size: var(--font-size-xl);
         font-weight: 700;
         color: var(--text-primary);
-        margin-top: 1rem;
+        margin-top: 1.5rem;
         margin-bottom: 1.5rem;
+        letter-spacing: -0.01em;
       }
 
       .program-indicator {
@@ -354,7 +356,7 @@ export async function renderSpreadsheet() {
       .table-card {
         background: var(--surface);
         border: 1px solid var(--border-color);
-        border-radius: var(--radius-2xl);
+        border-radius: var(--radius-xl);
         overflow: hidden;
         box-shadow: var(--shadow-sm);
       }
@@ -378,8 +380,8 @@ export async function renderSpreadsheet() {
 
       .spreadsheet-table {
         width: 100%;
-        min-width: 1200px;
         border-collapse: collapse;
+        table-layout: auto;
       }
 
       .spreadsheet-table thead {
@@ -392,15 +394,16 @@ export async function renderSpreadsheet() {
       .spreadsheet-table th {
         padding: 1rem;
         text-align: left;
-        font-size: 0.6875rem;
-        font-weight: 700;
+        font-size: var(--font-size-sm);
+        font-weight: 800;
         color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 2px solid var(--border-color);
         cursor: pointer;
         user-select: none;
         transition: background 0.15s;
+        white-space: nowrap;
       }
 
       .spreadsheet-table th:hover {
@@ -432,7 +435,8 @@ export async function renderSpreadsheet() {
         left: 50px;
         background: var(--background-secondary);
         z-index: 25;
-        min-width: 240px;
+        min-width: 480px;
+        width: 480px;
       }
 
       .spreadsheet-table td.sticky-col {
@@ -440,7 +444,8 @@ export async function renderSpreadsheet() {
         left: 50px;
         background: var(--surface);
         z-index: 10;
-        min-width: 240px;
+        min-width: 480px;
+        width: 480px;
       }
 
       .spreadsheet-table tbody tr {
@@ -474,7 +479,7 @@ export async function renderSpreadsheet() {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        font-size: 0.875rem;
+        font-size: var(--font-size-base);
         font-weight: 700;
         color: var(--primary-600);
       }
@@ -502,8 +507,10 @@ export async function renderSpreadsheet() {
 
       .spreadsheet-table td {
         padding: 1rem;
-        font-size: 0.875rem;
+        font-size: var(--font-size-base);
         color: var(--text-secondary);
+        font-weight: 500;
+        white-space: nowrap;
       }
 
 
@@ -530,20 +537,22 @@ export async function renderSpreadsheet() {
         border-radius: 9999px;
         object-fit: cover;
         flex-shrink: 0;
+        margin-right: 0.75rem;
       }
 
       .student-avatar-fallback {
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 2.75rem;
+        height: 2.75rem;
         border-radius: 9999px;
         background: var(--surface-hover);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.875rem;
+        font-size: 1rem;
         font-weight: 700;
         color: var(--text-secondary);
         flex-shrink: 0;
+        margin-right: 1rem;
       }
 
       .student-info {
@@ -551,8 +560,8 @@ export async function renderSpreadsheet() {
       }
 
       .student-name {
-        font-size: 0.875rem;
-        font-weight: 600;
+        font-size: 1.125rem;
+        font-weight: 700;
         color: var(--text-primary);
         margin: 0;
         line-height: 1.4;
@@ -563,16 +572,19 @@ export async function renderSpreadsheet() {
       .amount-bold {
         font-weight: 700;
         color: var(--text-primary);
+        font-size: var(--font-size-base);
       }
 
       .amount-paid {
         font-weight: 700;
         color: var(--success-600) !important;
+        font-size: var(--font-size-base);
       }
 
       .amount-outstanding {
         font-weight: 700;
         color: var(--danger-600) !important;
+        font-size: var(--font-size-base);
       }
 
       .table-footer {
@@ -680,10 +692,11 @@ export async function renderSpreadsheet() {
       }
 
       .summary-card-value {
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 1.875rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
         order: 2;
+        letter-spacing: -0.02em;
       }
 
       .summary-card-value.success {
@@ -1465,6 +1478,8 @@ export async function renderSpreadsheet() {
   // Setup event listeners
   setupEventListeners();
 
+  console.log('Spreadsheet rendered');
+
   // Load initial data
   await loadSpreadsheetData();
 }
@@ -1533,7 +1548,7 @@ function setupEventListeners() {
   }
 
   // Export XLSX
-  document.getElementById('exportXlsxBtn').addEventListener('click', (e) => {
+  document.getElementById('exportXlsxBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
     const exporter = new SpreadsheetExporter({
       title: `Student Payment Spreadsheet - ${currentCourse}`,
@@ -1568,7 +1583,6 @@ function setupEventListeners() {
     
     const balanceFilter = document.getElementById('balanceFilter');
     if (balanceFilter) balanceFilter.classList.remove('active');
-    if (searchInput) searchInput.value = '';
     
     document.querySelectorAll('.course-pill:not(.status-filter)').forEach(p => {
       p.classList.toggle('active', p.dataset.course === currentCourse);
@@ -1587,15 +1601,12 @@ function setupEventListeners() {
     const studentRow = e.target.closest('tr:not(.institution-header)');
     if (!studentRow || studentRow.classList.contains('institution-header')) return;
 
-    // Find student data from the row
-    const studentNameEl = studentRow.querySelector('.student-name');
-    if (!studentNameEl) return;
-
-    const studentName = studentNameEl.textContent.trim();
+    // Use student ID from data attribute for reliable lookup
+    const studentId = studentRow.dataset.studentId;
+    if (!studentId) return;
     
     // Find the student in our data
-    const students = await Student.findAll();
-    const student = students.find(s => s.name === studentName);
+    const student = await Student.findById(Number(studentId));
     
     if (student) {
       await openStudentDetailModal(student);
@@ -1838,8 +1849,8 @@ function renderTable(courseGroups, currency) {
 
     // Course Header
     fullHtml += `
-      <div class="course-header" style="margin-top: 1rem; margin-bottom: 1.5rem; padding: 1rem 0; border-bottom: 2px solid var(--primary-600);">
-        <h1 style="font-size: 2rem; font-weight: 800; color: var(--primary-600); margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+      <div class="course-header" style="margin-top: 1.5rem; margin-bottom: 2rem; padding: 1.25rem 0; border-bottom: 2px solid var(--primary-600);">
+        <h1 style="font-size: var(--font-size-3xl); font-weight: 800; color: var(--primary-600); margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
           ${courseName}
         </h1>
       </div>
@@ -1861,7 +1872,7 @@ function renderTable(courseGroups, currency) {
         const { student, totalPaid, balance, cost } = data;
         
         rowsHtml += `
-          <tr class="${student.status === 'inactive' ? 'inactive-row' : ''}">
+          <tr class="${student.status === 'inactive' ? 'inactive-row' : ''}" data-student-id="${student.id}" style="cursor: pointer;">
             <td>${rowNumber++}</td>
             <td class="sticky-col">
               <div class="student-name">
@@ -1884,13 +1895,13 @@ function renderTable(courseGroups, currency) {
       fullHtml += `
         <div class="program-section">
           <h2 class="program-title">
-            <span class="program-indicator"></span>
+            <span class="program-indicator" style="width: 0.5rem; height: 1.5rem;"></span>
             ${program}
-            <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-tertiary); margin-left: auto; margin-right: 2.5rem;">
+            <span style="font-size: var(--font-size-sm); font-weight: 600; color: var(--text-tertiary); margin-left: auto;">
               ${students.length} Students
             </span>
           </h2>
-          <div class="table-card" style="margin-bottom: 2.5rem;">
+          <div class="table-card" style="margin-bottom: 2.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-xl); overflow: hidden;">
             <div class="table-scroll">
               <table class="spreadsheet-table">
                 <thead>
@@ -1910,11 +1921,11 @@ function renderTable(courseGroups, currency) {
                 </tbody>
                 <tfoot style="background: var(--background-secondary); border-top: 2px solid var(--border-color);">
                   <tr>
-                    <td colspan="4" style="text-align: right; font-weight: 700; color: var(--text-primary);">Program Sub-Totals:</td>
-                    <td class="amount-bold">${formatCurrency(subTotalCost, currency)}</td>
-                    <td class="amount-bold">${formatCurrency(subTotalFees, currency)}</td>
-                    <td class="amount-paid">${formatCurrency(subTotalPaid, currency)}</td>
-                    <td class="amount-bold ${subTotalBalance > 0 ? 'amount-outstanding' : ''}">${formatCurrency(subTotalBalance, currency)}</td>
+                    <td colspan="4" style="text-align: right; font-weight: 700; color: var(--text-primary); font-size: 1.125rem; padding: 1.25rem 1rem;">Program Sub-Totals:</td>
+                    <td class="amount-bold" style="font-size: var(--font-size-base); padding: 1.25rem 1rem;">${formatCurrency(subTotalCost, currency)}</td>
+                    <td class="amount-bold" style="font-size: var(--font-size-base); padding: 1.25rem 1rem;">${formatCurrency(subTotalFees, currency)}</td>
+                    <td class="amount-paid" style="font-size: var(--font-size-base); padding: 1.25rem 1rem;">${formatCurrency(subTotalPaid, currency)}</td>
+                    <td class="amount-bold ${subTotalBalance > 0 ? 'amount-outstanding' : ''}" style="font-size: var(--font-size-base); padding: 1.25rem 1rem;">${formatCurrency(subTotalBalance, currency)}</td>
                   </tr>
                 </tfoot>
               </table>
