@@ -373,9 +373,14 @@ class FileSystemService {
     
     if (result.success) {
       try {
+        if (!result.data || typeof result.data !== 'string') {
+          console.warn('📂 Snapshot data is empty or invalid.');
+          return null;
+        }
         return JSON.parse(result.data);
       } catch (e) {
-        console.error('Failed to parse snapshot JSON');
+        console.error('❌ Failed to parse snapshot JSON:', e.message);
+        console.debug('Raw data sample:', result.data?.substring(0, 100));
       }
     }
     return null;

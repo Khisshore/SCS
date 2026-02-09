@@ -41,9 +41,9 @@ export async function renderDashboard() {
         <div class="flex gap-md items-center">
           <div id="syncPillContainer" class="sync-pill" onclick="window.location.hash = '#transfer'" title="Data Transfer & Sync Hub">
             <div class="icon">${Icons.refresh}</div>
-            <div class="flex flex-column" style="display: flex; flex-direction: column;">
-              <span id="syncStatusIndicator">Syncing...</span>
-              <span id="lastSyncTime" style="font-size: 10px; opacity: 0.7; font-weight: 400; margin-top: -2px;">Checking...</span>
+            <div class="flex-column">
+              <span id="syncStatusIndicator">Live Synced</span>
+              <span id="lastSyncTime">Updated: Just now</span>
             </div>
           </div>
           <button class="btn btn-success" id="quickPaymentBtn">
@@ -166,9 +166,6 @@ export async function renderDashboard() {
 
     <style>
       .chart-card {
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
         position: relative;
         overflow: hidden;
       }
@@ -239,34 +236,52 @@ export async function renderDashboard() {
       .premium-select {
         appearance: none;
         background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
+        backdrop-filter: var(--glass-blur) var(--glass-saturation, );
+        -webkit-backdrop-filter: var(--glass-blur) var(--glass-saturation, );
         border: 1px solid var(--glass-border);
         border-radius: 12px;
         padding: 0.6rem 2.5rem 0.6rem 1.25rem;
         font-size: 0.875rem;
         font-weight: 700;
-        color: var(--text-secondary);
+        color: var(--text-primary);
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: var(--shadow-sm);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 
+          var(--glass-shadow),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        outline: none;
       }
 
       .premium-select:hover {
         background: var(--surface-hover);
-        border-color: var(--primary-400);
+        border-color: var(--primary-500);
         transform: translateY(-1px);
+        box-shadow: 
+          var(--shadow-md),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      }
+
+      .premium-select:focus {
+        border-color: var(--primary-500);
+        box-shadow: 
+          0 0 0 4px rgba(6, 182, 212, 0.15),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.1);
       }
 
       .select-icon {
         position: absolute;
-        right: 1rem;
+        right: 1.1rem;
         pointer-events: none;
-        color: var(--text-tertiary);
+        color: var(--primary-500);
         width: 14px;
         height: 14px;
         display: flex;
         align-items: center;
+        transition: transform 0.3s ease;
+      }
+
+      .custom-select-wrapper:hover .select-icon {
+        transform: translateY(1px);
       }
 
       @keyframes fadeIn {
@@ -418,11 +433,19 @@ async function renderPaymentTrendChart(months = 6) {
   const ctx = document.getElementById('paymentTrendChart');
   if (!ctx) return;
 
-  // Detect current theme
+  // Detect active preset for specific color structure
+  const activePreset = document.documentElement.getAttribute('data-visual-preset');
   const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)';
-  const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
-  const tooltipBg = isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(0, 0, 0, 0.8)';
+  
+  // Get theme colors from CSS variables
+  const style = getComputedStyle(document.documentElement);
+  const primaryColor = style.getPropertyValue('--primary-500').trim() || '#26374d';
+  const accentColor = activePreset === 'stormy' ? '#f2c94c' : (style.getPropertyValue('--accent-moss').trim() || '#14b8a6');
+  const secondaryAccent = activePreset === 'stormy' ? '#4a6781' : '#06b6d4';
+  
+  const textColor = activePreset === 'stormy' ? 'rgba(38, 55, 77, 0.7)' : (isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(26, 26, 26, 0.6)');
+  const gridColor = activePreset === 'stormy' ? 'rgba(74, 103, 129, 0.12)' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)');
+  const tooltipBg = activePreset === 'stormy' ? 'rgba(38, 55, 77, 0.98)' : (isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.98)');
 
   // Destroy existing chart if it exists
   if (window.dashboardChart) {
@@ -441,9 +464,15 @@ async function renderPaymentTrendChart(months = 6) {
           const {ctx, chartArea} = chart;
           if (!chartArea) return null;
           const gradient = ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
-          gradient.addColorStop(0, '#14b8a6');
-          gradient.addColorStop(0.5, '#06b6d4');
-          gradient.addColorStop(1, '#3b82f6');
+          if (activePreset === 'stormy') {
+            gradient.addColorStop(0, '#26374d'); // Puddle Navy (Start)
+            gradient.addColorStop(0.3, '#4a6781'); // Thunder Blue (Center)
+            gradient.addColorStop(1, '#f2c94c'); // Raincoat Yellow (Highlight/End)
+          } else {
+            gradient.addColorStop(0, primaryColor);
+            gradient.addColorStop(0.5, accentColor);
+            gradient.addColorStop(1, secondaryAccent);
+          }
           return gradient;
         },
         backgroundColor: (context) => {
@@ -451,8 +480,8 @@ async function renderPaymentTrendChart(months = 6) {
           const {ctx, chartArea} = chart;
           if (!chartArea) return null;
           const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(20, 184, 166, 0.4)');
-          gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.1)');
+          gradient.addColorStop(0, activePreset === 'stormy' ? 'rgba(242, 201, 76, 0.4)' : 'rgba(20, 184, 166, 0.4)');
+          gradient.addColorStop(0.5, activePreset === 'stormy' ? 'rgba(74, 103, 129, 0.1)' : 'rgba(6, 182, 212, 0.1)');
           gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
           return gradient;
         },
@@ -460,8 +489,8 @@ async function renderPaymentTrendChart(months = 6) {
         fill: true,
         pointRadius: 0, 
         pointHoverRadius: 8,
-        pointBackgroundColor: '#14b8a6',
-        pointBorderColor: 'rgba(255, 255, 255, 0.8)',
+        pointBackgroundColor: accentColor,
+        pointBorderColor: activePreset === 'stormy' ? '#dfe5eb' : 'rgba(255, 255, 255, 0.8)',
         pointBorderWidth: 4,
         borderWidth: 3,
         pointHoverBorderWidth: 4,
@@ -489,15 +518,15 @@ async function renderPaymentTrendChart(months = 6) {
           enabled: true,
           mode: 'index',
           intersect: false,
-          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)',
-          titleColor: isDarkMode ? '#1e293b' : '#f1f5f9',
-          bodyColor: '#14b8a6',
+          backgroundColor: activePreset === 'stormy' ? 'rgba(38, 55, 77, 0.98)' : (isDarkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(30, 41, 59, 0.95)'),
+          titleColor: activePreset === 'stormy' ? '#dfe5eb' : (isDarkMode ? '#1e293b' : '#f1f5f9'),
+          bodyColor: activePreset === 'stormy' ? '#f2c94c' : '#14b8a6',
           titleFont: { size: 14, weight: 'bold' },
           bodyFont: { size: 16, weight: '900' },
           padding: 16,
           cornerRadius: 16,
           displayColors: false,
-          borderColor: 'rgba(20, 184, 166, 0.2)',
+          borderColor: activePreset === 'stormy' ? '#4a6781' : 'rgba(20, 184, 166, 0.2)',
           borderWidth: 1,
           boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.3)',
           callbacks: {

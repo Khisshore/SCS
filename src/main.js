@@ -15,12 +15,13 @@ import { renderSpreadsheet } from './components/Spreadsheet.js';
 import { renderTransferHub } from './components/TransferHub.js';
 import { Student } from './models/Student.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
-import { createThemeToggle, initTheme, setupThemeToggle } from './components/ThemeToggle.js';
+import { initTheme } from './components/ThemeToggle.js';
 import { setupPacmanEasterEgg } from './components/PacmanEasterEgg.js';
 import { renderFirstRunSetup, initFirstRunSetup, firstRunStyles } from './components/FirstRunSetup.js';
 import { renderImportWizard, initImportWizard } from './components/ImportWizard.js';
 import { fileSystem } from './services/fileSystem.js';
 import { autoUpdater } from './components/AutoUpdater.js';
+import { initBackground } from './services/background.js';
 
 
 // Application state
@@ -37,7 +38,7 @@ async function init() {
 
   // Initialize theme first (before showing anything)
   initTheme();
-
+  console.log('🎨 Theme initialized');
   // Show loading overlay
   showLoading(true);
 
@@ -45,6 +46,10 @@ async function init() {
     // Initialize database
     await db.init();
     console.log('✅ Database ready');
+
+    // Initialize background AFTER DB is ready
+    initBackground();
+    console.log('🌌 Background service initialized');
 
     // Check if first run setup is needed
     const firstRunCompleted = await db.getSetting('firstRunCompleted');
@@ -137,17 +142,6 @@ async function init() {
 function setupNavigation() {
   const sidebar = document.getElementById('sidebar');
   
-  // Sidebar expansion logic (hover)
-  if (sidebar) {
-    sidebar.addEventListener('mouseenter', () => {
-      sidebar.classList.add('expanded');
-    });
-    
-    sidebar.addEventListener('mouseleave', () => {
-      sidebar.classList.remove('expanded');
-    });
-  }
-
   // Handle navigation clicks
   const navLinks = document.querySelectorAll('.nav-link');
   
@@ -270,28 +264,12 @@ async function renderSettings() {
   container.innerHTML = `
     <div style="animation: fadeIn 0.5s ease-in-out;">
       <!-- Page Header with Theme Toggle -->
-      <div class="flex justify-between items-center mb-xl">
-        <h1 style="margin: 0;">Settings</h1>
+      <div class="flex justify-between items-center mb-2xl">
+        <div>
+          <h1 style="margin-bottom: 0.5rem;">Settings</h1>
+          <p style="margin: 0; color: var(--text-secondary);">Manage your preferences and system configuration.</p>
+        </div>
         <div id="settings-theme-toggle"></div>
-      </div>
-
-      <div class="card mb-xl">
-        <div class="card-header">
-          <h3 class="card-title">General Settings</h3>
-        </div>
-        <div class="card-body">
-          <div class="form-group">
-            <label class="form-label">Institution Name</label>
-            <input type="text" id="institutionName" class="form-input" value="${institutionName}" />
-          </div>
-
-
-
-          <button class="btn btn-success" id="saveSettingsBtn">
-            <span class="icon">${Icons.checkCircle}</span>
-            Save Settings
-          </button>
-        </div>
       </div>
 
       ${isDesktop ? `
@@ -341,28 +319,7 @@ async function renderSettings() {
         </div>
       ` : ''}
 
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Data Management</h3>
-        </div>
-        <div class="card-body">
-          <p style="margin-bottom: 1rem; color: var(--text-secondary);">
-            All data and files are automatically saved as you work. ${isDesktop ? 'Receipt PDFs are stored in your SCS folder. ' : 'All data is stored locally in your browser. '}Use the sidebar Save button to check file sync status.
-          </p>
-          <div style="padding: 1rem; background: var(--success-50); border-left: 4px solid var(--success-500); border-radius: var(--radius-md);">
-            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--success-700);">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; flex-shrink: 0;">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <div>
-                <strong>Auto-save enabled</strong>
-                <div style="font-size: var(--font-size-sm); margin-top: 0.25rem; opacity: 0.9;">All changes are saved automatically. No manual backup needed.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="theme-selector-container"></div>
     </div>
 
     <style>
@@ -413,20 +370,33 @@ async function renderSettings() {
     });
   }
 
-  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-    const newInstitutionName = document.getElementById('institutionName').value;
-    
-    await db.setSetting('institutionName', newInstitutionName);
-    await db.setSetting('currency', 'RM');
-    
-    alert('Settings saved successfully!');
-  });
+  // Save Settings functionality removed as General Settings card was deleted
   
-  // Setup theme toggle for Settings page  
+  // Setup theme toggle for Settings page (SkyToggle)
   const toggleContainer = document.getElementById('settings-theme-toggle');
   if (toggleContainer) {
-    toggleContainer.innerHTML = createThemeToggle();
-    setupThemeToggle();
+    import('./components/ui/SkyToggle.jsx').then(module => {
+      const SkyToggle = module.default;
+      import('./utils/reactIsland.js').then(ri => {
+        ri.mountReactIsland('settings-theme-toggle', SkyToggle, {
+          initialTheme: document.documentElement.getAttribute('data-theme') || 'light',
+          onToggle: (theme) => {
+             import('./components/ThemeToggle.js').then(m => m.setTheme(theme));
+          }
+        });
+      });
+    });
+  }
+
+  // Mount Theme Selector
+  const themeSelectorContainer = document.getElementById('theme-selector-container');
+  if (themeSelectorContainer) {
+    import('./components/ui/ThemeSelector.jsx').then(module => {
+      const ThemeSelector = module.default;
+      import('./utils/reactIsland.js').then(ri => {
+        ri.mountReactIsland('theme-selector-container', ThemeSelector);
+      });
+    });
   }
 }
 

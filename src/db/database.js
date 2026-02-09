@@ -144,7 +144,8 @@ class Database {
       { key: 'institutionName', value: 'Education Institution' },
       { key: 'institutionAddress', value: '' },
       { key: 'baseFolder', value: null },
-      { key: 'firstRunCompleted', value: false }
+      { key: 'firstRunCompleted', value: false },
+      { key: 'visualPreset', value: 'aurora' }
     ];
 
     for (const setting of defaultSettings) {

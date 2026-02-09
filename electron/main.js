@@ -22,7 +22,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true // Enable sandbox for security
     },
     backgroundColor: '#0f0f23',
     show: false,
@@ -49,18 +49,39 @@ function createWindow() {
 }
 
 // App lifecycle events
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // Set Content Security Policy for the session BEFORE creating the window
+  const { session } = require('electron');
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    const csp = isDev
+      ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 ws://localhost:5173 https://fonts.googleapis.com https://fonts.gstatic.com; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' http://localhost:5173 ws://localhost:5173;"
+      : "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self';";
+    
+    // Explicitly remove existing CSP headers to prevent conflicts
+    const responseHeaders = { ...details.responseHeaders };
+    delete responseHeaders['Content-Security-Policy'];
+    delete responseHeaders['content-security-policy'];
+    
+    callback({
+      responseHeaders: {
+        ...responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    });
+  });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+  createWindow();
 });
 
 // ==================== IPC HANDLERS ====================

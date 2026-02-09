@@ -15,24 +15,31 @@ const islands = new Map();
  * @param {Object} props - Props to pass to the component
  */
 export function mountReactIsland(containerId, Component, props = {}) {
+  console.log(`🏝️ ReactIsland: Mounting component into #${containerId}...`);
   const container = document.getElementById(containerId);
   
   if (!container) {
-    console.error(`Container #${containerId} not found`);
+    console.error(`🏝️ ReactIsland: Container #${containerId} not found`);
     return null;
   }
 
   // Unmount existing island if present
   if (islands.has(containerId)) {
+    console.log(`🏝️ ReactIsland: Unmounting existing island in #${containerId}`);
     islands.get(containerId).unmount();
   }
 
   // Create and mount new root
-  const root = createRoot(container);
-  root.render(createElement(Component, props));
-  islands.set(containerId, root);
-
-  return root;
+  try {
+    const root = createRoot(container);
+    root.render(createElement(Component, props));
+    islands.set(containerId, root);
+    console.log(`🏝️ ReactIsland: Successfully mounted component into #${containerId}`);
+    return root;
+  } catch (err) {
+    console.error(`🏝️ ReactIsland: FAILED to mount component into #${containerId}:`, err);
+    return null;
+  }
 }
 
 /**
