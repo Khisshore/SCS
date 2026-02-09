@@ -6,6 +6,7 @@
 import { Icons } from '../utils/icons.js';
 import { parseSpreadsheet, suggestColumnMapping, transformToPayments, matchProofFiles, importPayments } from '../services/importService.js';
 import { Programme } from '../models/Programme.js';
+import { escapeHtml } from '../utils/formatting.js';
 
 let wizardState = {
   currentStep: 1,
@@ -32,7 +33,7 @@ window.updateImportProgrammeOptions = async () => {
   if (course) {
     const programmes = await Programme.findByCourse(course);
     programmes.forEach(p => {
-      programSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+      programSelect.innerHTML += `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`;
     });
   }
   
@@ -183,7 +184,7 @@ function renderStep2() {
         <option value="">-- Not Mapped --</option>
         ${headers.map((header, index) => `
           <option value="${index}" ${mapping[field.key] === index ? 'selected' : ''}>
-            ${header || `Column ${index + 1}`}
+            ${escapeHtml(header || `Column ${index + 1}`)}
           </option>
         `).join('')}
       </select>
@@ -295,10 +296,10 @@ function renderStep3() {
             <tbody>
               ${payments.slice(0, 5).map(p => `
                 <tr>
-                  <td>${p.studentName}</td>
-                  <td>${p.studentId}</td>
+                  <td>${escapeHtml(p.studentName)}</td>
+                  <td>${escapeHtml(p.studentId)}</td>
                   <td>RM ${p.amount.toFixed(2)}</td>
-                  <td>${p.paymentDate.toLocaleDateString()}</td>
+                  <td>${escapeHtml(p.paymentDate.toLocaleDateString())}</td>
                   <td>${p.proofMatched ? '<span style="color: var(--success-500);">✓</span>' : '<span style="color: var(--warning-500);">–</span>'}</td>
                 </tr>
               `).join('')}

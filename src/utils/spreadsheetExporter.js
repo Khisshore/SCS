@@ -9,6 +9,8 @@ import { formatCurrency, formatMonthYear } from './formatting.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { openPdfPreviewModal } from '../components/PdfPreviewModal.js';
+import { Student } from '../models/Student.js';
+import { Payment } from '../models/Payment.js';
 
 // Constants for PDF Layout
 const PDF_CONFIG = {
@@ -128,9 +130,8 @@ export class SpreadsheetExporter {
     ];
 
     // --- 3. Process Data by Program ---
-    const { Student } = await import('../models/Student.js');
-    const { Payment } = await import('../models/Payment.js');
-    const allStudents = await Student.findAll();
+    let globalNo = 1;
+    let currentRowIdx = 5;
     
     const studentsByProgram = {};
     allStudents.forEach(s => {
@@ -138,9 +139,6 @@ export class SpreadsheetExporter {
       if (!studentsByProgram[p]) studentsByProgram[p] = [];
       studentsByProgram[p].push(s);
     });
-
-    let globalNo = 1;
-    let currentRowIdx = 5;
 
     for (const [programName, students] of Object.entries(studentsByProgram)) {
       const visibleNames = new Set(rows.map(r => r.student.name));

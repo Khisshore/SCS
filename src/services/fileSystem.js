@@ -55,12 +55,12 @@ class FileSystemService {
       return null; // User cancelled
     }
 
-    // Check if the user selected the project folder directly (SCS or NeoTrackr)
+    // Check if the user selected the project folder directly (SCS)
     const folderName = selectedPath.split('\\').pop();
     let scsPath = selectedPath;
     
     // Only append \SCS if the selected folder isn't already the project folder
-    if (folderName !== 'SCS' && folderName !== 'NeoTrackr') {
+    if (folderName !== 'SCS') {
       scsPath = `${selectedPath}\\SCS`;
     }
 

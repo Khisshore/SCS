@@ -6,7 +6,7 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { db } from '../db/database.js';
-import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
+import { formatCurrency, formatMonthYear, escapeHtml } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/pdfGenerator.js';
 import { renderReceiptInput } from './ReceiptInput.js';
@@ -672,7 +672,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
   // Populate header
   document.getElementById('modalStudentName').textContent = student.name;
   document.getElementById('modalStudentMeta').textContent = 
-    `${student.course || 'Course'} • ${student.program || 'Program'}`;
+    `${escapeHtml(student.course || 'Course')} • ${escapeHtml(student.program || 'Program')}`;
   
   const statusBadge = document.getElementById('modalStudentStatus');
   if (statusBadge) {

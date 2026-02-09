@@ -7,7 +7,7 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { StudentRemarks } from '../models/StudentRemarks.js';
-import { formatCurrency, formatMonthYear } from '../utils/formatting.js';
+import { formatCurrency, formatMonthYear, escapeHtml } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
 import jsPDF from 'jspdf';
@@ -1771,11 +1771,19 @@ async function loadSpreadsheetData() {
     const currency = await db.getSetting('currency') || 'RM';
     const courseName = currentCourse || 'All Programs';
 
+    // [Performance Optimization] Batch fetch ALL payments in one go and group them
+    const allPayments = await Payment.findAll();
+    const paymentsByStudent = allPayments.reduce((acc, p) => {
+      if (!acc[p.studentId]) acc[p.studentId] = [];
+      acc[p.studentId].push(p);
+      return acc;
+    }, {});
+
     // Calculate payment data for each student
     const studentData = [];
     for (const student of students) {
-      const payments = await Payment.findAll({ studentId: student.id });
-      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+      const studentPayments = paymentsByStudent[student.id] || [];
+      const totalPaid = studentPayments.reduce((sum, p) => sum + p.amount, 0);
       const balance = (student.totalFees || 0) - totalPaid;
       
       studentData.push({
@@ -1789,20 +1797,14 @@ async function loadSpreadsheetData() {
 
     // Apply "With Balance" filter
     if (filterOutstanding) {
-      students = studentData
-        .filter(d => d.balance >= 0.01)
-        .map(d => d.student);
-      
-      // Re-map to final data structure
-      const filteredResults = [];
-      for (const student of students) {
-        const d = studentData.find(item => item.student.id === student.id);
-        if (d) filteredResults.push(d);
-      }
+      const filteredResults = studentData.filter(d => d.balance >= 0.01);
       
       // Re-calculate the studentData array with filtered results
       studentData.length = 0;
       studentData.push(...filteredResults);
+      
+      // Update students list to match
+      students = studentData.map(d => d.student);
     }
 
     // Apply sorting
@@ -1939,7 +1941,7 @@ function renderTable(courseGroups, currency) {
     fullHtml += `
       <div class="course-header" style="margin-top: 1.5rem; margin-bottom: 2rem; padding: 1.25rem 0; border-bottom: 2px solid var(--primary-600);">
         <h1 style="font-size: var(--font-size-3xl); font-weight: 800; color: var(--primary-600); margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
-          ${courseName}
+          ${escapeHtml(courseName)}
         </h1>
       </div>
     `;
@@ -1968,8 +1970,8 @@ function renderTable(courseGroups, currency) {
                 ${student.status === 'inactive' ? '<span class="status-tag">Completed</span>' : ''}
               </div>
             </td>
-            <td>${student.intake ? formatMonthYear(student.intake) : '-'}</td>
-            <td>${student.completionDate ? formatMonthYear(student.completionDate) : '-'}</td>
+            <td>${student.intake ? escapeHtml(formatMonthYear(student.intake)) : '-'}</td>
+            <td>${student.completionDate ? escapeHtml(formatMonthYear(student.completionDate)) : '-'}</td>
             <td class="amount-bold">${formatCurrency(cost, currency)}</td>
             <td class="amount-bold">${formatCurrency(student.totalFees || 0, currency)}</td>
             <td class="amount-paid">${formatCurrency(totalPaid, currency)}</td>
@@ -1984,7 +1986,7 @@ function renderTable(courseGroups, currency) {
         <div class="program-section">
           <h2 class="program-title">
             <span class="program-indicator" style="width: 0.5rem; height: 1.5rem;"></span>
-            ${program}
+            ${escapeHtml(program)}
             <span style="font-size: var(--font-size-sm); font-weight: 600; color: var(--text-tertiary); margin-left: auto;">
               ${students.length} Students
             </span>
@@ -2252,11 +2254,4 @@ async function printSpreadsheet() {
   }
 }
 
-/**
- * Escape HTML
- */
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text || '';
-  return div.innerHTML;
-}
+// Note: escapeHtml removed as it's now imported from formatting.js

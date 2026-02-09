@@ -195,3 +195,15 @@ export function truncateText(text, maxLength = 50) {
   if (!text || text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + '...';
 }
+
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} - Escaped HTML
+ */
+export function escapeHtml(text) {
+  if (text === null || text === undefined) return '';
+  const div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}

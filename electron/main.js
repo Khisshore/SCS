@@ -7,6 +7,18 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const logger = require('./logger');
+const { crashReporter } = require('electron');
+
+// Setup Crash Reporter
+crashReporter.start({
+  productName: 'SCS',
+  companyName: 'INTI/SCS Team',
+  submitURL: 'https://scs-reports.example.com/crashes', // Placeholder
+  uploadToServer: false // Change to true if you have a crash server
+});
+
+logger.info('🚀 SCS Main Process Starting...');
 
 let mainWindow;
 
@@ -111,7 +123,7 @@ ipcMain.handle('create-folder', async (event, folderPath) => {
     await fs.mkdir(folderPath, { recursive: true });
     return { success: true, path: folderPath };
   } catch (error) {
-    console.error('Error creating folder:', error);
+    logger.error('Error creating folder:', error);
     return { success: false, error: error.message };
   }
 });
@@ -160,7 +172,7 @@ ipcMain.handle('save-pdf', async (event, filePath, pdfData) => {
       created: stats.birthtime
     };
   } catch (error) {
-    console.error('Error saving PDF:', error);
+    logger.error('Error saving PDF:', error);
     return { success: false, error: error.message };
   }
 });
@@ -177,7 +189,7 @@ ipcMain.handle('read-pdf', async (event, filePath) => {
       data: `data:application/pdf;base64,${base64}`
     };
   } catch (error) {
-    console.error('Error reading PDF:', error);
+    logger.error('Error reading PDF:', error);
     return { success: false, error: error.message };
   }
 });
@@ -207,7 +219,7 @@ ipcMain.handle('list-files', async (event, folderPath) => {
 
     return { success: true, files: fileList };
   } catch (error) {
-    console.error('Error listing files:', error);
+    logger.error('Error listing files:', error);
     return { success: false, error: error.message };
   }
 });
@@ -221,7 +233,7 @@ ipcMain.handle('open-folder-in-explorer', async (event, folderPath) => {
     await shell.openPath(folderPath);
     return { success: true };
   } catch (error) {
-    console.error('Error opening folder:', error);
+    logger.error('Error opening folder:', error);
     return { success: false, error: error.message };
   }
 });
@@ -283,7 +295,7 @@ ipcMain.handle('write-file', async (event, filePath, data) => {
     await fs.writeFile(filePath, data, 'utf8');
     return { success: true, path: filePath };
   } catch (error) {
-    console.error('Error writing file:', error);
+    logger.error('Error writing file:', error);
     return { success: false, error: error.message };
   }
 });
@@ -296,7 +308,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
     const data = await fs.readFile(filePath, 'utf8');
     return { success: true, data };
   } catch (error) {
-    console.error('Error reading file:', error);
+    logger.error('Error reading file:', error);
     return { success: false, error: error.message };
   }
 });
@@ -317,23 +329,39 @@ try {
   // Forward update events to renderer
   function sendUpdateMessage(type, data) {
     if (mainWindow) {
+      logger.info(`AutoUpdater: ${type}`, data || '');
       mainWindow.webContents.send('update-message', { type, data });
     }
   }
 
   autoUpdater.on('checking-for-update', () => sendUpdateMessage('checking'));
-  autoUpdater.on('update-available', (info) => sendUpdateMessage('available', info));
+  autoUpdater.on('update-available', (info) => {
+    logger.info('AutoUpdater: New version available', info.version);
+    sendUpdateMessage('available', info);
+  });
   autoUpdater.on('update-not-available', (info) => sendUpdateMessage('not-available', info));
-  autoUpdater.on('error', (err) => sendUpdateMessage('error', err.message));
-  autoUpdater.on('download-progress', (progress) => sendUpdateMessage('progress', progress));
-  autoUpdater.on('update-downloaded', (info) => sendUpdateMessage('downloaded', info));
+  autoUpdater.on('error', (err) => {
+    logger.error('AutoUpdater Error:', err);
+    sendUpdateMessage('error', err.message);
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    // Only log every 20% to avoid log bloat
+    if (Math.floor(progress.percent) % 20 === 0) {
+      logger.info(`AutoUpdater: Download Progress ${Math.round(progress.percent)}%`);
+    }
+    sendUpdateMessage('progress', progress);
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    logger.info('AutoUpdater: Update downloaded and ready for install');
+    sendUpdateMessage('downloaded', info);
+  });
 } catch (error) {
-  console.warn('⚠️ electron-updater not found or failed to load. Auto-updates disabled.');
+  logger.warn('⚠️ electron-updater not found or failed to load. Auto-updates disabled.', error);
   // Mock autoUpdater to prevent crashes
   autoUpdater = {
-    checkForUpdates: async () => console.log('Updates disabled: electron-updater not available'),
-    downloadUpdate: async () => console.log('Updates disabled: electron-updater not available'),
-    quitAndInstall: () => console.log('Updates disabled: electron-updater not available'),
+    checkForUpdates: async () => logger.info('Updates disabled: electron-updater not available'),
+    downloadUpdate: async () => logger.info('Updates disabled: electron-updater not available'),
+    quitAndInstall: () => logger.info('Updates disabled: electron-updater not available'),
     checkForUpdatesAndNotify: () => {}
   };
 }
@@ -352,7 +380,7 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     await fs.unlink(filePath);
     return { success: true };
   } catch (error) {
-    console.error('Error deleting file:', error);
+    logger.error('Error deleting file:', error);
     return { success: false, error: error.message };
   }
 });
@@ -369,4 +397,4 @@ app.whenReady().then(() => {
   }, 5000);
 });
 
-console.log('✅ SCS main process initialized');
+logger.info('✅ SCS main process initialized');

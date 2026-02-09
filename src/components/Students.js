@@ -8,7 +8,7 @@ import { Payment } from '../models/Payment.js';
 import { Programme } from '../models/Programme.js';
 import { Receipt } from '../models/Receipt.js';
 import { Icons } from '../utils/icons.js';
-import { formatDate } from '../utils/formatting.js';
+import { formatDate, escapeHtml } from '../utils/formatting.js';
 import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
 import { renderReceiptInput } from './ReceiptInput.js';
 
@@ -211,12 +211,12 @@ async function loadStudents() {
           ${students.map((student, index) => `
             <tr style="animation: slideIn 0.3s ease-out ${index * 0.05}s both;">
               <td style="color: var(--text-tertiary); font-size: 0.85rem;">${index + 1}</td>
-              <td style="font-weight: 500; color: var(--text-primary);">${student.name}</td>
-              <td>${student.program}</td>
-              <td><span class="badge badge-secondary">${student.course || 'Other'}</span></td>
+              <td style="font-weight: 500; color: var(--text-primary);">${escapeHtml(student.name)}</td>
+              <td>${escapeHtml(student.program)}</td>
+              <td><span class="badge badge-secondary">${escapeHtml(student.course || 'Other')}</span></td>
               <td>
                 <span class="badge ${getCompletionStatusBadge(student.completionStatus)}">
-                  ${student.completionStatus || 'In Progress'}
+                  ${escapeHtml(student.completionStatus || 'In Progress')}
                 </span>
               </td>
               <td style="text-align: center;">
