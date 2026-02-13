@@ -15,13 +15,14 @@ import { renderSpreadsheet } from './components/Spreadsheet.js';
 import { renderTransferHub } from './components/TransferHub.js';
 import { Student } from './models/Student.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
-import { initTheme } from './components/ThemeToggle.js';
+import { initTheme, setTheme } from './components/ThemeToggle.js';
 import { setupPacmanEasterEgg } from './components/PacmanEasterEgg.js';
 import { renderFirstRunSetup, initFirstRunSetup, firstRunStyles } from './components/FirstRunSetup.js';
 import { renderImportWizard, initImportWizard } from './components/ImportWizard.js';
 import { fileSystem } from './services/fileSystem.js';
 import { autoUpdater } from './components/AutoUpdater.js';
 import { initBackground } from './services/background.js';
+import { mountReactIsland } from './utils/reactIsland.js';
 
 
 // Application state
@@ -58,6 +59,9 @@ async function init() {
       // Show first run setup
       showLoading(false);
       
+      // Add onboarding class to body for CSS overrides
+      document.body.classList.add('onboarding-active');
+
       // Inject first run styles
       const styleTag = document.createElement('style');
       styleTag.textContent = firstRunStyles;
@@ -76,28 +80,24 @@ async function init() {
       await fileSystem.init();
       console.log('✅ File system ready');
       
-      // Auto-Sync Logic: Update snapshot whenever data changes
+      // Professional Migration Logic
+      const migrationCompleted = await db.getSetting('rxdb_migration_done');
+      if (!migrationCompleted) {
+        try {
+          const { migrateToRxDB } = await import('./db/migration.js');
+          await migrateToRxDB();
+          await db.setSetting('rxdb_migration_done', true);
+        } catch (mErr) {
+          console.error('Migration failed:', mErr);
+        }
+      }
+
+      // Auto-Sync Logic: Update local snapshots for GD backup
       db.onChange = () => {
         if (!db.isImporting) {
           fileSystem.saveSystemSnapshot();
         }
       };
-
-      // Migration Detection: If local DB is empty but library has a snapshot
-      const students = await db.getAll('students');
-      if (students.length === 0) {
-        const snapshot = await fileSystem.checkSnapshot();
-        if (snapshot) {
-          // Peek at data to ensure it's worth restoring
-          const data = await fileSystem.loadSystemSnapshot();
-          if (data && data.students && data.students.length > 0) {
-            console.log('📂 Migration snapshot with students detected!');
-            await showRestorationPrompt();
-          } else {
-             console.log('📂 Snapshot detected but contains no students - skipping restore prompt.');
-          }
-        }
-      }
     }
 
     // Auto-sync student statuses based on completion dates
@@ -130,7 +130,7 @@ async function init() {
 
   } catch (error) {
     console.error('❌ Initialization error:', error);
-    alert('Failed to initialize the application. Please refresh the page.');
+    alert('Failed to initialize the application. Please refresh the page.\n\nError: ' + error.message);
   } finally {
     showLoading(false);
   }
@@ -272,52 +272,108 @@ async function renderSettings() {
         <div id="settings-theme-toggle"></div>
       </div>
 
+
+
+      <div class="card mb-xl">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="icon" style="margin-right: 0.5rem;">${Icons.refresh}</span>
+            Live Sync Configuration
+          </h3>
+        </div>
+        <div class="card-body">
+          <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+            Connect your professional real-time backend (Supabase) to enable instant syncing across all admin devices.
+          </p>
+          
+          <div class="form-group mb-lg">
+            <label class="form-label" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary);">Supabase URL</label>
+            <input type="text" id="supabaseUrlInput" class="form-input" placeholder="https://xyz.supabase.co" style="background: rgba(0,0,0,0.05);">
+          </div>
+          
+          <div class="form-group mb-xl">
+            <label class="form-label" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary);">Supabase Anon Key</label>
+            <input type="password" id="supabaseKeyInput" class="form-input" placeholder="Your anonymous API key" style="background: rgba(0,0,0,0.05);">
+          </div>
+          
+          <div class="flex justify-between items-center">
+            <button class="btn btn-primary" id="saveSyncBtn">
+               <span class="icon">${Icons.check}</span> Save & Connect
+            </button>
+            <a href="https://supabase.com" target="_blank" style="font-size: 0.8rem; color: var(--primary-500); text-decoration: none; font-weight: 600;">Create Free Account →</a>
+          </div>
+        </div>
+      </div>
+
       ${isDesktop ? `
         <div class="card mb-xl">
           <div class="card-header">
             <h3 class="card-title">
               <span class="icon" style="margin-right: 0.5rem;">${Icons.folder}</span>
-              File Storage Location
+              Filing Cabinet (Local Storage)
             </h3>
           </div>
           <div class="card-body">
             <p style="margin-bottom: 1rem; color: var(--text-secondary);">
-              All payment receipts, proofs, and statements are stored in this folder.
+              This folder stores your PDFs and receipts. Syncing this folder via Google Drive provides 15GB of free cloud backup for large files.
             </p>
             
             ${baseFolder ? `
               <div style="padding: 1rem; background: var(--primary-50); border: 2px solid var(--primary-200); border-radius: var(--radius-md); margin-bottom: 1rem;">
-                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Current Folder:</div>
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Active Vault Path:</div>
                 <div style="font-family: 'Courier New', monospace; font-weight: 600; color: var(--primary-600); word-break: break-all;">
                   ${baseFolder}
                 </div>
               </div>
             ` : `
               <div style="padding: 1rem; background: var(--warning-50); border: 2px solid var(--warning-200); border-radius: var(--radius-md); margin-bottom: 1rem;">
-                <strong>⚠️ No folder selected</strong>
-                <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">Please select a folder to enable file storage.</p>
+                <strong>⚠️ No vault selected</strong>
+                <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">Select a folder inside your Google Drive/OneDrive to enable cloud file sync.</p>
               </div>
             `}
             
             <div class="flex gap-md" style="flex-wrap: wrap;">
               <button class="btn btn-primary" id="changeFolderBtn">
                 <span class="icon">${Icons.folder}</span>
-                ${baseFolder ? 'Change' : 'Select'} Folder
+                ${baseFolder ? 'Change' : 'Select'} Vault
               </button>
               ${baseFolder ? `
                 <button class="btn btn-secondary" id="openFolderBtn">
                   <span class="icon">${Icons.folderOpen}</span>
                   Open in Explorer
                 </button>
-                <button class="btn btn-secondary" id="resetOnboardingBtn" style="margin-left: auto;">
-                  <span class="icon">${Icons.refresh}</span>
-                  Reset Onboarding
-                </button>
               ` : ''}
+              <button class="btn btn-secondary" id="resetOnboardingBtn" style="margin-left: auto;">
+                <span class="icon">${Icons.refresh}</span>
+                Reset Onboarding
+              </button>
             </div>
           </div>
         </div>
       ` : ''}
+
+      <div class="card mb-xl">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span class="icon" style="margin-right: 0.5rem;">🚀</span>
+            Software Updates
+          </h3>
+        </div>
+        <div class="card-body">
+          <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+            Ensuring your software is up to date keeps your data secure and gives you access to the latest professional features.
+          </p>
+          <div class="flex justify-between items-center">
+            <div>
+              <span style="font-size: 0.8rem; color: var(--text-tertiary);">Current Version:</span>
+              <span id="currentVersionText" style="font-weight: 600; color: var(--primary-600);">...</span>
+            </div>
+            <button class="btn btn-secondary" id="manualUpdateCheckBtn">
+              Check for Updates
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div id="theme-selector-container"></div>
     </div>
@@ -359,6 +415,41 @@ async function renderSettings() {
     });
   }
 
+  const saveSyncBtn = document.getElementById('saveSyncBtn');
+  if (saveSyncBtn) {
+    // Populate values
+    const urlInput = document.getElementById('supabaseUrlInput');
+    const keyInput = document.getElementById('supabaseKeyInput');
+    
+    db.getSetting('supabaseUrl').then(val => urlInput.value = val || '');
+    db.getSetting('supabaseKey').then(val => keyInput.value = val || '');
+
+    saveSyncBtn.addEventListener('click', async () => {
+      try {
+        const url = urlInput.value.trim();
+        const key = keyInput.value.trim();
+        
+        await db.setSetting('supabaseUrl', url);
+        await db.setSetting('supabaseKey', key);
+        
+        alert('✅ Sync configuration saved! Restarting sync engine...');
+        window.location.reload();
+      } catch (err) {
+        alert('❌ Error saving configuration: ' + err.message);
+      }
+    });
+  }
+
+  const manualUpdateCheckBtn = document.getElementById('manualUpdateCheckBtn');
+  if (manualUpdateCheckBtn) {
+    const versionText = document.getElementById('currentVersionText');
+    window.electronAPI.getAppVersion().then(v => versionText.textContent = `v${v}`);
+
+    manualUpdateCheckBtn.addEventListener('click', async () => {
+      autoUpdater.handleCheckForUpdates();
+    });
+  }
+
   const resetOnboardingBtn = document.getElementById('resetOnboardingBtn');
   if (resetOnboardingBtn) {
     resetOnboardingBtn.addEventListener('click', async () => {
@@ -370,20 +461,19 @@ async function renderSettings() {
     });
   }
 
-  // Save Settings functionality removed as General Settings card was deleted
-  
+
+
+
   // Setup theme toggle for Settings page (SkyToggle)
   const toggleContainer = document.getElementById('settings-theme-toggle');
   if (toggleContainer) {
     import('./components/ui/SkyToggle.jsx').then(module => {
       const SkyToggle = module.default;
-      import('./utils/reactIsland.js').then(ri => {
-        ri.mountReactIsland('settings-theme-toggle', SkyToggle, {
-          initialTheme: document.documentElement.getAttribute('data-theme') || 'light',
-          onToggle: (theme) => {
-             import('./components/ThemeToggle.js').then(m => m.setTheme(theme));
-          }
-        });
+      mountReactIsland('settings-theme-toggle', SkyToggle, {
+        initialTheme: document.documentElement.getAttribute('data-theme') || 'light',
+        onToggle: (theme) => {
+          setTheme(theme);
+        }
       });
     });
   }
@@ -393,9 +483,7 @@ async function renderSettings() {
   if (themeSelectorContainer) {
     import('./components/ui/ThemeSelector.jsx').then(module => {
       const ThemeSelector = module.default;
-      import('./utils/reactIsland.js').then(ri => {
-        ri.mountReactIsland('theme-selector-container', ThemeSelector);
-      });
+      mountReactIsland('theme-selector-container', ThemeSelector);
     });
   }
 }

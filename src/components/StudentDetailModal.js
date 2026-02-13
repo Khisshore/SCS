@@ -1217,7 +1217,7 @@ async function deletePaymentEntry(studentId, paymentId) {
       if (payment && payment.reference && fileSystem.isDesktopApp()) {
         try {
           const baseFilename = `Receipt_${payment.reference}_${student.name.replace(/\s+/g, '_')}`;
-          const semesterLabel = payment.semester ? `Semester ${payment.semester}` : 'General';
+          const semesterLabel = payment.semester ? `Semester ${payment.semester}` : null;
           await fileSystem.deletePDF(student.course, student.program, student.name, semesterLabel, baseFilename);
         } catch (err) {
           console.warn('Failed to delete associated PDF:', err);

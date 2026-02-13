@@ -10,6 +10,8 @@ import { db } from '../db/database.js';
 import { Icons } from '../utils/icons.js';
 import { SpreadsheetExporter } from '../utils/spreadsheetExporter.js';
 import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Store report data for export
 let reportData = [];
@@ -523,8 +525,6 @@ async function exportReportXLSX() {
  * Shared PDF Generation Logic
  */
 async function generateReportPDF(startDate, endDate) {
-  const jsPDF = (await import('jspdf')).default;
-  const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const currency = reportData[0]?.currency || 'RM';
 

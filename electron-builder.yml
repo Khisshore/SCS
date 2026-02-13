@@ -27,17 +27,21 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: public/icon.png
+  icon: src/assets/logos/scs-logo.png
   artifactName: ${productName}-Setup-${version}.${ext}
 
 nsis:
-  oneClick: true
-  perMachine: false
-  allowToChangeInstallationDirectory: false
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: SCS
+  installerIcon: src/assets/logos/scs-logo.png
+  uninstallerIcon: src/assets/logos/scs-logo.png
+  installerHeaderIcon: src/assets/logos/scs-logo.png
+  runAfterFinish: true
 
 compression: maximum
 

@@ -10,13 +10,30 @@ const fsSync = require('fs');
 const logger = require('./logger');
 const { crashReporter } = require('electron');
 
-// Setup Crash Reporter
-crashReporter.start({
-  productName: 'SCS',
-  companyName: 'INTI/SCS Team',
-  submitURL: 'https://scs-reports.example.com/crashes', // Placeholder
-  uploadToServer: false // Change to true if you have a crash server
-});
+// Suppress DevTools console errors related to experimental Autofill protocol
+app.commandLine.appendSwitch('disable-features', 'Autofill');
+
+// --- START FIX: Single Instance Lock & GPU Stability ---
+// Check for single instance lock to prevent "Access is denied" cache errors
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  logger.warn('⚠️ Another instance is already running. Quitting...');
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
+// Hardware acceleration is ENABLED by default for smooth performance (Three.js/Fiber).
+// If "Gpu Cache Creation failed" persists on certain Windows hardware, 
+// we prefer clearing the cache via 'npm run clean:appdata' rather than disabling GPU.
+// --- END FIX ---
 
 logger.info('🚀 SCS Main Process Starting...');
 

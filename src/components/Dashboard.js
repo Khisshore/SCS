@@ -39,7 +39,7 @@ export async function renderDashboard() {
           <p style="margin: 0; color: var(--text-secondary);">Welcome back! Here's your overview.</p>
         </div>
         <div class="flex gap-md items-center">
-          <div id="syncPillContainer" class="sync-pill" onclick="window.location.hash = '#transfer'" title="Data Transfer & Sync Hub">
+          <div id="syncPillContainer" class="sync-pill">
             <div class="icon">${Icons.refresh}</div>
             <div class="flex-column">
               <span id="syncStatusIndicator">Live Synced</span>
@@ -306,41 +306,45 @@ export async function renderDashboard() {
     
     if (!indicator || !pill) return;
     
+    // Check RxDB Status first
+    try {
+      const { syncService } = await import('../services/sync.js');
+      const dbInstance = syncService.getDb();
+      
+      if (dbInstance && syncService.supabaseClient) {
+        pill.classList.add('synced');
+        pill.style.background = 'rgba(34, 197, 94, 0.15)'; // Success green
+        indicator.textContent = 'Live Sync Active';
+        timeLabel.textContent = 'Cloud Connected';
+        return;
+      }
+    } catch (e) {
+      console.warn('Sync service check failed:', e);
+    }
+    
+    // Fallback to library snapshot status (Google Drive / Local)
     const snapshot = await fileSystem.checkSnapshot();
     const lastSync = await db.getSetting('lastSyncTimestamp');
     
     if (snapshot) {
       pill.classList.add('synced');
-      indicator.textContent = 'Data Synced';
+      indicator.textContent = 'Filing Cabinet Ready'; // More descriptive for GD storage
       
       if (lastSync) {
-        try {
-          const syncDate = new Date(lastSync);
-          if (!isNaN(syncDate.getTime())) {
-            const timeStr = getRelativeTime(syncDate);
-            timeLabel.textContent = `Last sync: ${timeStr}`;
-          } else {
-            timeLabel.textContent = 'Recently';
-          }
-        } catch (e) {
-          timeLabel.textContent = 'Synced';
+        const syncDate = new Date(lastSync);
+        if (!isNaN(syncDate.getTime())) {
+          timeLabel.textContent = `Last sync: ${getRelativeTime(syncDate)}`;
         }
-      } else {
-        timeLabel.textContent = 'Ready';
-      }
-      
-      // Add a brief pulse if synced in the last 10 seconds
-      if (lastSync && typeof lastSync === 'number' && (Date.now() - lastSync < 10000)) {
-        icon?.classList.add('sync-pill-pulse');
-        setTimeout(() => icon?.classList.remove('sync-pill-pulse'), 5000);
       }
     } else {
       pill.classList.remove('synced');
-      indicator.textContent = 'Not Synced';
-      timeLabel.textContent = 'Set up library';
+      indicator.textContent = 'Standalone Mode';
+      timeLabel.textContent = 'Sync disconnected';
     }
   };
   updateSyncStatus();
+  // Refresh every 30s
+  setInterval(updateSyncStatus, 30000);
 
   // Attach event listeners
   document.getElementById('quickPaymentBtn')?.addEventListener('click', () => {

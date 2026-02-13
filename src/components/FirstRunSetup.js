@@ -8,12 +8,12 @@ import { db } from '../db/database.js';
 import { fileSystem } from '../services/fileSystem.js';
 import { Icons } from '../utils/icons.js';
 import { mountReactIsland } from '../utils/reactIsland.js';
-import Aurora from '../components/ui/Aurora.jsx';
+import LightRays from '../components/ui/LightRays.jsx';
 
 export function renderFirstRunSetup() {
   return `
     <div class="first-run-overlay">
-      <div id="grainient-container" class="grainient-background"></div>
+      <div id="light-rays-container" class="light-rays-background"></div>
       <div id="trees-layer" class="trees-background"></div>
 
       <div class="first-run-container">
@@ -23,7 +23,7 @@ export function renderFirstRunSetup() {
           <div class="setup-step active">
             <div class="step-header">
               <div class="header-icon">
-                <img src="/src/assets/logos/scs-logo.png" alt="SCS Logo" />
+                <img src="${Icons.logo}" alt="SCS Logo" />
               </div>
               <h1 class="main-title">Student Collection System</h1>
             </div>
@@ -37,24 +37,24 @@ export function renderFirstRunSetup() {
                 <div class="tree-divider"></div>
                 
                 <div class="tree-line root-highlight">
-                  <span class="icon">📁</span> <span id="treeRootName">Your Selected Folder</span>
-                </div>
-                <div class="tree-line indent-1">
-                  <div class="tree-connector"></div>
-                  <span class="icon">📂</span> Course Name
-                </div>
-                <div class="tree-line indent-2">
-                  <div class="tree-connector"></div>
-                  <span class="icon">📂</span> Program Name
-                </div>
-                <div class="tree-line indent-3">
-                  <div class="tree-connector"></div>
-                  <span class="icon">👤</span> Student Name
-                </div>
-                <div class="tree-line indent-4 no-connector">
-                  <div class="tree-connector file-connector"></div>
-                  <span class="icon">📄</span> Receipt-0001.pdf
-                </div>
+                   <span class="icon">${Icons.folder}</span> <span id="treeRootName">Your Selected Folder</span>
+                 </div>
+                 <div class="tree-line indent-1">
+                   <div class="tree-connector"></div>
+                   <span class="icon">${Icons.folderOpen}</span> Course Name
+                 </div>
+                 <div class="tree-line indent-2">
+                   <div class="tree-connector"></div>
+                   <span class="icon">${Icons.folder}</span> Program Name
+                 </div>
+                 <div class="tree-line indent-3">
+                   <div class="tree-connector"></div>
+                   <span class="icon">${Icons.user}</span> Student Name
+                 </div>
+                 <div class="tree-line indent-4 no-connector">
+                   <div class="tree-connector file-connector"></div>
+                   <span class="icon">${Icons.fileText}</span> Receipt-0001.pdf
+                 </div>
               </div>
 
               <div class="folder-status hidden" id="selectedFolderDisplay">
@@ -87,11 +87,20 @@ export function renderFirstRunSetup() {
 
 export function initFirstRunSetup() {
   let selectedFolder = null;
-  // Mount Aurora React component
-  mountReactIsland('grainient-container', Aurora, {
-    colorStops: ["#7cff67", "#0ea5e9", "#2563eb"],
-    amplitude: 1,
-    blend: 0.5
+  // Mount LightRays React component
+  mountReactIsland('light-rays-container', LightRays, {
+    raysOrigin: "top-center",
+    raysColor: "#a5f3fc",
+    raysSpeed: 1.2,
+    lightSpread: 1.4,
+    rayLength: 2.3,
+    pulsating: false,
+    fadeDistance: 1.5,
+    saturation: 0.9,
+    followMouse: true,
+    mouseInfluence: 0.4,
+    noiseAmount: 0,
+    distortion: 0
   });
 
   // Select folder
@@ -149,6 +158,22 @@ export function initFirstRunSetup() {
 }
 
 export const firstRunStyles = `
+/* Global Overrides for Onboarding */
+body.onboarding-active .sidebar,
+body.onboarding-active aside,
+body.onboarding-active .nav-divider {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.onboarding-active .main-content {
+  margin-left: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+}
+
 .first-run-overlay {
   position: fixed;
   inset: 0;
@@ -162,12 +187,13 @@ export const firstRunStyles = `
   overflow: hidden;
 }
 
-.grainient-background {
+.light-rays-background {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .bg-orb {
@@ -190,7 +216,7 @@ export const firstRunStyles = `
   background-position: bottom center;
   background-repeat: repeat-x;
   background-size: contain;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   
   /* Applying the "Sandpaper" Grain DIRECTLY to the trees */
@@ -222,26 +248,25 @@ export const firstRunStyles = `
   border-bottom: 1px solid rgba(0, 0, 0, 0.4);
   
   border-radius: 24px; /* Fully rounded for standalone card feel */
-  /* If you strictly want squared top, verify with user, but "card" implies rounded usually. */
-  /* Reverting to previous shape if user insisted on it, but 24px is standard "Card". */
-  /* Let's go with all-rounded for a true floating "Card" effect unless specified otherwise. */
   
-  width: 720px; /* Increased from 640px */
+  width: 680px; /* Refined for better fit */
   display: flex;
   flex-direction: column;
   
-  /* Deep Liquid Shadows */
+  /* Deep Liquid Shadows & Inner Glow */
   box-shadow: 
     0 25px 50px -12px rgba(0, 0, 0, 0.8), /* More dramatic depth */
     0 0 0 1px rgba(255, 255, 255, 0.05) inset, 
-    0 2px 0 0 rgba(255, 255, 255, 0.15) inset;
+    0 2px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 0 40px rgba(165, 243, 252, 0.05) inset; /* Subtle cyan inner-glow */
     
-  animation: slideIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: 
+    slideIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .setup-progress {
@@ -262,88 +287,93 @@ export const firstRunStyles = `
 }
 
 .first-run-content {
-  padding: 4rem 3.5rem 3rem; /* More breathing room */
+  padding: 3rem 3rem 2rem; /* Refined for better density */
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .header-icon {
-  width: 120px; /* Scaled up as requested */
-  height: 120px;
+  width: 100px; /* Reduced for better balance */
+  height: 100px;
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1rem; /* Tightened branding unit */
+  margin: 0 auto 0.75rem;
   border: none;
-  filter: drop-shadow(0 0 25px rgba(59, 130, 246, 0.3)); /* Stronger brand glow */
+  filter: drop-shadow(0 0 25px rgba(59, 130, 246, 0.3));
 }
 
 .header-icon img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.header-icon:hover img {
+  transform: scale(1.05);
 }
 
 .step-header .main-title { 
   font-family: 'Outfit', 'Segoe UI', sans-serif; 
-  font-size: 2.75rem; 
+  font-size: 2.25rem; /* Reduced for better laptop fit */
   font-weight: 800;
   margin-bottom: 0.5rem; 
   letter-spacing: -0.05em; 
-  line-height: 1.2; /* Fixed cutoff: added height */
-  padding: 0.2em 0; /* Fixed cutoff: added vertical room for clip-text */
+  line-height: 1.2;
+  padding: 0.1em 0;
   background: linear-gradient(180deg, #FFFFFF 0%, #90cdf4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+  text-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
   white-space: nowrap;
 }
 
 /* Removed old p styling as it's no longer used for the main title */
 
-.setup-body { display: flex; flex-direction: column; gap: 2rem; }
+.setup-body { display: flex; flex-direction: column; gap: 1.5rem; }
 
 /* Tree Preview Refined */
 .folder-tree-preview {
   background: rgba(0, 0, 0, 0.3);
-  padding: 2rem; /* More padding */
+  padding: 1.75rem; 
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   font-family: 'Inter', sans-serif;
   position: relative;
 }
 
-.tree-header h3 { font-size: 1.3rem; margin-bottom: 0.5rem; font-weight: 700; color: #fff; }
-.tree-header p { font-size: 1rem; color: #94a3b8; line-height: 1.6; margin-bottom: 0; }
+.tree-header h3 { font-size: 1.15rem; margin-bottom: 0.4rem; font-weight: 700; color: #fff; }
+.tree-header p { font-size: 0.95rem; color: #94a3b8; line-height: 1.5; margin-bottom: 0; }
 
 .tree-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.1);
-  margin: 1.75rem 0;
+  margin: 1.25rem 0;
 }
 
 .tree-line { 
   position: relative; 
-  margin: 0.75rem 0; 
+  margin: 0.6rem 0; 
   display: flex; 
   align-items: center; 
   color: #94a3b8; 
   font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
-  font-size: 1rem; /* Scaled up */
+  font-size: 0.95rem; 
 }
 
-.tree-line .icon { margin-right: 0.75rem; font-size: 1.2rem; }
+.tree-line .icon { margin-right: 0.75rem; font-size: 1.1rem; }
 
 .root-highlight {
   color: #fff;
   font-weight: 700;
   background: rgba(255, 255, 255, 0.08);
-  padding: 0.4rem 0.75rem;
-  margin-left: -0.75rem;
+  padding: 0.35rem 0.65rem;
+  margin-left: -0.65rem;
   border-radius: 8px;
   width: fit-content;
 }
@@ -370,21 +400,21 @@ export const firstRunStyles = `
 .indent-5 { margin-left: 7.5rem; }
 
 .folder-status {
-  padding: 1.25rem;
+  padding: 1rem;
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: 14px;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
   animation: fadeIn 0.4s ease-out;
 }
 
-.icon-success { color: #4ade80; font-size: 1.5rem; }
+.icon-success { color: #4ade80; font-size: 1.25rem; }
 .path-container { display: flex; flex-direction: column; overflow: hidden; }
-.path-label { font-size: 0.85rem; font-weight: 800; color: #4ade80; text-transform: uppercase; margin-bottom: 0.25rem; }
+.path-label { font-size: 0.75rem; font-weight: 800; color: #4ade80; text-transform: uppercase; margin-bottom: 0.15rem; }
 .path-text { 
-  font-size: 1rem; 
+  font-size: 0.9rem; 
   color: #f1f5f9; 
   font-family: 'JetBrains Mono', monospace; 
   white-space: nowrap; 
@@ -392,55 +422,49 @@ export const firstRunStyles = `
   text-overflow: ellipsis; 
 }
 
-.step-actions { display: flex; gap: 1.5rem; margin-top: 2rem; justify-content: center; }
+.step-actions { display: flex; gap: 1rem; margin-top: 1.5rem; justify-content: center; }
 
 .btn { 
   position: relative;
-  display: flex; align-items: center; gap: 1rem;
-  padding: 1.25rem 3rem; border-radius: 16px; 
+  display: inline-flex; align-items: center; gap: 0.75rem;
+  padding: 0 2rem; border-radius: 14px; 
   font-weight: 800; cursor: pointer; 
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  font-size: 1.1rem; /* Scaled up */
+  font-size: 1rem;
   overflow: hidden; 
   color: #fff;
-  height: 64px; /* Scaled up from 52px */
-  flex: 1; /* Stretch buttons equally if in same row */
-  max-width: 280px;
+  height: 54px; /* Reduced for better balance */
+  min-width: 200px;
 }
 
 .btn-primary { 
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   box-shadow: 
-    0 10px 25px rgba(37, 99, 235, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    0 8px 20px rgba(37, 99, 235, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 }
 
 .btn-success { 
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   box-shadow: 
-    0 10px 25px rgba(34, 197, 94, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    0 8px 20px rgba(34, 197, 94, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 }
 
 .btn:hover { 
-  transform: translateY(-4px) scale(1.03); 
-  filter: brightness(1.25);
-  box-shadow: 0 15px 35px rgba(37, 99, 235, 0.5);
+  transform: translateY(-3px) scale(1.02); 
+  filter: brightness(1.1);
 }
 
-.btn-success:hover {
-  box-shadow: 0 15px 35px rgba(34, 197, 94, 0.5);
-}
-
-.btn:active { transform: translateY(-1px) scale(0.97); }
+.btn:active { transform: translateY(-1px) scale(0.98); }
 
 .first-run-footer {
-  padding: 1.75rem;
+  padding: 1.5rem;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #64748b;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.2);
   border-bottom-left-radius: 24px;
   border-bottom-right-radius: 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -448,32 +472,56 @@ export const firstRunStyles = `
 .first-run-footer p { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin: 0; }
 .first-run-footer strong { color: #cbd5e1; }
 
-.hidden { display: none; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+.hidden { display: none !important; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.first-run-container svg { width: 1.5rem; height: 1.5rem; }
+.first-run-container svg { width: 1.25rem; height: 1.25rem; }
 
-/* Laptop / Small Screen Adjustments */
-@media (max-height: 900px) {
+/* Laptop / Small Screen Optimization */
+@media (max-height: 850px) {
   .first-run-container {
-    transform: scale(0.8); 
-    /* Remove margin: auto since parent is already flex-center */
-    transform-origin: center;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    width: 640px;
   }
   .first-run-content {
-    padding: 2.5rem 3.5rem 2.5rem; /* Balanced internal padding */
+    padding: 2.25rem 2.5rem 1.5rem;
+  }
+  .header-icon {
+    width: 72px;
+    height: 72px;
+  }
+  .step-header .main-title {
+    font-size: 2rem;
+  }
+  .folder-tree-preview {
+    padding: 1.25rem;
   }
 }
-@media (max-height: 768px) {
+
+@media (max-height: 720px) {
   .first-run-container {
-    transform: scale(0.72); 
-    transform-origin: center;
+    width: 600px;
+    transform: scale(0.95);
   }
-}
-@media (max-height: 640px) {
-  .first-run-container {
-    transform: scale(0.65); 
-    transform-origin: center;
+  .first-run-content {
+    padding: 1.5rem 2rem 1rem;
+  }
+  .setup-body {
+    gap: 1rem;
+  }
+  .tree-header h3 {
+    font-size: 1rem;
+  }
+  .tree-header p {
+    font-size: 0.85rem;
+  }
+  .tree-divider {
+    margin: 0.75rem 0;
+  }
+  .tree-line {
+    font-size: 0.85rem;
+    margin: 0.4rem 0;
   }
 }
 `;

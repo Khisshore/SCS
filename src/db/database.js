@@ -26,151 +26,84 @@ class Database {
   }
 
   /**
-   * Initialize the database and create object stores
-   * @returns {Promise<IDBDatabase>}
+   * Initialize the database and create object stores (Legacy)
+   * Also initializes RxDB (New)
+   * @returns {Promise<any>}
    */
   async init() {
-    return new Promise((resolve, reject) => {
+    // 1. Initialize Legacy IndexedDB (Required for migration)
+    const legacyReady = await new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      // Handle database upgrade (first time or version change)
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-
-        // Create Students store
-        if (!db.objectStoreNames.contains(STORES.STUDENTS)) {
-          const studentStore = db.createObjectStore(STORES.STUDENTS, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          studentStore.createIndex('studentId', 'studentId', { unique: true });
-          studentStore.createIndex('email', 'email', { unique: false });
-          studentStore.createIndex('status', 'status', { unique: false });
-        }
-
-        // Create Payments store
-        if (!db.objectStoreNames.contains(STORES.PAYMENTS)) {
-          const paymentStore = db.createObjectStore(STORES.PAYMENTS, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          paymentStore.createIndex('studentId', 'studentId', { unique: false });
-          paymentStore.createIndex('date', 'date', { unique: false });
-          paymentStore.createIndex('method', 'method', { unique: false });
-          paymentStore.createIndex('semester', 'semester', { unique: false });
-        }
-
-        // Create Receipts store
-        if (!db.objectStoreNames.contains(STORES.RECEIPTS)) {
-          const receiptStore = db.createObjectStore(STORES.RECEIPTS, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          receiptStore.createIndex('paymentId', 'paymentId', { unique: true });
-          receiptStore.createIndex('receiptNumber', 'receiptNumber', { unique: true });
-        }
-
-        // Create Settings store (key-value pairs)
-        if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
-          db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
-        }
-
-        // Create File Metadata store
-        if (!db.objectStoreNames.contains(STORES.FILE_METADATA)) {
-          const fileMetadataStore = db.createObjectStore(STORES.FILE_METADATA, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          fileMetadataStore.createIndex('filePath', 'filePath', { unique: true });
-          fileMetadataStore.createIndex('studentName', 'studentName', { unique: false });
-          fileMetadataStore.createIndex('course', 'course', { unique: false });
-          fileMetadataStore.createIndex('semester', 'semester', { unique: false });
-        }
-
-        // Create Student Remarks store (for spreadsheet remarks at student level)
-        if (!db.objectStoreNames.contains(STORES.STUDENT_REMARKS)) {
-          const remarksStore = db.createObjectStore(STORES.STUDENT_REMARKS, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          remarksStore.createIndex('studentId', 'studentId', { unique: true });
-        }
-
-        // Create Programmes store
-        if (!db.objectStoreNames.contains(STORES.PROGRAMMES)) {
-          const programmeStore = db.createObjectStore(STORES.PROGRAMMES, {
-            keyPath: 'id',
-            autoIncrement: true
-          });
-          programmeStore.createIndex('course', 'course', { unique: false });
-          programmeStore.createIndex('name', 'name', { unique: true });
-        }
-
-        // Add semester index to existing payments store if upgrading
-        if (event.oldVersion < 3 && db.objectStoreNames.contains(STORES.PAYMENTS)) {
-          const transaction = event.target.transaction;
-          const paymentStore = transaction.objectStore(STORES.PAYMENTS);
-          if (!paymentStore.indexNames.contains('semester')) {
-            paymentStore.createIndex('semester', 'semester', { unique: false });
+        Object.values(STORES).forEach(storeName => {
+          if (!db.objectStoreNames.contains(storeName)) {
+            db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
           }
-        }
-
-        console.log('✅ SCS database schema created successfully');
+        });
       };
-
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        console.log('✅ Database initialized successfully');
-        
-        // Initialize default settings
-        this.initializeSettings();
-        resolve(this.db);
+      request.onsuccess = (e) => {
+        this.db = e.target.result;
+        resolve(true);
       };
-
-      request.onerror = (event) => {
-        console.error('❌ Database error:', event.target.error);
-        reject(event.target.error);
-      };
+      request.onerror = (e) => reject(e.target.error);
     });
-  }
 
-  /**
-   * Initialize default settings
-   */
-  async initializeSettings() {
-    const defaultSettings = [
-      { key: 'currency', value: 'RM' },
-      { key: 'lastReceiptNumber', value: 0 },
-      { key: 'institutionName', value: 'Education Institution' },
-      { key: 'institutionAddress', value: '' },
-      { key: 'baseFolder', value: null },
-      { key: 'firstRunCompleted', value: false },
-      { key: 'visualPreset', value: 'aurora' }
-    ];
-
-    for (const setting of defaultSettings) {
-      const exists = await this.getSetting(setting.key);
-      if (!exists) {
-        await this.setSetting(setting.key, setting.value);
-      } else if (setting.key === 'currency' && exists !== 'RM') {
-        // Migration: Ensure currency is always RM
-        await this.setSetting(setting.key, 'RM');
-      }
+    // 2. Initialize RxDB via SyncService
+    try {
+      const { syncService } = await import('../services/sync.js');
+      // Get credentials from legacy settings if they exist
+      const supabaseUrl = await this.getSetting('supabaseUrl');
+      const supabaseKey = await this.getSetting('supabaseKey');
+      
+      this.rxDb = await syncService.init(supabaseUrl, supabaseKey);
+      console.log('🚀 RxDB Bridge Active');
+    } catch (err) {
+      console.warn('⚠️ RxDB initialization failed, falling back to legacy IndexedDB:', err);
     }
+
+    return legacyReady;
   }
 
   /**
-   * Generic method to add a record to a store
-   * @param {string} storeName - Name of the object store
-   * @param {object} data - Data to add
-   * @returns {Promise<number>} - ID of the created record
+   * Helper to get RxDB collection by store name
+   */
+  getCollection(storeName) {
+    if (!this.rxDb) return null;
+    const mapping = {
+      [STORES.STUDENTS]: 'students',
+      [STORES.PAYMENTS]: 'payments',
+      [STORES.RECEIPTS]: 'receipts',
+      [STORES.SETTINGS]: 'settings',
+      [STORES.FILE_METADATA]: 'fileMetadata',
+      [STORES.STUDENT_REMARKS]: 'studentRemarks',
+      [STORES.PROGRAMMES]: 'programmes'
+    };
+    return this.rxDb[mapping[storeName]];
+  }
+
+  /**
+   * Generic method to add a record
    */
   async add(storeName, data) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      // Ensure data has a string ID for RxDB
+      const doc = { 
+        ...data, 
+        id: data.id ? data.id.toString() : Math.random().toString(36).substring(7),
+        updatedAt: new Date().toISOString()
+      };
+      const result = await collection.insert(doc);
+      if (this.onChange && !this.isImporting) this.onChange();
+      return result.id;
+    }
+
+    // Fallback to legacy
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.add(data);
-
       request.onsuccess = () => {
         resolve(request.result);
         if (this.onChange && !this.isImporting) this.onChange();
@@ -180,17 +113,21 @@ class Database {
   }
 
   /**
-   * Generic method to update a record in a store
-   * @param {string} storeName - Name of the object store
-   * @param {object} data - Data to update (must include key)
-   * @returns {Promise<number>} - ID of the updated record
+   * Generic method to update a record
    */
   async update(storeName, data) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      const doc = { ...data, updatedAt: new Date().toISOString() };
+      const result = await collection.upsert(doc);
+      if (this.onChange && !this.isImporting) this.onChange();
+      return result.id;
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.put(data);
-
       request.onsuccess = () => {
         resolve(request.result);
         if (this.onChange && !this.isImporting) this.onChange();
@@ -201,16 +138,18 @@ class Database {
 
   /**
    * Generic method to get a record by ID
-   * @param {string} storeName - Name of the object store
-   * @param {number} id - ID of the record
-   * @returns {Promise<object>} - The record
    */
   async get(storeName, id) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      const doc = await collection.findOne(id.toString()).exec();
+      return doc ? doc.toJSON() : null;
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const request = store.get(id);
-
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -218,15 +157,18 @@ class Database {
 
   /**
    * Generic method to get all records from a store
-   * @param {string} storeName - Name of the object store
-   * @returns {Promise<Array>} - Array of all records
    */
   async getAll(storeName) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      const docs = await collection.find().exec();
+      return docs.map(d => d.toJSON());
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const request = store.getAll();
-
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -234,16 +176,20 @@ class Database {
 
   /**
    * Generic method to delete a record
-   * @param {string} storeName - Name of the object store
-   * @param {number} id - ID of the record to delete
-   * @returns {Promise<void>}
    */
   async delete(storeName, id) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      const doc = await collection.findOne(id.toString()).exec();
+      if (doc) await doc.remove();
+      if (this.onChange && !this.isImporting) this.onChange();
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
       const request = store.delete(id);
-
       request.onsuccess = () => {
         resolve();
         if (this.onChange && !this.isImporting) this.onChange();
@@ -254,18 +200,22 @@ class Database {
 
   /**
    * Get records by index
-   * @param {string} storeName - Name of the object store
-   * @param {string} indexName - Name of the index
-   * @param {any} value - Value to search for
-   * @returns {Promise<Array>} - Matching records
    */
   async getByIndex(storeName, indexName, value) {
+    const collection = this.getCollection(storeName);
+    if (collection) {
+      // RxDB uses mango queries or chains
+      const query = {};
+      query[indexName] = value;
+      const docs = await collection.find({ selector: query }).exec();
+      return docs.map(d => d.toJSON());
+    }
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
       const index = store.index(indexName);
       const request = index.getAll(value);
-
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

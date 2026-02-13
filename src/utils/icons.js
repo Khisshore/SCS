@@ -210,6 +210,10 @@ export const Icons = {
     <path d="m5 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" fill="currentColor"/>
     <path d="m19 17 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z" fill="currentColor"/>
   </svg>`,
+
+  // Logos
+  scs: scsLogo,
+  logo: scsLogo,
 };
 
 /**

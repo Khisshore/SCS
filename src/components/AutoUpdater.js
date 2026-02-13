@@ -13,6 +13,7 @@ class AutoUpdater {
     this.error = null;
     this.visible = false;
     this.container = null;
+    this.manualCheck = false;
   }
 
   init() {
@@ -55,11 +56,19 @@ class AutoUpdater {
             this.setStatus('downloaded');
             this.setVisible(true);
             break;
-          case 'error':
-            this.error = data;
-            this.setStatus('error');
-            this.setVisible(true);
-            break;
+      case 'error':
+        this.error = data;
+        this.setStatus('error');
+        // Only show the UI for errors if this was a manual check
+        if (this.manualCheck) {
+          this.setVisible(true);
+        } else {
+          console.warn('Silent AutoUpdater error:', data);
+          // If silent error, we reset to idle as far as the UI is concerned
+          this.status = 'idle';
+        }
+        this.manualCheck = false; // Reset flag
+        break;
           default:
             break;
         }
@@ -92,6 +101,19 @@ class AutoUpdater {
     const text = this.container?.querySelector('.progress-text');
     if (fill) fill.style.width = `${this.progress}%`;
     if (text) text.textContent = `${this.progress}%`;
+  }
+
+  async handleCheckForUpdates() {
+    try {
+      this.manualCheck = true;
+      this.setStatus('checking');
+      this.setVisible(true);
+      await window.electronAPI.updater.checkForUpdates();
+    } catch (err) {
+      this.error = err.message;
+      this.setStatus('error');
+      this.setVisible(true);
+    }
   }
 
   async handleDownload() {
@@ -170,9 +192,18 @@ class AutoUpdater {
         </div>
       `;
     } else if (this.status === 'error') {
+      let cleanError = this.error || 'Check failed';
+      // Strip noise if it's a GitHub auth error
+      if (cleanError.includes('404') || cleanError.includes('authentication token')) {
+        cleanError = 'Update check failed (Private Repository). Requires authentication token.';
+      }
+      
       body = `
         <div class="updater-body">
-          <p class="error-text">${this.error || 'An unexpected error occurred.'}</p>
+          <p class="error-text">${cleanError}</p>
+          <div class="updater-actions">
+            <button class="btn btn-secondary btn-sm" id="updaterDismissBtn">Dismiss</button>
+          </div>
         </div>
       `;
     }
@@ -185,6 +216,7 @@ class AutoUpdater {
 
     // Attach listeners
     document.getElementById('updaterCloseBtn')?.addEventListener('click', () => this.handleClose());
+    document.getElementById('updaterDismissBtn')?.addEventListener('click', () => this.handleClose());
     document.getElementById('updaterDownloadBtn')?.addEventListener('click', () => this.handleDownload());
     document.getElementById('updaterInstallBtn')?.addEventListener('click', () => this.handleInstall());
   }

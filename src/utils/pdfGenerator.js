@@ -249,7 +249,7 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
     try {
       const pdfData = doc.output('arraybuffer');
       const baseFilename = `Receipt_${currentPayment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
-      const semesterLabel = currentPayment.semester ? `Semester ${currentPayment.semester}` : 'General';
+      const semesterLabel = currentPayment.semester ? `Semester ${currentPayment.semester}` : null;
       
       await fileSystem.savePDF(
         student.course || 'Other',
