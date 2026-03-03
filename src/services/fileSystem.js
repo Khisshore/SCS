@@ -200,6 +200,22 @@ class FileSystemService {
     }
 
     const filePath = this.getPDFFilePath(course, program, studentName, semester, fileName);
+    const syncTwoWayDeletion = (await db.getSetting('syncTwoWayDeletion')) !== false;
+    
+    // If Two-Way Deletion is OFF, we skip the physical file deletion
+    if (!syncTwoWayDeletion) {
+      console.log('🛡️ Two-way deletion is OFF. Removing metadata but keeping physical file.');
+      try {
+        const existing = await db.getByIndex('fileMetadata', 'filePath', filePath);
+        if (existing && existing.length > 0) {
+          await db.delete('fileMetadata', existing[0].id);
+        }
+      } catch (err) {
+        console.warn('Metadata removal failed:', err);
+      }
+      return { success: true, message: 'Metadata removed, file preserved.' };
+    }
+
     const result = await window.electronAPI.deleteFile(filePath);
 
     if (result.success) {
@@ -404,6 +420,70 @@ class FileSystemService {
     } catch (error) {
       console.error('Error getting student files:', error);
       return [];
+    }
+  }
+
+  /**
+   * Scan the entire library to find orphaned PDF files and import them
+   * This handles files added manually to the Google Drive folder
+   */
+  async scanLibrary() {
+    if (!this.baseFolder || !this.isElectron) return { found: 0, imported: 0 };
+
+    try {
+      console.log('🔍 Starting full library scan...');
+      const result = await window.electronAPI.scanDirectory(this.baseFolder);
+      
+      if (!result.success) return { found: 0, imported: 0 };
+
+      const pdfFiles = result.files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+      let importedCount = 0;
+
+      for (const file of pdfFiles) {
+        const pathParts = file.path.split('\\');
+        // Structure: ...\SCS\{Course}\{Program}\{StudentName}\{Semester}\{FileName}.pdf
+        // Part of the path might contain the base folder. We need to parse from the end.
+        
+        const fileName = pathParts.pop().replace('.pdf', '');
+        const semester = pathParts.pop();
+        const studentName = pathParts.pop();
+        const program = pathParts.pop();
+        const course = pathParts.pop();
+
+        // Check if metadata exists
+        const existing = await db.getByIndex('fileMetadata', 'filePath', file.path);
+        
+        if (!existing || existing.length === 0) {
+          await this.storeFileMetadata({
+            filePath: file.path,
+            fileName: fileName,
+            course: course,
+            studentName: studentName,
+            semester: semester,
+            fileSize: file.size,
+            createdDate: file.created || new Date().toISOString()
+          });
+          importedCount++;
+        }
+      }
+
+      console.log(`✅ Scan finished. Found ${pdfFiles.length}, Imported ${importedCount}`);
+      return { found: pdfFiles.length, imported: importedCount };
+    } catch (err) {
+      console.error('❌ Library scan failed:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Verify if a folder exists and is accessible
+   */
+  async isFolderHealthy(path) {
+    if (!this.isElectron || !path) return false;
+    try {
+      return await window.electronAPI.folderExists(path);
+    } catch (e) {
+      return false;
     }
   }
 

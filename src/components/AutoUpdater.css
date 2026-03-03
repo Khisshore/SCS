@@ -12,8 +12,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   color: var(--text-primary);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(120%);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.updater-toast.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.updater-toast.hidden-state {
+  display: none !important;
 }
 
 @keyframes slideInRight {

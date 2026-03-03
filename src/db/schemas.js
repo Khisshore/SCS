@@ -11,7 +11,7 @@ export const StudentSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    studentId: { type: 'string' },
+    studentId: { type: 'string', maxLength: 100 },
     name: { type: 'string' },
     email: { type: 'string' },
     phone: { type: 'string' },
@@ -29,33 +29,36 @@ export const StudentSchema = {
     commissionReceipt: { type: 'string' },
     commissionPaidTo: { type: 'string' },
     totalSemesters: { type: 'integer' },
-    status: { type: 'string' },
+    status: { type: 'string', maxLength: 100 },
     createdAt: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'studentId', 'name', 'program'],
-  indexes: ['studentId', 'email', 'status', 'updatedAt']
+  required: ['id', 'studentId', 'name', 'program', 'status', 'updatedAt'],
+  indexes: ['studentId', 'status', 'updatedAt']
 };
 
 export const PaymentSchema = {
   title: 'payment schema',
   version: 0,
-  description: 'describes a payment',
+  description: 'describes a payment/transaction',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    studentId: { type: 'string' },
+    studentId: { type: 'string', maxLength: 100 },
     amount: { type: 'number' },
-    date: { type: 'string', format: 'date-time' },
-    method: { type: 'string' },
-    semester: { type: 'string' },
-    reference: { type: 'string' },
+    date: { type: 'string', format: 'date-time', maxLength: 100 },
+    method: { type: 'string', maxLength: 100 },
+    semester: { type: 'string', maxLength: 100 },
+    reference: { type: 'string' }, // maps to receipt_id
     remarks: { type: 'string' },
+    transactionType: { type: 'string', enum: ['REGISTRATION', 'SEMESTER_PAYMENT', 'COMMISSION_PAYOUT', 'OTHER'] },
+    category: { type: 'string', enum: ['REVENUE', 'EXPENSE'] },
+    recipient: { type: 'string' }, // for EXPENSE types
     createdAt: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'studentId', 'amount', 'date', 'semester'],
+  required: ['id', 'studentId', 'amount', 'date', 'method', 'semester', 'updatedAt'],
   indexes: ['studentId', 'date', 'method', 'semester', 'updatedAt']
 };
 
@@ -67,14 +70,14 @@ export const ReceiptSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    paymentId: { type: 'string' },
-    receiptNumber: { type: 'string' },
+    paymentId: { type: 'string', maxLength: 100 },
+    receiptNumber: { type: 'string', maxLength: 100 },
     date: { type: 'string', format: 'date-time' },
     pdfPath: { type: 'string' },
     createdAt: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'paymentId', 'receiptNumber'],
+  required: ['id', 'paymentId', 'receiptNumber', 'updatedAt'],
   indexes: ['paymentId', 'receiptNumber', 'updatedAt']
 };
 
@@ -87,9 +90,9 @@ export const SettingSchema = {
   properties: {
     key: { type: 'string', maxLength: 100 },
     value: { type: ['string', 'number', 'boolean', 'object', 'null'] },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['key'],
+  required: ['key', 'updatedAt'],
   indexes: ['updatedAt']
 };
 
@@ -101,16 +104,16 @@ export const FileMetadataSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    filePath: { type: 'string' },
+    filePath: { type: 'string', maxLength: 100 },
     fileName: { type: 'string' },
-    studentName: { type: 'string' },
-    course: { type: 'string' },
-    semester: { type: 'string' },
+    studentName: { type: 'string', maxLength: 100 },
+    course: { type: 'string', maxLength: 100 },
+    semester: { type: 'string', maxLength: 100 },
     fileSize: { type: 'number' },
     createdDate: { type: 'string', format: 'date-time' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'filePath', 'fileName'],
+  required: ['id', 'filePath', 'fileName', 'studentName', 'course', 'semester', 'updatedAt'],
   indexes: ['filePath', 'studentName', 'course', 'semester', 'updatedAt']
 };
 
@@ -122,11 +125,11 @@ export const StudentRemarksSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    studentId: { type: 'string' },
+    studentId: { type: 'string', maxLength: 100 },
     remarks: { type: 'string' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'studentId'],
+  required: ['id', 'studentId', 'updatedAt'],
   indexes: ['studentId', 'updatedAt']
 };
 
@@ -138,10 +141,10 @@ export const ProgrammeSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
-    course: { type: 'string' },
-    name: { type: 'string' },
-    updatedAt: { type: 'string', format: 'date-time' }
+    course: { type: 'string', maxLength: 100 },
+    name: { type: 'string', maxLength: 100 },
+    updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'name'],
+  required: ['id', 'name', 'course', 'updatedAt'],
   indexes: ['course', 'name', 'updatedAt']
 };

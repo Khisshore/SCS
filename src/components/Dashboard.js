@@ -9,7 +9,61 @@ import { formatCurrency, formatDate, getRelativeTime } from '../utils/formatting
 import { db, STORES } from '../db/database.js';
 import { Icons } from '../utils/icons.js';
 import { fileSystem } from '../services/fileSystem.js';
+import googleDriveService from '../services/googleDriveService.js';
 import Chart from 'chart.js/auto';
+
+/**
+ * Render instant skeleton placeholder while real data loads.
+ */
+export function renderDashboardSkeleton() {
+  const container = document.getElementById('app-content');
+  const statCards = Array(5).fill('').map(() => `
+    <div class="skeleton-stat skeleton-card">
+      <div class="skeleton skeleton-circle" style="width:44px;height:44px"></div>
+      <div class="skeleton skeleton-heading" style="width:50%"></div>
+      <div class="skeleton skeleton-text short"></div>
+    </div>
+  `).join('');
+
+  const tableRows = Array(5).fill('').map(() => `
+    <div class="skeleton-table-row">
+      <div class="skeleton skeleton-text" style="width:18%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:15%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:12%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text short" style="height:0.75rem"></div>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="skeleton-page dashboard-page">
+      <div class="flex justify-between items-center mb-2xl">
+        <div>
+          <div class="skeleton skeleton-heading" style="width:180px"></div>
+          <div class="skeleton skeleton-text medium"></div>
+        </div>
+        <div class="flex gap-md">
+          <div class="skeleton" style="width:140px;height:40px;border-radius:var(--radius-md)"></div>
+          <div class="skeleton" style="width:130px;height:40px;border-radius:var(--radius-md)"></div>
+        </div>
+      </div>
+      <div class="grid grid-5 mb-2xl">${statCards}</div>
+      <div class="grid grid-2 mb-2xl">
+        <div class="skeleton-card" style="height:520px">
+          <div style="padding:1.5rem 2rem;border-bottom:1px solid var(--skeleton-border)">
+            <div class="skeleton skeleton-heading" style="width:160px"></div>
+          </div>
+          <div style="padding:1.5rem 2rem">${tableRows}</div>
+        </div>
+        <div class="skeleton-card" style="height:520px">
+          <div style="padding:1.5rem 2rem">
+            <div class="skeleton skeleton-heading" style="width:140px"></div>
+          </div>
+          <div class="skeleton" style="height:380px;margin:0 2rem;border-radius:var(--radius-lg)"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 export async function renderDashboard() {
   const container = document.getElementById('app-content');
@@ -306,29 +360,39 @@ export async function renderDashboard() {
     
     if (!indicator || !pill) return;
     
-    // Check RxDB Status first
+    // Priority 1: Check Google Drive Cloud Mirror status
     try {
-      const { syncService } = await import('../services/sync.js');
-      const dbInstance = syncService.getDb();
-      
-      if (dbInstance && syncService.supabaseClient) {
+      if (googleDriveService.isConnected()) {
+        const status = googleDriveService.getStatus();
         pill.classList.add('synced');
-        pill.style.background = 'rgba(34, 197, 94, 0.15)'; // Success green
-        indicator.textContent = 'Live Sync Active';
-        timeLabel.textContent = 'Cloud Connected';
+        pill.style.background = 'rgba(34, 197, 94, 0.15)';
+        if (icon) {
+          icon.innerHTML = Icons.googleDrive;
+          icon.style.background = '#ffffff';
+          icon.style.padding = '5px';
+          icon.style.borderRadius = '50%';
+          icon.style.display = 'flex';
+          icon.style.alignItems = 'center';
+          icon.style.justifyContent = 'center';
+          icon.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+        }
+        indicator.textContent = 'Google Drive Backup';
+        timeLabel.textContent = status.lastSync 
+          ? `Synced ${getRelativeTime(new Date(status.lastSync))}` 
+          : 'Google Drive Connected';
         return;
       }
     } catch (e) {
-      console.warn('Sync service check failed:', e);
+      console.warn('Cloud status check failed:', e);
     }
     
-    // Fallback to library snapshot status (Google Drive / Local)
+    // Priority 2: Fallback to library snapshot status (local storage)
     const snapshot = await fileSystem.checkSnapshot();
     const lastSync = await db.getSetting('lastSyncTimestamp');
     
     if (snapshot) {
       pill.classList.add('synced');
-      indicator.textContent = 'Filing Cabinet Ready'; // More descriptive for GD storage
+      indicator.textContent = 'Filing Cabinet Ready';
       
       if (lastSync) {
         const syncDate = new Date(lastSync);
@@ -339,7 +403,7 @@ export async function renderDashboard() {
     } else {
       pill.classList.remove('synced');
       indicator.textContent = 'Standalone Mode';
-      timeLabel.textContent = 'Sync disconnected';
+      timeLabel.textContent = 'Cloud not configured';
     }
   };
   updateSyncStatus();

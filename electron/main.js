@@ -3,12 +3,30 @@
  * Handles application lifecycle, window creation, and native file system operations
  */
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, MenuItem, crashReporter } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const logger = require('./logger');
-const { crashReporter } = require('electron');
+const ollama = require('./ollama-manager');
+const googleDrive = require('./google-drive');
+
+// Load .env file for Google credentials
+try {
+  const envPath = require('path').join(__dirname, '..', '.env');
+  const envContent = require('fs').readFileSync(envPath, 'utf8');
+  envContent.split(/\r?\n/).forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      let value = match[2] || '';
+      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+      process.env[match[1]] = value;
+    }
+  });
+} catch (e) { 
+  logger.warn('⚠️ .env not found or failed to load. Using system environment variables.');
+}
 
 // Suppress DevTools console errors related to experimental Autofill protocol
 app.commandLine.appendSwitch('disable-features', 'Autofill');
@@ -39,6 +57,8 @@ logger.info('🚀 SCS Main Process Starting...');
 
 let mainWindow;
 
+// Initialize Context Menu (Right Click) logic will be moved to app.whenReady()
+
 // Create the main application window
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -51,9 +71,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true // Enable sandbox for security
+      sandbox: true, // Enable sandbox for security
+      spellcheck: true // Enable native spellcheck
     },
-    backgroundColor: '#0f0f23',
+    backgroundColor: '#000000',
     show: false,
     autoHideMenuBar: true,
     title: 'SCS'
@@ -80,8 +101,20 @@ function createWindow() {
 // App lifecycle events
 app.whenReady().then(() => {
   // Set Content Security Policy for the session BEFORE creating the window
-  const { session } = require('electron');
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Don't override CSP for Google's own pages (auth, consent, etc.)
+    // These need their own CSP to render logos, images, and background checks properly
+    const url = details.url || '';
+    if (url.includes('accounts.google.com') || 
+        url.includes('accounts.youtube.com') || 
+        url.includes('oauth2.googleapis.com') ||
+        url.includes('gstatic.com') ||
+        url.includes('googleusercontent.com') ||
+        url.includes('google.com/o/oauth2')) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
     const isDev = process.env.NODE_ENV === 'development';
     
     const csp = isDev
@@ -89,13 +122,13 @@ app.whenReady().then(() => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data:; " +
-        "connect-src 'self' http://localhost:5173 ws://localhost:5173;"
+        "connect-src 'self' http://localhost:5173 ws://localhost:5173 http://127.0.0.1:11434 https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com;"
       : "default-src 'self'; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data:; " +
-        "connect-src 'self';";
+        "connect-src 'self' http://127.0.0.1:11434 https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com;"
     
     // Explicitly remove existing CSP headers to prevent conflicts
     const responseHeaders = { ...details.responseHeaders };
@@ -111,6 +144,95 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+  // Initialize Professional Native Context Menu
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menu = new Menu();
+
+    // Add Spellcheck Suggestions
+    for (const suggestion of params.dictionarySuggestions) {
+      menu.append(new MenuItem({
+        label: suggestion,
+        click: () => mainWindow.webContents.replaceMisspelling(suggestion)
+      }));
+    }
+
+    // Add separator if there are suggestions
+    if (params.dictionarySuggestions.length > 0) {
+      menu.append(new MenuItem({ type: 'separator' }));
+    }
+
+    // Standard Edit Actions
+    menu.append(new MenuItem({
+      label: 'Cut',
+      role: 'cut',
+      enabled: params.editFlags.canCut
+    }));
+    menu.append(new MenuItem({
+      label: 'Copy',
+      role: 'copy',
+      enabled: params.editFlags.canCopy
+    }));
+    menu.append(new MenuItem({
+      label: 'Paste',
+      role: 'paste',
+      enabled: params.editFlags.canPaste
+    }));
+    menu.append(new MenuItem({ type: 'separator' }));
+    menu.append(new MenuItem({
+      label: 'Select All',
+      role: 'selectAll',
+      enabled: params.editFlags.canSelectAll
+    }));
+
+    // DevTools in development mode
+    if (process.env.NODE_ENV === 'development') {
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({
+        label: 'Inspect Element',
+        click: () => {
+          mainWindow.webContents.inspectElement(params.x, params.y);
+        }
+      }));
+    }
+
+    menu.popup();
+  });
+
+  logger.info('✅ Native context menu system initialized');
+
+  // Relay status changes to renderer (REGISTER BEFORE INIT)
+  ollama.onStatusChange((status) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('ollama:status-change', status);
+      // Also send ready/error if it specifically hits those states
+      if (status === 'ready') mainWindow.webContents.send('ollama:ready');
+      if (status === 'error') mainWindow.webContents.send('ollama:error', 'Ollama encountered an error and is attempting to recover.');
+    }
+  });
+
+  // ==================== OLLAMA SIDECAR ====================
+  logger.info('🧠 Initializing Ollama AI sidecar...');
+  ollama.initialize((progress) => {
+    // Forward model pull progress to renderer
+    if (mainWindow) {
+      mainWindow.webContents.send('ollama:pull-progress', progress);
+    }
+  }).then((ready) => {
+    if (ready) {
+      logger.info('✅ Ollama AI is fully ready');
+      if (mainWindow) mainWindow.webContents.send('ollama:ready');
+    } else {
+      logger.error('❌ Ollama failed to initialize');
+      if (mainWindow) mainWindow.webContents.send('ollama:error', 'Ollama failed to start. Please install Ollama from https://ollama.com');
+    }
+  }).catch(err => {
+    logger.error('❌ Ollama init error:', err);
+    // Don't show error to user if app is quitting
+  });
+
+  // Set spellcheck language
+  session.defaultSession.setSpellCheckerLanguages(['en-US']);
 });
 
 // ==================== IPC HANDLERS ====================
@@ -130,6 +252,19 @@ ipcMain.handle('select-folder', async () => {
   }
 
   return result.filePaths[0];
+});
+
+/**
+ * Open external URL in system browser
+ */
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    logger.error('Error opening external URL:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 /**
@@ -246,7 +381,6 @@ ipcMain.handle('list-files', async (event, folderPath) => {
  */
 ipcMain.handle('open-folder-in-explorer', async (event, folderPath) => {
   try {
-    const { shell } = require('electron');
     await shell.openPath(folderPath);
     return { success: true };
   } catch (error) {
@@ -388,6 +522,48 @@ ipcMain.handle('check-for-updates', () => autoUpdater.checkForUpdates());
 ipcMain.handle('download-update', () => autoUpdater.downloadUpdate());
 ipcMain.handle('quit-and-install', () => autoUpdater.quitAndInstall());
 
+// ==================== OLLAMA IPC HANDLERS ====================
+
+ipcMain.handle('ollama:status', () => ollama.getStatus());
+
+ipcMain.handle('ollama:chat', async (event, { messages, systemPrompt }) => {
+  try {
+    // Stream tokens back to renderer via events
+    const response = await ollama.chat(messages, systemPrompt, (token) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('ollama:token', token);
+      }
+    });
+    return { success: true, response };
+  } catch (err) {
+    logger.error('Ollama chat error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('ollama:generate', async (event, prompt) => {
+  try {
+    const response = await ollama.generate(prompt);
+    return { success: true, response };
+  } catch (err) {
+    logger.error('Ollama generate error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// Graceful shutdown
+app.on('will-quit', () => {
+  logger.info('🛑 App quitting, stopping Ollama...');
+  ollama.stopOllama();
+});
+
+// Shutdown guard: notify renderer to flush sync queue before closing
+app.on('before-quit', (event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('app:before-quit');
+  }
+});
+
 
 /**
  * Delete file
@@ -398,6 +574,84 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     return { success: true };
   } catch (error) {
     logger.error('Error deleting file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== GOOGLE DRIVE IPC HANDLERS ====================
+
+ipcMain.handle('gdrive:start-auth', async () => {
+  try {
+    const result = await googleDrive.startAuthFlow();
+    if (mainWindow) {
+      mainWindow.webContents.send('gdrive:auth-success', result);
+    }
+    return { success: true, ...result };
+  } catch (error) {
+    logger.error('Google Drive auth error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:refresh-token', async (event, refreshToken) => {
+  try {
+    const result = await googleDrive.refreshAccessToken(refreshToken);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:find-or-create-folder', async (event, refreshToken) => {
+  try {
+    const folderId = await googleDrive.findOrCreateMasterFolder(refreshToken);
+    return { success: true, folderId };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:upload-file', async (event, refreshToken, fileName, content, folderId) => {
+  try {
+    const result = await googleDrive.uploadFile(refreshToken, fileName, content, folderId);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:download-file', async (event, refreshToken, fileId) => {
+  try {
+    const content = await googleDrive.downloadFile(refreshToken, fileId);
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:list-files', async (event, refreshToken, folderId) => {
+  try {
+    const files = await googleDrive.listFiles(refreshToken, folderId);
+    return { success: true, files };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:delete-file', async (event, refreshToken, fileId) => {
+  try {
+    await googleDrive.deleteFile(refreshToken, fileId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('gdrive:revoke-token', async (event, token) => {
+  try {
+    await googleDrive.revokeToken(token);
+    return { success: true };
+  } catch (error) {
     return { success: false, error: error.message };
   }
 });

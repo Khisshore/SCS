@@ -14,6 +14,35 @@
   <link rel="stylesheet" href="/src/styles/index.css">
 </head>
 <body>
+  <!-- ═══ SPLASH SCREEN — renders instantly before JS bundle ═══ -->
+  <div id="splash-screen" style="
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background-color: #000000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    transition: opacity 0.6s ease-out;
+  ">
+    <img src="/src/assets/logos/scs-logo.png" alt="SCS" style="
+      width: 120px; height: auto;
+      animation: splashPulse 2s ease-in-out infinite;
+    ">
+  </div>
+  <style>
+    @keyframes splashPulse {
+      0%   { opacity: 0.4; transform: scale(0.92); }
+      50%  { opacity: 1;   transform: scale(1);    }
+      100% { opacity: 0.4; transform: scale(0.92); }
+    }
+    #splash-screen.fade-out {
+      opacity: 0 !important;
+      pointer-events: none;
+    }
+  </style>
+
   <!-- Background Island (Managed by React) -->
   <div id="bg-island-container" style="position: fixed; inset: 0; z-index: -50; pointer-events: none; opacity: 0; transition: opacity 1.5s ease;"></div>
 
@@ -97,6 +126,9 @@
 
   <!-- Modal Container -->
   <div id="modal-container"></div>
+
+  <!-- AI Chat Assistant Container -->
+  <div id="aiChatRoot"></div>
 
   <!-- Loading Overlay -->
   <div id="loading-overlay" class="loading-overlay hidden">

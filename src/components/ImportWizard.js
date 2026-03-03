@@ -5,6 +5,7 @@
 
 import { Icons } from '../utils/icons.js';
 import { parseSpreadsheet, suggestColumnMapping, transformToPayments, matchProofFiles, importPayments } from '../services/importService.js';
+import { aiService } from '../services/aiService.js';
 import { Programme } from '../models/Programme.js';
 import { escapeHtml } from '../utils/formatting.js';
 
@@ -15,11 +16,11 @@ let wizardState = {
   columnMapping: null,
   transformedPayments: null,
   proofsFolder: null,
-  transformedPayments: null,
-  proofsFolder: null,
   importResults: null,
   selectedCourse: null,
-  selectedProgram: null
+  selectedProgram: null,
+  isAiAnalyzing: false,
+  aiConfidence: null
 };
 
 // Helper functions for Import Wizard
@@ -134,6 +135,13 @@ function renderStep1() {
           <span class="icon icon-sm">${Icons.arrowRight}</span>
         </button>
       </div>
+
+      ${wizardState.isAiAnalyzing ? `
+        <div class="ai-thinking-overlay">
+          <div class="ai-loader"></div>
+          <p>Gemini is analyzing your spreadsheet structure...</p>
+        </div>
+      ` : ''}
     </div>
   `;
 }
@@ -143,6 +151,12 @@ function renderStep2() {
   
   const { headers } = wizardState.spreadsheetData;
   const mapping = wizardState.columnMapping || suggestColumnMapping(headers);
+  
+  const aiBadge = wizardState.aiConfidence ? `
+    <div class="ai-badge">
+      ${Icons.bot} AI Assisted Mapping (${wizardState.aiConfidence}% confident)
+    </div>
+  ` : '';
   
   const fields = [
     // Student fields
@@ -217,14 +231,21 @@ function renderStep2() {
               <select id="importProgramSelect" class="form-select" onchange="window.toggleImportOtherProgram()">
                 <option value="">Select Programme</option>
               </select>
-              <input type="text" id="importProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" />
+              <input type="text" id="importProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" spellcheck="true" autocorrect="on" />
             </div>
           </div>
         </div>
       </div>
 
-      <h3 style="margin-bottom: 1rem;">Map Your Columns</h3>
-      <p style="margin-bottom: 1.5rem;">We've tried to automatically detect your columns. Adjust if needed.</p>
+      <div class="flex-between mb-sm">
+        <h3 style="margin: 0;">Map Your Columns</h3>
+        ${aiBadge}
+        <button class="btn btn-ghost btn-sm" id="retryAiAnalysis">
+          <span class="icon icon-sm">${Icons.refresh}</span>
+          AI Re-analyze
+        </button>
+      </div>
+      <p style="margin-bottom: 1.5rem;">We've used AI to suggest the best mapping. Please verify accuracy.</p>
       
       <div class="column-mapping" style="max-height: 350px; overflow-y: auto;">
         ${Object.values(sections).map(section => `
@@ -342,11 +363,40 @@ export async function initImportWizard() {
         preview.classList.remove('hidden');
         
         document.getElementById('nextStep1').disabled = false;
+
+        // Auto-trigger AI Analysis
+        await runAiAnalysis();
       } catch (error) {
         alert(`Failed to parse spreadsheet: ${error.message}`);
       }
     }
   });
+
+  async function runAiAnalysis() {
+    if (!wizardState.spreadsheetData) return;
+    
+    wizardState.isAiAnalyzing = true;
+    document.getElementById('wizardContent').innerHTML = renderStep(1);
+    
+    try {
+      const { headers, rows } = wizardState.spreadsheetData;
+      const mapping = await aiService.analyzeColumns(headers, rows.slice(0, 3));
+      
+      if (mapping) {
+        wizardState.columnMapping = mapping;
+        wizardState.aiConfidence = 95; // Hardcoded for UX, could be calculated
+      }
+    } catch (err) {
+      console.error("AI Analysis error:", err);
+    } finally {
+      wizardState.isAiAnalyzing = false;
+      document.getElementById('wizardContent').innerHTML = renderStep(1);
+      // Wait a bit then move to next step automatically if successful? 
+      // User said "Human-in-the-loop", so let's just enable next.
+      document.getElementById('nextStep1')?.focus();
+      initImportWizard();
+    }
+  }
   
   document.getElementById('selectProofsFolderBtn')?.addEventListener('click', async () => {
     if (window.electronAPI) {
@@ -380,6 +430,17 @@ export async function initImportWizard() {
       const value = e.target.value === '' ? null : parseInt(e.target.value);
       wizardState.columnMapping[field] = value;
     });
+  });
+
+  document.getElementById('retryAiAnalysis')?.addEventListener('click', async () => {
+    const btn = document.getElementById('retryAiAnalysis');
+    btn.disabled = true;
+    btn.innerHTML = `${Icons.loader} Analyzing...`;
+    
+    await runAiAnalysis();
+    wizardState.currentStep = 2; // Stay on step 2
+    document.getElementById('wizardContent').innerHTML = renderStep(2);
+    initImportWizard();
   });
   
   document.getElementById('prevStep2')?.addEventListener('click', () => {

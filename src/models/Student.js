@@ -55,7 +55,11 @@ class StudentModel {
    * @returns {Promise<number>} - Updated student ID
    */
   async update(id, updates) {
-    const student = await db.get(STORES.STUDENTS, id);
+    // Coerce string ID to number (HTML data-attributes are strings, IndexedDB keys are integers)
+    const numericId = Number(id);
+    const lookupId = (!isNaN(numericId) && numericId) ? numericId : id;
+
+    const student = await db.get(STORES.STUDENTS, lookupId);
     if (!student) {
       throw new Error('Student not found');
     }
@@ -63,7 +67,7 @@ class StudentModel {
     // If studentId is being changed, check uniqueness
     if (updates.studentId && updates.studentId !== student.studentId) {
       const existing = await this.findByStudentId(updates.studentId);
-      if (existing && existing.id !== id) {
+      if (existing && existing.id !== lookupId) {
         throw new Error('Student ID already exists');
       }
     }
@@ -83,6 +87,13 @@ class StudentModel {
    * @returns {Promise<object>} - Student record
    */
   async findById(id) {
+    // IndexedDB auto-increment keys are integers, but data-attributes return strings.
+    // Try numeric key first, then string fallback.
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      const result = await db.get(STORES.STUDENTS, numericId);
+      if (result) return result;
+    }
     return await db.get(STORES.STUDENTS, id);
   }
 
@@ -250,11 +261,12 @@ class StudentModel {
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-11
       
-      let updatedCount = 0;
+      let completedCount = 0;
+      let reactivatedCount = 0;
 
       for (const student of students) {
-        // Skip students without completion date or already inactive
-        if (student.status !== 'active' || !student.completionDate) continue;
+        // Skip students without completion date
+        if (!student.completionDate) continue;
 
         const compDate = new Date(student.completionDate);
         if (isNaN(compDate.getTime())) continue;
@@ -263,26 +275,36 @@ class StudentModel {
         const compMonth = compDate.getMonth();
 
         // Check if completion month has passed
-        // e.g. If current is Dec-2024 and completion was Nov-2024
+        // Strict comparison: must be strictly BEFORE current month/year
         const hasPassed = (currentYear > compYear) || (currentYear === compYear && currentMonth > compMonth);
 
-        if (hasPassed) {
+        // Case 1: Student is active but completion date has passed -> Auto-complete
+        if (student.status === 'active' && hasPassed) {
           await this.update(student.id, { 
             status: 'inactive',
             completionStatus: 'Completed'
           });
-          updatedCount++;
+          completedCount++;
+        }
+        
+        // Case 2: Student is inactive (Completed) but completion date is in the future -> Re-activate
+        // Only re-activate if completionStatus is 'Completed' (don't override manual deletions)
+        else if (student.status === 'inactive' && student.completionStatus === 'Completed' && !hasPassed) {
+          await this.update(student.id, {
+            status: 'active',
+            completionStatus: 'In Progress'
+          });
+          reactivatedCount++;
         }
       }
 
-      if (updatedCount > 0) {
-        console.log(`📊 Auto-completed ${updatedCount} students based on completion date`);
-      }
+      if (completedCount > 0) console.log(`📊 Auto-completed ${completedCount} students`);
+      if (reactivatedCount > 0) console.log(`🔄 Re-activated ${reactivatedCount} students (future completion date)`);
       
-      return updatedCount;
+      return { completedCount, reactivatedCount };
     } catch (error) {
       console.error('Error syncing student statuses:', error);
-      return 0;
+      return { completedCount: 0, reactivatedCount: 0 };
     }
   }
 }

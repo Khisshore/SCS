@@ -13,6 +13,7 @@
     "electron:dev": "concurrently \"cross-env NODE_ENV=development vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "vite build && electron-builder",
     "electron:build:dir": "vite build && electron-builder --dir",
+    "electron:package": "electron-builder",
     "clean": "rimraf dist dist-electron node_modules/.vite",
     "clean:appdata": "rimraf %APPDATA%/SCS",
     "kill-electron": "taskkill /F /IM electron.exe /T || exit 0"
@@ -30,8 +31,6 @@
     "wait-on": "^9.0.3"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.5.0",
     "@supabase/supabase-js": "^2.95.3",
     "@vitejs/plugin-react": "^5.1.3",
     "chart.js": "^4.5.1",
@@ -46,7 +45,6 @@
     "rxdb": "^16.21.1",
     "rxdb-supabase": "^1.0.4",
     "rxjs": "^7.8.2",
-    "three": "^0.182.0",
     "xlsx": "^0.18.5"
   },
   "build": {
@@ -75,8 +73,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "khiss-inti",
-        "repo": "scs-system"
+        "owner": "Khisshore",
+        "repo": "SCS"
       }
     ],
     "win": {
@@ -101,7 +99,7 @@
       "shortcutName": "SCS",
       "runAfterFinish": true
     },
-    "compression": "maximum",
+    "compression": "normal",
     "asar": true,
     "asarUnpack": [
       "**/*.node"

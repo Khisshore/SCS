@@ -11,6 +11,48 @@ import { Icons } from '../utils/icons.js';
 import { formatDate, escapeHtml } from '../utils/formatting.js';
 import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
 import { renderReceiptInput } from './ReceiptInput.js';
+import { optimisticRemove, showToast } from '../utils/optimistic.js';
+
+/**
+ * Render instant skeleton placeholder while real data loads.
+ */
+export function renderStudentsSkeleton() {
+  const container = document.getElementById('app-content');
+  const rows = Array(8).fill('').map(() => `
+    <div class="skeleton-table-row">
+      <div class="skeleton skeleton-text" style="width:5%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:25%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:20%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:12%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:10%;height:0.75rem"></div>
+      <div class="skeleton" style="width:90px;height:32px;border-radius:var(--radius-md)"></div>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="skeleton-page" style="animation: fadeIn 0.5s ease-in-out;">
+      <div class="flex justify-between items-center mb-2xl">
+        <div>
+          <div class="skeleton skeleton-heading" style="width:220px"></div>
+          <div class="skeleton skeleton-text medium"></div>
+        </div>
+        <div class="skeleton" style="width:150px;height:40px;border-radius:var(--radius-md)"></div>
+      </div>
+      <div class="card mb-xl"><div class="card-body">
+        <div class="skeleton" style="width:100%;height:44px;border-radius:var(--radius-md)"></div>
+      </div></div>
+      <div class="card">
+        <div class="card-header">
+          <div class="skeleton skeleton-heading" style="width:140px"></div>
+          <div class="skeleton" style="width:80px;height:24px;border-radius:var(--radius-full)"></div>
+        </div>
+        <div class="card-body">
+          <div class="skeleton-table">${rows}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 let currentSort = { field: 'name', dir: 'asc' };
 
@@ -36,12 +78,15 @@ export async function renderStudents() {
         <div class="card-body">
           <div class="flex gap-md items-center">
             <div class="form-group" style="margin-bottom: 0; flex: 2; min-width: 300px;">
-              <input
-                type="text"
-                id="studentSearch"
-                class="form-input"
-                placeholder="🔍 Search students (name, ID, email, program)..."
-              />
+              <div class="search-box">
+                <span class="search-icon">${Icons.search}</span>
+                <input
+                  type="text"
+                  id="studentSearch"
+                  class="form-input"
+                  placeholder="Search students (name, ID, email, program)..."
+                />
+              </div>
             </div>
             <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 200px;">
               <select id="statusFilter" class="form-select">
@@ -182,7 +227,7 @@ async function loadStudents() {
         <div style="font-size: 3rem; margin-bottom: 1rem;">
           <span class="icon icon-xl" style="opacity: 0.5;">${Icons.users}</span>
         </div>
-        <p style="font-size: var(--font-size-lg); margin-bottom: 0.5rem;">No students found</p>
+        <p style="font-size: var(--font-size-xl); margin-bottom: 0.75rem; color: var(--text-primary); font-weight: 700;">No students found</p>
         <p style="font-size: var(--font-size-sm);">Add your first student to get started!</p>
       </div>
     `;
@@ -223,7 +268,7 @@ async function loadStudents() {
                 <div class="flex gap-sm" style="justify-content: center;">
                   <button
                     class="btn btn-sm btn-primary"
-                    onclick="window.viewStudent(${student.id})"
+                    onclick="window.viewStudent('${student.id}')"
                     style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="View & Edit Details"
                   >
@@ -231,7 +276,7 @@ async function loadStudents() {
                   </button>
                   <button
                     class="btn btn-sm btn-danger"
-                    onclick="window.deleteStudent(${student.id})"
+                    onclick="window.deleteStudent('${student.id}')"
                     style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="Deactivate"
                   >
@@ -297,7 +342,7 @@ function showStudentForm(studentId = null) {
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
                   <label class="form-label required">Full Name</label>
-                  <input type="text" id="studentName" class="form-input" placeholder="e.g., John Doe" required />
+                  <input type="text" id="studentName" class="form-input" placeholder="e.g., John Doe" required spellcheck="true" autocorrect="on" />
                 </div>
               </div>
 
@@ -323,7 +368,7 @@ function showStudentForm(studentId = null) {
                       <span class="icon icon-sm">${Icons.trash}</span>
                     </button>
                   </div>
-                  <input type="text" id="studentProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" />
+                  <input type="text" id="studentProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" spellcheck="true" autocorrect="on" />
                 </div>
               </div>
 
@@ -407,7 +452,7 @@ function showStudentForm(studentId = null) {
                       <input type="number" id="studentCommission" class="form-input" min="0" step="0.01" placeholder="0.00" />
                       <div id="commReceiptContainer"></div>
                     </div>
-                    <input type="text" id="studentCommissionPaidTo" class="form-input" placeholder="Paid To" />
+                    <input type="text" id="studentCommissionPaidTo" class="form-input" placeholder="Paid To" spellcheck="true" autocorrect="on" />
                   </div>
                 </div>
               </div>
@@ -415,7 +460,7 @@ function showStudentForm(studentId = null) {
 
             <div class="form-group mb-0">
               <label class="form-label">Remarks</label>
-              <textarea id="studentRemarks" class="form-input" placeholder="Add any additional notes here..." rows="3"></textarea>
+              <textarea id="studentRemarks" class="form-input" placeholder="Add any additional notes here..." rows="3" spellcheck="true" autocorrect="on"></textarea>
             </div>
 
             <div id="formError" class="form-error hidden mt-md p-md bg-danger-50 text-danger-700 rounded-md border border-danger-200"></div>
@@ -711,17 +756,35 @@ async function viewStudent(studentId) {
 }
 
 /**
- * Delete (deactivate) student
+ * Delete (deactivate) student — Optimistic UI
  */
 async function deleteStudent(studentId) {
   if (!confirm('Are you sure you want to deactivate this student?')) return;
 
-  try {
-    await Student.delete(studentId);
-    await loadStudents();
-    showNotification('Student deactivated successfully!', 'success');
-  } catch (error) {
-    showNotification(error.message, 'error');
+  // Find the row in the DOM
+  const btn = document.querySelector(`button[onclick="window.deleteStudent('${studentId}')"]`);
+  const row = btn?.closest('tr');
+
+  if (row) {
+    await optimisticRemove(row, () => Student.delete(studentId), {
+      successMsg: 'Student deactivated!',
+      errorMsg: 'Failed to deactivate. Reverted.'
+    });
+    // Update count badge
+    const countBadge = document.getElementById('studentCount');
+    if (countBadge) {
+      const remaining = document.querySelectorAll('#studentsTableContainer tbody tr').length;
+      countBadge.textContent = `${remaining} student${remaining !== 1 ? 's' : ''}`;
+    }
+  } else {
+    // Fallback
+    try {
+      await Student.delete(studentId);
+      await loadStudents();
+      showToast('Student deactivated!', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
   }
 }
 

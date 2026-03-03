@@ -2,8 +2,8 @@ name: SCS Supabase Keep-Alive
 
 on:
   schedule:
-    # Twice a week (Monday and Thursday at midnight)
-    - cron: '0 0 * * 1,4'
+    # Every day at midnight UTC
+    - cron: '0 0 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -12,6 +12,16 @@ jobs:
     steps:
       - name: Ping Supabase Database
         run: |
-          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/students?select=id&limit=1" \
-          -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+          # Use both prefixed and non-prefixed secrets for maximum compatibility
+          URL="${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL }}"
+          KEY="${{ secrets.VITE_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}"
+          
+          if [ -z "$URL" ]; then
+            echo "Error: Supabase URL secret is missing."
+            exit 1
+          fi
+          
+          echo "Pinging Supabase REST API at $URL..."
+          curl -f -i -X GET "$URL/rest/v1/settings?select=key&limit=1" \
+          -H "apikey: $KEY" \
+          -H "Authorization: Bearer $KEY"

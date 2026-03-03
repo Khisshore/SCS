@@ -43,8 +43,15 @@ class AutoUpdater {
             this.setVisible(true);
             break;
           case 'not-available':
-            this.setStatus('idle');
-            if (this.visible && this.status === 'checking') this.setVisible(false);
+            this.setStatus('not-available');
+            // Keep visible for a few seconds to show "up to date" message if it was a manual check
+            if (this.manualCheck) {
+              this.setVisible(true);
+              setTimeout(() => this.setVisible(false), 3000);
+            } else if (this.visible && this.status === 'checking') {
+               this.setVisible(false);
+            }
+            this.manualCheck = false;
             break;
           case 'progress':
             this.progress = Math.round(data.percent);
@@ -141,10 +148,7 @@ class AutoUpdater {
   }
 
   render() {
-    if (!this.visible || !this.container) {
-      if (this.container) this.container.innerHTML = '';
-      return;
-    }
+    if (!this.container) return;
 
     const header = `
       <div class="updater-header">
@@ -152,7 +156,9 @@ class AutoUpdater {
           <span class="updater-icon">
             ${this.status === 'downloaded' ? '✅' : this.status === 'error' ? '❌' : '🚀'}
           </span>
+          ${this.status === 'checking' ? 'Checking for Updates' : ''}
           ${this.status === 'available' ? 'Update Available' : ''}
+          ${this.status === 'not-available' ? 'Up to Date' : ''}
           ${this.status === 'downloading' ? 'Downloading Update...' : ''}
           ${this.status === 'downloaded' ? 'Update Ready' : ''}
           ${this.status === 'error' ? 'Update Error' : ''}
@@ -162,7 +168,19 @@ class AutoUpdater {
     `;
 
     let body = '';
-    if (this.status === 'available') {
+    if (this.status === 'checking') {
+      body = `
+        <div class="updater-body">
+          <p>Looking for the latest version of SCS...</p>
+        </div>
+      `;
+    } else if (this.status === 'not-available') {
+      body = `
+        <div class="updater-body">
+          <p>SCS is already running the latest version (v${this.info?.version || '1.0.0'}).</p>
+        </div>
+      `;
+    } else if (this.status === 'available') {
       body = `
         <div class="updater-body">
           <p>Version ${this.info?.version} is available for download.</p>
@@ -208,7 +226,15 @@ class AutoUpdater {
       `;
     }
 
-    this.container.className = `updater-toast ${this.visible ? 'visible' : ''}`;
+    this.container.className = `updater-toast ${this.visible ? 'visible' : 'hidden-state'}`;
+    if (!this.visible) {
+      // Clear content only after the visibility class is removed to avoid jumpiness
+      setTimeout(() => {
+        if (!this.visible) this.container.innerHTML = '';
+      }, 400); // Wait for transition/animation
+      return;
+    }
+
     this.container.innerHTML = `
       ${header}
       ${body}

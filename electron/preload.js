@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // App info
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+
+  // Open external URL
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   
   // Platform detection
   isElectron: true,
@@ -44,7 +47,64 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('update-message', subscription);
       return () => ipcRenderer.removeListener('update-message', subscription);
     }
+  },
+
+  // Ollama AI operations
+  ollama: {
+    chat: (messages, systemPrompt) => ipcRenderer.invoke('ollama:chat', { messages, systemPrompt }),
+    generate: (prompt) => ipcRenderer.invoke('ollama:generate', prompt),
+    getStatus: () => ipcRenderer.invoke('ollama:status'),
+    onToken: (callback) => {
+      const handler = (event, token) => callback(token);
+      ipcRenderer.on('ollama:token', handler);
+      return () => ipcRenderer.removeListener('ollama:token', handler);
+    },
+    onPullProgress: (callback) => {
+      const handler = (event, progress) => callback(progress);
+      ipcRenderer.on('ollama:pull-progress', handler);
+      return () => ipcRenderer.removeListener('ollama:pull-progress', handler);
+    },
+    onReady: (callback) => {
+      const handler = () => callback();
+      ipcRenderer.on('ollama:ready', handler);
+      return () => ipcRenderer.removeListener('ollama:ready', handler);
+    },
+    onError: (callback) => {
+      const handler = (event, msg) => callback(msg);
+      ipcRenderer.on('ollama:error', handler);
+      return () => ipcRenderer.removeListener('ollama:error', handler);
+    },
+    onStatusChange: (callback) => {
+      const handler = (event, status) => callback(status);
+      ipcRenderer.on('ollama:status-change', handler);
+      return () => ipcRenderer.removeListener('ollama:status-change', handler);
+    },
+  },
+
+  // Google Drive Cloud Mirror operations
+  googleDrive: {
+    startAuth: () => ipcRenderer.invoke('gdrive:start-auth'),
+    refreshToken: (token) => ipcRenderer.invoke('gdrive:refresh-token', token),
+    findOrCreateFolder: (refreshToken) => ipcRenderer.invoke('gdrive:find-or-create-folder', refreshToken),
+    uploadFile: (refreshToken, fileName, content, folderId) => ipcRenderer.invoke('gdrive:upload-file', refreshToken, fileName, content, folderId),
+    downloadFile: (refreshToken, fileId) => ipcRenderer.invoke('gdrive:download-file', refreshToken, fileId),
+    listFiles: (refreshToken, folderId) => ipcRenderer.invoke('gdrive:list-files', refreshToken, folderId),
+    deleteFile: (refreshToken, fileId) => ipcRenderer.invoke('gdrive:delete-file', refreshToken, fileId),
+    revokeToken: (token) => ipcRenderer.invoke('gdrive:revoke-token', token),
+    onAuthSuccess: (callback) => {
+      const handler = (event, data) => callback(data);
+      ipcRenderer.on('gdrive:auth-success', handler);
+      return () => ipcRenderer.removeListener('gdrive:auth-success', handler);
+    }
+  },
+
+  // App lifecycle
+  onBeforeQuit: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('app:before-quit', handler);
+    return () => ipcRenderer.removeListener('app:before-quit', handler);
   }
+
 });
 
 console.log('✅ SCS preload script initialized');

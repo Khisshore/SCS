@@ -29,9 +29,42 @@ export function setTheme(newTheme) {
 
   document.documentElement.setAttribute('data-theme', newTheme);
   localStorage.setItem('theme', newTheme);
+
+  // --- UI SYNC: Update the physical toggle button ---
+  const btn = document.getElementById('theme-toggle-btn') || document.querySelector('.theme-switch');
+  if (btn) {
+    if (newTheme === 'dark') {
+      btn.classList.add('is-dark');
+    } else {
+      btn.classList.remove('is-dark');
+    }
+  }
   
   // Notify other services (including React toggles)
   window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+}
+
+/**
+ * Switch the visual atmosphere (e.g., Aurora, Grainient, Stormy)
+ */
+export async function setVisualPreset(presetId) {
+  // We need to access DB to save the setting
+  const { db } = await import('../db/database.js');
+  await db.setSetting('visualPreset', presetId);
+
+  // --- AUTO-THEME: Switch mode if preset is exclusive ---
+  if (presetId === 'aurora' || presetId === 'grainient') {
+    setTheme('dark');
+  } else if (presetId === 'stormy') {
+    setTheme('light');
+  }
+  
+  // Notify background.js and ThemeSelector.jsx
+  window.dispatchEvent(new CustomEvent('presetChanged', { 
+    detail: { preset: presetId } 
+  }));
+  
+  console.log(`🌌 Visual preset switched to: ${presetId}`);
 }
 
 export function setupThemeToggle() {

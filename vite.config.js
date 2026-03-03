@@ -12,7 +12,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'chart': ['chart.js'],
-          'pdf': ['jspdf'],
+          'pdf': ['jspdf', 'jspdf-autotable'],
+          'db': ['rxdb', 'rxdb-supabase', 'rxjs'],
           'react-vendor': ['react', 'react-dom']
         },
         chunkFileNames: 'assets/[name]-[hash].js',
@@ -31,6 +32,6 @@ export default defineConfig({
     strictPort: true
   },
   optimizeDeps: {
-    include: ['chart.js', 'jspdf', 'react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei']
+    include: ['chart.js', 'jspdf', 'react', 'react-dom']
   }
 });

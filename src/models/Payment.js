@@ -16,13 +16,16 @@ class PaymentModel {
     this.validate(paymentData);
 
     const payment = {
-      studentId: paymentData.studentId,
-      amount: parseFloat(paymentData.amount),
+      studentId: String(paymentData.studentId),
+      amount: paymentData.amount === 'NIL' || paymentData.amount === 'NULL' || !paymentData.amount ? null : parseFloat(paymentData.amount),
       date: paymentData.date || new Date().toISOString(),
       method: paymentData.method,
       reference: paymentData.reference || '',
       description: paymentData.description || '',
-      semester: paymentData.semester || null, // Semester number for grouping
+      semester: paymentData.semester || null,
+      transactionType: paymentData.transactionType || paymentData.type || 'OTHER',
+      category: paymentData.category || (paymentData.transactionType === 'COMMISSION_PAYOUT' || paymentData.type === 'COMMISSION_PAYOUT' ? 'EXPENSE' : 'REVENUE'),
+      recipient: paymentData.recipient || '',
       status: 'completed',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -33,9 +36,9 @@ class PaymentModel {
 
   /**
    * Update an existing payment
-   * @param {number} id - Payment database ID
+   * @param {number|string} id - Payment database ID
    * @param {object} updates - Fields to update
-   * @returns {Promise<number>} - Updated payment ID
+   * @returns {Promise<number|string>} - Updated payment ID
    */
   async update(id, updates) {
     const payment = await db.get(STORES.PAYMENTS, id);
@@ -46,7 +49,9 @@ class PaymentModel {
     const updatedPayment = {
       ...payment,
       ...updates,
-      amount: updates.amount ? parseFloat(updates.amount) : payment.amount,
+      amount: updates.amount !== undefined 
+        ? (updates.amount === 'NIL' || updates.amount === 'NULL' || !updates.amount ? null : parseFloat(updates.amount))
+        : payment.amount,
       updatedAt: new Date().toISOString()
     };
 
@@ -55,7 +60,7 @@ class PaymentModel {
 
   /**
    * Find payment by ID
-   * @param {number} id - Payment database ID
+   * @param {number|string} id - Payment database ID
    * @returns {Promise<object>} - Payment record
    */
   async findById(id) {
@@ -68,7 +73,8 @@ class PaymentModel {
    * @returns {Promise<Array>} - Array of payments
    */
   async findByStudent(studentId) {
-    const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', studentId);
+    const sid = String(studentId);
+    const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', sid);
     
     // Sort by date (newest first)
     payments.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -103,12 +109,18 @@ class PaymentModel {
 
     // Filter by student
     if (filters.studentId) {
-      payments = payments.filter(p => p.studentId === filters.studentId);
+      const sid = String(filters.studentId);
+      payments = payments.filter(p => String(p.studentId) === sid);
     }
 
     // Filter by semester
     if (filters.semester !== undefined) {
       payments = payments.filter(p => p.semester === filters.semester);
+    }
+
+    // Filter by Category (REVENUE/EXPENSE)
+    if (filters.category) {
+      payments = payments.filter(p => p.category === filters.category);
     }
 
     // Sort by date (newest first)
@@ -119,16 +131,19 @@ class PaymentModel {
 
   /**
    * Get payments for a student grouped by semester
-   * @param {number} studentId - Student database ID
+   * @param {number|string} studentId - Student database ID
    * @returns {Promise<object>} - Payments grouped by semester
    */
   async getStudentPaymentsBySemester(studentId) {
-    const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', studentId);
+    const sid = String(studentId);
+    const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', sid);
     
     const grouped = {};
     let maxSemester = 0;
     
     payments.forEach(payment => {
+      // Exclude expenses from payment breakdown if needed, or group separately
+      // For now, keep them but label them
       const sem = payment.semester || 'unassigned';
       if (!grouped[sem]) {
         grouped[sem] = {
@@ -138,12 +153,19 @@ class PaymentModel {
         };
       }
       grouped[sem].payments.push(payment);
-      grouped[sem].totalAmount += payment.amount;
+      
+      // Only add to total if it's REVENUE
+      if (payment.category !== 'EXPENSE') {
+        grouped[sem].totalAmount += (payment.amount || 0);
+      }
+      
       if (payment.reference) {
         grouped[sem].receipts.push(payment.reference);
       }
-      if (typeof sem === 'number' && sem > maxSemester) {
-        maxSemester = sem;
+      
+      const semNum = parseInt(sem);
+      if (!isNaN(semNum) && semNum > maxSemester) {
+        maxSemester = semNum;
       }
     });
     
@@ -162,7 +184,7 @@ class PaymentModel {
 
   /**
    * Delete a payment
-   * @param {number} id - Payment database ID
+   * @param {number|string} id - Payment database ID
    */
   async delete(id) {
     return await db.delete(STORES.PAYMENTS, id);
@@ -177,7 +199,13 @@ class PaymentModel {
       throw new Error('Student ID is required');
     }
 
-    if (!data.amount || isNaN(parseFloat(data.amount)) || parseFloat(data.amount) <= 0) {
+    // Handle NIL/Empty
+    const amtStr = String(data.amount).trim().toUpperCase();
+    if (amtStr === 'NIL' || amtStr === 'NULL' || amtStr === '') {
+      return; // Valid null amount
+    }
+
+    if (!data.amount || isNaN(parseFloat(data.amount)) || parseFloat(data.amount) < 0) {
       throw new Error('Valid payment amount is required');
     }
 

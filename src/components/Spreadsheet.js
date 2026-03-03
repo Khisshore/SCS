@@ -21,12 +21,58 @@ import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
 const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
 
 // Current state
-let currentCourse = 'Diploma';
+let currentCourse = 'All Programs';
 let spreadsheetData = [];
 let searchQuery = '';
 let filterOutstanding = false;
 let sortBy = 'name';
 let sortOrder = 'asc'; // 'asc' or 'desc'
+
+/**
+ * Render instant skeleton placeholder while real data loads.
+ */
+export function renderSpreadsheetSkeleton() {
+  const container = document.getElementById('app-content');
+  const pills = COURSES.map(() =>
+    `<div class="skeleton" style="width:90px;height:36px;border-radius:var(--radius-full)"></div>`
+  ).join('');
+
+  const rows = Array(10).fill('').map(() => `
+    <div class="skeleton-table-row">
+      <div class="skeleton skeleton-text" style="width:4%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:22%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:18%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:12%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:12%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:10%;height:0.75rem"></div>
+      <div class="skeleton skeleton-text" style="width:10%;height:0.75rem"></div>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="skeleton-page spreadsheet-page">
+      <header class="spreadsheet-header">
+        <div>
+          <div class="skeleton skeleton-heading" style="width:160px"></div>
+          <div class="skeleton skeleton-text medium"></div>
+        </div>
+        <div class="flex gap-md">
+          <div class="skeleton" style="width:100px;height:40px;border-radius:var(--radius-md)"></div>
+          <div class="skeleton" style="width:80px;height:40px;border-radius:var(--radius-md)"></div>
+        </div>
+      </header>
+      <div class="controls-section">
+        <div class="flex gap-sm items-center" style="margin-bottom:1rem">${pills}</div>
+        <div class="skeleton" style="width:100%;height:44px;border-radius:var(--radius-md)"></div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="skeleton-table">${rows}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 /**
  * Render the Spreadsheet page
@@ -84,11 +130,12 @@ export async function renderSpreadsheet() {
             </button>
           </div>
           
-          <div class="search-box">
-            <span class="icon search-icon">${Icons.search}</span>
+          <div class="search-box pill">
+            <span class="search-icon">${Icons.search}</span>
             <input 
               type="text" 
               id="searchInput" 
+              class="form-input"
               placeholder="Search by student name, ID or intake..." 
               value="${searchQuery}"
             />
@@ -269,40 +316,6 @@ export async function renderSpreadsheet() {
         color: white;
         border-color: var(--danger-600);
         box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
-      }
-
-
-
-      .search-box {
-        position: relative;
-        flex: 1;
-        max-width: 500px;
-      }
-
-      .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--text-tertiary);
-        pointer-events: none;
-      }
-
-      .search-box input {
-        width: 100%;
-        padding: 0.625rem 1rem 0.625rem 2.5rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-xl);
-        background: var(--surface);
-        color: var(--text-primary);
-        font-size: var(--font-size-sm);
-        transition: all 0.2s;
-      }
-
-      .search-box input:focus {
-        outline: none;
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
       }
 
       .sort-control {
@@ -808,45 +821,10 @@ export async function renderSpreadsheet() {
           display: none !important;
         }
       }
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 5rem 2rem;
-        text-align: center;
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
-        border: 1px dashed var(--glass-border);
-        border-radius: var(--radius-2xl);
-        margin: 2rem 0;
-        animation: fadeIn 0.4s ease-out;
-      }
 
-      .empty-state-icon {
-        width: 4rem;
-        height: 4rem;
-        background: rgba(37, 99, 235, 0.1);
-        color: var(--primary-600);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-      }
 
-      .empty-state-icon svg {
-        width: 2rem;
-        height: 2rem;
-      }
 
-      .empty-state h3 {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0 0 0.5rem 0;
-      }
+      .sort-control {
 
       .empty-state p {
         font-size: 0.875rem;
@@ -892,658 +870,6 @@ export async function renderSpreadsheet() {
         to { transform: rotate(360deg); }
       }
 
-      /* Student Detail Modal */
-      .student-modal {
-        position: fixed;
-        inset: 0;
-        z-index: var(--z-modal);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-        animation: fadeIn 0.2s ease-out;
-      }
-
-      .modal-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.4);
-        backdrop-filter: blur(4px);
-        z-index: var(--z-modal-backdrop);
-      }
-
-      .modal-content {
-        position: relative;
-        z-index: var(--z-modal);
-        width: 100%;
-        max-width: 72rem;
-        max-height: 90vh;
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
-        border-radius: var(--radius-2xl);
-        box-shadow: var(--shadow-2xl), var(--glass-shadow);
-        border: 1px solid var(--glass-border);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        animation: slideUp 0.3s ease-out;
-      }
-
-      .modal-content::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1px;
-        background: linear-gradient(
-          135deg,
-          var(--glass-highlight) 0%,
-          transparent 40%,
-          transparent 60%,
-          var(--glass-stroke) 100%
-        );
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
-        z-index: 1060;
-      }
-
-      @keyframes slideUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 2rem;
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .modal-header-info {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      .modal-student-title {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-      }
-
-      .modal-student-title h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-      }
-
-      .status-badge {
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius-full);
-        background: var(--success-100);
-        color: var(--success-600);
-        font-size: 0.6875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .modal-student-meta {
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        font-weight: 500;
-        margin: 0;
-      }
-
-      .modal-close-btn {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: var(--radius-full);
-        background: transparent;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-tertiary);
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .modal-close-btn:hover {
-        background: var(--surface-hover);
-        color: var(--text-primary);
-      }
-
-      .modal-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 2rem;
-      }
-
-      .modal-info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 2rem;
-        margin-bottom: 2.5rem;
-      }
-
-      .modal-info-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-
-      .modal-info-label {
-        font-size: 0.6875rem;
-        font-weight: 700;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-      }
-
-      .modal-info-value {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-
-      .modal-info-value.highlight {
-        color: var(--primary-600);
-        font-weight: 700;
-      }
-
-      .modal-section {
-        margin-bottom: 2rem;
-      }
-
-      .modal-section-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 2rem;
-      }
-
-      .modal-section-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-      }
-
-      .modal-section-title .icon {
-        color: var(--text-primary);
-        font-size: 1.25rem;
-      }
-
-      .btn-add-semester {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border: 1px solid var(--primary-100);
-        border-radius: var(--radius-lg);
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-add-semester:hover {
-        background: var(--primary-100);
-        transform: translateY(-1px);
-      }
-
-      .semester-group {
-        margin-bottom: 3rem;
-      }
-
-      .semester-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-        padding: 0 0.5rem;
-      }
-
-      .semester-title-box {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-
-      .semester-title {
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 0;
-      }
-
-      .btn-edit-semester {
-        width: 2rem;
-        height: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-md);
-        color: var(--text-tertiary);
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-edit-semester:hover {
-        background: var(--surface-hover);
-        color: var(--primary-600);
-      }
-
-      .btn-delete-semester:hover {
-        background: var(--danger-50) !important;
-        color: var(--danger-600) !important;
-        transform: scale(1.1);
-      }
-
-      .semester-card {
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
-        border: 1px solid var(--glass-border);
-        border-radius: var(--radius-2xl);
-        padding: 1.5rem;
-        box-shadow: var(--glass-shadow);
-      }
-
-      .semester-card.pending {
-        background: transparent;
-        border: 2px dashed var(--border-color);
-      }
-
-      .semester-status {
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius-full);
-        font-size: 0.6875rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .semester-status.paid {
-        background: var(--success-100);
-        color: var(--success-600);
-      }
-
-      .semester-status.pending {
-        background: var(--danger-50);
-        color: var(--danger-600);
-      }
-
-      .payment-table {
-        width: 100%;
-        font-size: 0.875rem;
-      }
-
-      .payment-table thead {
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .payment-table th {
-        padding: 0.75rem 0.5rem;
-        text-align: left;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .payment-table td {
-        padding: 0.75rem 0.5rem;
-        border-bottom: 1px solid var(--border-color);
-        color: var(--text-secondary);
-      }
-
-      .payment-table tbody tr:last-child td {
-        border-bottom: none;
-      }
-
-      .payment-table .amount {
-        font-weight: 700;
-        color: var(--text-primary);
-      }
-
-      .payment-table .receipt-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.25rem 0.625rem;
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border-radius: var(--radius-lg);
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-decoration: none;
-        transition: all 0.2s;
-      }
-
-      .payment-table .receipt-link:hover {
-        background: var(--primary-600);
-        color: white;
-      }
-
-      .payment-actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-      }
-
-      .payment-action-btn {
-        padding: 0.375rem;
-        background: transparent;
-        border: none;
-        border-radius: var(--radius-lg);
-        color: var(--text-tertiary);
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .payment-action-btn:hover {
-        background: var(--surface);
-        color: var(--primary-600);
-      }
-
-      .empty-semester {
-        text-align: center;
-        padding: 2rem;
-      }
-
-      .empty-semester p {
-        color: var(--text-tertiary);
-        font-size: 0.875rem;
-        margin-bottom: 0.75rem;
-      }
-
-      .empty-semester button {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        background: transparent;
-        border: none;
-        color: var(--primary-600);
-        font-size: 0.875rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .empty-semester button:hover {
-        text-decoration: underline;
-      }
-
-      .inline-payment-form {
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-blur);
-        -webkit-backdrop-filter: var(--glass-blur);
-        border: 1px solid var(--glass-border);
-        border-radius: var(--radius-xl);
-        padding: 1.5rem;
-        margin-top: 1rem;
-        box-shadow: var(--glass-shadow);
-        animation: slideDown 0.3s ease-out;
-      }
-
-      @keyframes slideDown {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      .inline-form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .inline-form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: left;
-      }
-
-      .inline-form-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .inline-form-input, .inline-form-select {
-        padding: 0.625rem 0.875rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        background: var(--background-secondary);
-        color: var(--text-primary);
-        font-size: 0.875rem;
-        transition: all 0.2s;
-        width: 100%;
-      }
-
-      .inline-form-input:focus, .inline-form-select:focus {
-        border-color: var(--primary-500);
-        box-shadow: 0 0 0 3px var(--primary-50);
-        outline: none;
-      }
-
-      .inline-form-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
-      }
-
-      .btn-inline-save {
-        padding: 0.625rem 1.25rem;
-        background: var(--success-600);
-        color: white;
-        border: none;
-        border-radius: var(--radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .btn-inline-save:hover {
-        background: var(--success-500);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-      }
-
-      .btn-inline-cancel {
-        padding: 0.625rem 1.25rem;
-        background: transparent;
-        color: var(--text-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      .btn-inline-cancel:hover {
-        background: var(--surface-hover);
-        border-color: var(--text-tertiary);
-        color: var(--text-primary);
-      }
-
-      .modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding: 1.5rem 2rem;
-        background: var(--background-secondary);
-        border-top: 1px solid var(--border-color);
-      }
-
-      .modal-totals {
-        display: flex;
-        align-items: center;
-        gap: 3rem;
-      }
-
-      .modal-total-label {
-        font-size: 0.625rem;
-        font-weight: 700;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.25rem;
-      }
-
-      .modal-total-value {
-        font-size: 1.5rem;
-        font-weight: 900;
-      }
-
-      .modal-total-value.paid {
-        color: var(--success-600);
-      }
-
-      .modal-total-value.balance {
-        color: var(--danger-600);
-      }
-
-      .modal-divider {
-        width: 1px;
-        height: 2.5rem;
-        background: var(--border-color);
-      }
-
-      .modal-actions {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-
-      @media (max-width: 768px) {
-        .modal-content {
-          max-width: 100%;
-          max-height: 100vh;
-          border-radius: 0;
-        }
-
-        .modal-info-grid {
-          grid-template-columns: 1fr;
-          gap: 1.5rem;
-        }
-
-        .modal-footer {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 1.5rem;
-        }
-
-        .modal-totals {
-          flex-direction: column;
-          align-items: stretch;
-          gap: 1rem;
-        }
-
-        .modal-divider {
-          width: 100%;
-          height: 1px;
-        }
-
-        .modal-actions {
-          width: 100%;
-        }
-
-        .modal-actions button {
-          flex: 1;
-        }
-      }
-
-
-      .btn-icon-xs {
-        width: 1.5rem;
-        height: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
-        color: var(--text-tertiary);
-        background: var(--surface);
-        border: 1px solid var(--border-color);
-        cursor: pointer;
-        transition: all 0.2s;
-        padding: 0;
-      }
-
-      .btn-icon-xs:hover {
-        background: var(--primary-50);
-        color: var(--primary-600);
-        border-color: var(--primary-200);
-      }
-
-      .btn-icon-xs svg {
-        width: 0.875rem;
-        height: 0.875rem;
-      }
-
-      .gap-xs {
-        gap: 0.25rem;
-      }
-
-      .fee-edit-form .form-group label {
-        display: block;
-        margin-bottom: 0.25rem;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: var(--text-tertiary);
-        text-transform: uppercase;
-      }
-
-      .fee-edit-form .form-input {
-        width: 100%;
-        padding: 0.375rem 0.625rem;
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--background-primary);
-        font-size: 0.875rem;
-      }
-
-      .inactive-row {
-        /* Removed grey background/opacity for completed students */
-      }
-      
-      .inactive-row .student-name {
-        /* Keep standard color */
-      }
-      
       .status-tag {
         font-size: 0.65rem;
         font-weight: 800;
@@ -1693,12 +1019,18 @@ function setupEventListeners() {
     const studentId = studentRow.dataset.studentId;
     if (!studentId) return;
     
-    // Find the student in our data
-    const student = await Student.findById(Number(studentId));
+    // Find the student in our data (supporting both string and numeric IDs)
+    const student = await Student.findById(studentId);
     
     if (student) {
       await openStudentDetailModal(student);
     }
+  });
+
+  // Background refresh from AI Chat
+  window.addEventListener('studentsUpdated', async () => {
+    console.log('🔄 Spreadsheet refreshing due to background update...');
+    await loadSpreadsheetData();
   });
 }
 
@@ -1729,10 +1061,14 @@ async function loadSpreadsheetData() {
     if (students.length === 0) {
       if (page) page.classList.add('is-empty');
       tableContainer.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">${Icons.users}</div>
-          <h3>No students found</h3>
-          <p>There are currently no students enrolled in the <strong>${currentCourse}</strong> program.</p>
+        <div class="table-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-xl); overflow: hidden;">
+          <div style="text-align: center; padding: 4rem 2rem; color: var(--text-tertiary);">
+            <div style="font-size: 3.5rem; margin-bottom: 1.5rem;">
+              <span class="icon icon-xl" style="opacity: 0.5;">${Icons.users}</span>
+            </div>
+            <p style="font-size: var(--font-size-xl); margin-bottom: 0.75rem; color: var(--text-primary); font-weight: 700;">No students found</p>
+            <p style="font-size: var(--font-size-base); opacity: 0.8;">There are currently no students enrolled in the <strong>${currentCourse}</strong> program.</p>
+          </div>
         </div>
       `;
       summaryCardsContainer.innerHTML = '';
@@ -1750,14 +1086,18 @@ async function loadSpreadsheetData() {
       if (filteredStudents.length === 0) {
         if (page) page.classList.add('is-empty');
         tableContainer.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">${Icons.search}</div>
-            <h3>No results found</h3>
-            <p>We couldn't find any students matching "<strong>${searchQuery}</strong>" in the selected program.</p>
-            <button class="empty-state-btn" onclick="window.clearFilters()">
-              <span class="icon" style="font-size: 1rem;">✕</span>
-              Clear search
-            </button>
+          <div class="table-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-xl); overflow: hidden;">
+            <div style="text-align: center; padding: 4rem 2rem; color: var(--text-tertiary);">
+              <div style="font-size: 3.5rem; margin-bottom: 1.5rem;">
+                <span class="icon icon-xl" style="opacity: 0.5;">${Icons.search}</span>
+              </div>
+              <p style="font-size: var(--font-size-xl); margin-bottom: 0.75rem; color: var(--text-primary); font-weight: 700;">No results found</p>
+              <p style="font-size: var(--font-size-base); margin-bottom: 2rem; opacity: 0.8;">We couldn't find any students matching "<strong>${searchQuery}</strong>" in the selected program.</p>
+              <button class="btn btn-secondary" onclick="window.clearFilters()" style="margin: 0 auto; padding: 0.75rem 1.5rem;">
+                <span class="icon" style="font-size: 1rem;">✕</span>
+                Clear search
+              </button>
+            </div>
           </div>
         `;
         summaryCardsContainer.innerHTML = '';
@@ -1922,10 +1262,14 @@ function renderTable(courseGroups, currency) {
   
   if (courses.length === 0) {
     tableContainer.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">${Icons.search}</div>
-        <h3>No results found</h3>
-        <p>Try adjusting your search or filters.</p>
+      <div class="table-card" style="border: 1px solid var(--border-color); border-radius: var(--radius-xl); overflow: hidden;">
+        <div style="text-align: center; padding: 4rem 2rem; color: var(--text-tertiary);">
+          <div style="font-size: 3.5rem; margin-bottom: 1.5rem;">
+            <span class="icon icon-xl" style="opacity: 0.5;">${Icons.search}</span>
+          </div>
+          <p style="font-size: var(--font-size-xl); margin-bottom: 0.75rem; color: var(--text-primary); font-weight: 700;">No results found</p>
+          <p style="font-size: var(--font-size-base); opacity: 0.8;">Try adjusting your search or filters.</p>
+        </div>
       </div>
     `;
     return;

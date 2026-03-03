@@ -22,6 +22,7 @@ class Database {
   constructor() {
     this.db = null;
     this.onChange = null;
+    this.onCloudSync = null; // Callback for cloud sync queue (called on data mutations)
     this.isImporting = false;
   }
 
@@ -51,18 +52,72 @@ class Database {
 
     // 2. Initialize RxDB via SyncService
     try {
-      const { syncService } = await import('../services/sync.js');
+      const syncModule = await import('../services/sync.js');
+      const syncService = syncModule.default;
       // Get credentials from legacy settings if they exist
       const supabaseUrl = await this.getSetting('supabaseUrl');
       const supabaseKey = await this.getSetting('supabaseKey');
       
       this.rxDb = await syncService.init(supabaseUrl, supabaseKey);
       console.log('🚀 RxDB Bridge Active');
+
+      // 3. Self-Healing: Sync Legacy Settings to RxDB (Conflict Resolution)
+      const legacySettings = await new Promise((resolve) => {
+        const transaction = this.db.transaction([STORES.SETTINGS], 'readonly');
+        const store = transaction.objectStore(STORES.SETTINGS);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => resolve([]);
+      });
+
+      if (this.rxDb.settings && legacySettings.length > 0) {
+        let healCount = 0;
+        for (const legSetting of legacySettings) {
+          const rxSetting = await this.rxDb.settings.findOne(legSetting.key).exec();
+          
+          let shouldUpsert = false;
+          if (!rxSetting) {
+            // Case 1: missing in RxDB -> Recovery from Legacy
+            shouldUpsert = true;
+          } else {
+            // Case 2: Conflict -> Check timestamps
+            const legTime = new Date(legSetting.updatedAt || 0).getTime();
+            const rxTime = new Date(rxSetting.updatedAt || 0).getTime();
+            
+            // Prioritize most recent. If equal or missing, Legacy wins (Master Backup rule)
+            if (legTime >= rxTime) {
+              shouldUpsert = true;
+            }
+          }
+
+          if (shouldUpsert) {
+            await this.rxDb.settings.upsert({
+              ...legSetting,
+              updatedAt: legSetting.updatedAt || new Date().toISOString()
+            });
+            healCount++;
+          }
+        }
+        if (healCount > 0) console.log(`🛠️ Self-healed ${healCount} configuration settings (Legacy Master Logic)`);
+      }
     } catch (err) {
       console.warn('⚠️ RxDB initialization failed, falling back to legacy IndexedDB:', err);
     }
 
     return legacyReady;
+  }
+
+  /**
+   * Health check for Supabase connection
+   */
+  async checkSupabaseConnection() {
+    try {
+      const syncModule = await import('../services/sync.js');
+      const syncService = syncModule.default;
+      return await syncService.pingSupabase();
+    } catch (err) {
+      return false;
+    }
   }
 
   /**
@@ -96,6 +151,7 @@ class Database {
       };
       const result = await collection.insert(doc);
       if (this.onChange && !this.isImporting) this.onChange();
+      if (this.onCloudSync && !this.isImporting && storeName !== 'settings') this.onCloudSync(storeName, 'add', doc);
       return result.id;
     }
 
@@ -121,6 +177,7 @@ class Database {
       const doc = { ...data, updatedAt: new Date().toISOString() };
       const result = await collection.upsert(doc);
       if (this.onChange && !this.isImporting) this.onChange();
+      if (this.onCloudSync && !this.isImporting && storeName !== 'settings') this.onCloudSync(storeName, 'update', doc);
       return result.id;
     }
 
@@ -143,7 +200,8 @@ class Database {
     const collection = this.getCollection(storeName);
     if (collection) {
       const doc = await collection.findOne(id.toString()).exec();
-      return doc ? doc.toJSON() : null;
+      if (doc) return doc.toJSON();
+      // Fall through to legacy IndexedDB if RxDB has no record
     }
 
     return new Promise((resolve, reject) => {
@@ -183,6 +241,7 @@ class Database {
       const doc = await collection.findOne(id.toString()).exec();
       if (doc) await doc.remove();
       if (this.onChange && !this.isImporting) this.onChange();
+      if (this.onCloudSync && !this.isImporting && storeName !== 'settings') this.onCloudSync(storeName, 'delete', { id });
       return;
     }
 
@@ -232,12 +291,35 @@ class Database {
   }
 
   /**
-   * Set setting value
+   * Set setting value - Redundant storage for security
    * @param {string} key - Setting key
    * @param {any} value - Setting value
    */
   async setSetting(key, value) {
-    return this.update(STORES.SETTINGS, { key, value });
+    const updatedAt = new Date().toISOString();
+    
+    // 1. Always write to Legacy IndexedDB (Primary Source of Truth for Config)
+    const legacyPromise = new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([STORES.SETTINGS], 'readwrite');
+      const store = transaction.objectStore(STORES.SETTINGS);
+      const request = store.put({ key, value, updatedAt });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    // 2. Always attempt to write to RxDB (Reactive Layer)
+    const rxDbPromise = (async () => {
+      const collection = this.getCollection(STORES.SETTINGS);
+      if (collection) {
+        return await collection.upsert({ key, value, updatedAt });
+      }
+      return null;
+    })();
+
+    const [result] = await Promise.all([legacyPromise, rxDbPromise]);
+    
+    if (this.onChange && !this.isImporting) this.onChange();
+    return result;
   }
 
   /**
