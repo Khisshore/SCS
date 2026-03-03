@@ -259,6 +259,10 @@ ipcMain.handle('select-folder', async () => {
  */
 ipcMain.handle('open-external', async (event, url) => {
   try {
+    const parsedUrl = new URL(url);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error(`Unsupported URL protocol: ${parsedUrl.protocol}`);
+    }
     await shell.openExternal(url);
     return { success: true };
   } catch (error) {

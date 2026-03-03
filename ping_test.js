@@ -34,14 +34,13 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function testPing() {
   console.log(`📡 Pinging Supabase at ${supabaseUrl}...`);
   try {
-    const { data, error, status } = await supabase.from('students').select('id').limit(1);
-
+    const { data, error, status } = await supabase.from('settings').select('key').limit(1);
+    
     if (error) {
       console.error('❌ Ping failed:', error.message);
       process.exit(1);
     } else {
-      console.log(`✅ Ping successful! Status: ${status}`);
-      console.log('Result sample:', data);
+      console.log(`✅ Ping successful (settings table)! Status: ${status}`);
     }
   } catch (err) {
     console.error('❌ Unexpected error during ping:', err.message);
