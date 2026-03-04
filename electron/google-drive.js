@@ -8,8 +8,8 @@ const { BrowserWindow } = require('electron');
 const logger = require('./logger');
 
 // OAuth2 Configuration — loaded from environment for desktop app
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
+const CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || '').trim();
 const REDIRECT_URI = 'http://localhost';
 const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',     // Only files created by this app

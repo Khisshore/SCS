@@ -488,7 +488,7 @@ async function renderPaymentTrendChart(months = 6) {
   // Build months array
   for (let i = months - 1; i >= 0; i--) {
     const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    labels.push(date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+    labels.push(formatDate(date, 'month-year'));
     
     const startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString();
     const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59).toISOString();

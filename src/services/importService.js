@@ -3,7 +3,8 @@
  * Intelligent data import with spreadsheet parsing and proof matching
  */
 
-import * as XLSX from 'xlsx';
+// ExcelJS via CDN — same pattern as spreadsheetExporter.js (reading side)
+const getExcelJS = () => import('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/+esm').then(m => m.default);
 import { db } from '../db/database.js';
 import { fileSystem } from './fileSystem.js';
 import { Student } from '../models/Student.js';
@@ -16,41 +17,39 @@ import { Programme } from '../models/Programme.js';
  * @returns {Promise<Object>} Parsed data with headers and rows
  */
 export async function parseSpreadsheet(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Get first sheet
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        
-        if (jsonData.length === 0) {
-          reject(new Error('Spreadsheet is empty'));
-          return;
-        }
-        
-        // Extract headers (first row) and data rows
-        const headers = jsonData[0].map(h => String(h || '').trim());
-        const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
-        
-        resolve({
-          headers,
-          rows,
-          totalRows: rows.length,
-          sheetName: workbook.SheetNames[0]
-        });
-      } catch (error) {
-        reject(new Error(`Failed to parse spreadsheet: ${error.message}`));
-      }
+  try {
+    const ExcelJS = await getExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    const arrayBuffer = await file.arrayBuffer();
+    await workbook.xlsx.load(arrayBuffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) throw new Error('Spreadsheet is empty');
+
+    // ExcelJS rows are 1-indexed; row.values[0] is always undefined — slice it off
+    const jsonData = [];
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      jsonData.push(row.values.slice(1).map(cell => {
+        if (cell && typeof cell === 'object' && cell.result !== undefined) return cell.result;
+        if (cell && typeof cell === 'object' && cell.text) return cell.text;
+        return cell ?? '';
+      }));
+    });
+
+    if (jsonData.length === 0) throw new Error('Spreadsheet is empty');
+
+    const headers = jsonData[0].map(h => String(h || '').trim());
+    const rows = jsonData.slice(1).filter(row => row.some(cell => cell !== null && cell !== undefined && cell !== ''));
+
+    return {
+      headers,
+      rows,
+      totalRows: rows.length,
+      sheetName: worksheet.name
     };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsArrayBuffer(file);
-  });
+  } catch (error) {
+    throw new Error(`Failed to parse spreadsheet: ${error.message}`);
+  }
 }
 
 /**
@@ -203,9 +202,10 @@ function parsePaymentMethod(value) {
 function parseDate(value) {
   if (!value) return new Date();
   
-  // Excel serial date number
+  // Excel serial date number → JS Date (drop-in for XLSX.SSF.parse_date_code)
   if (typeof value === 'number') {
-    return XLSX.SSF.parse_date_code(value);
+    const epoch = new Date(1899, 11, 30);
+    return new Date(epoch.getTime() + value * 86400000);
   }
   
   // String date

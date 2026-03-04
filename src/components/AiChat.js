@@ -9,8 +9,10 @@ import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import aiBirdLogo from '../assets/logos/AI-Bird.png';
 import { db, STORES } from '../db/database.js';
+import { formatDate } from '../utils/formatting.js';
 import { setTheme, setVisualPreset } from './ThemeToggle.js';
-import * as XLSX from 'xlsx';
+// ExcelJS via CDN — same pattern as spreadsheetExporter.js (reading side)
+const getExcelJS = () => import('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/+esm').then(m => m.default);
 import { fuzzyMatchStudent, applyUpdatePlan } from '../services/smartXLSXProcessor.js';
 
 // Initialize state from localStorage
@@ -514,7 +516,7 @@ function renderStagingTable(updates) {
 }
 
 function renderMessages() {
-  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const today = formatDate(new Date(), 'long');
   return `
     <div class="chat-date-separator">${today}</div>
 
@@ -1173,10 +1175,21 @@ function setupInputListeners() {
 
             if (isSpreadsheet) {
               const arrayBuffer = await file.arrayBuffer();
-              xlsxWorkbook = XLSX.read(arrayBuffer, { type: 'array' });
-              const allSheets = xlsxWorkbook.SheetNames.map(name => {
-                const csv = XLSX.utils.sheet_to_csv(xlsxWorkbook.Sheets[name]);
-                return `--- Sheet: ${name} ---\n${csv}`;
+              const ExcelJS = await getExcelJS();
+              xlsxWorkbook = new ExcelJS.Workbook();
+              await xlsxWorkbook.xlsx.load(arrayBuffer);
+              const allSheets = xlsxWorkbook.worksheets.map(ws => {
+                let csv = '';
+                ws.eachRow((row) => {
+                  csv += row.values.slice(1).map(cell => {
+                    if (cell && typeof cell === 'object') {
+                      if (cell.text !== undefined) return cell.text;
+                      if (cell.result !== undefined) return cell.result;
+                    }
+                    return cell ?? '';
+                  }).join(',') + '\n';
+                });
+                return `--- Sheet: ${ws.name} ---\n${csv}`;
               }).join('\n\n');
               fileTextContent = allSheets;
             } else {

@@ -10,9 +10,9 @@ import { Icons } from './utils/icons.js';
 import { renderDashboard, renderDashboardSkeleton } from './components/Dashboard.js';
 import { renderStudents, renderStudentsSkeleton } from './components/Students.js';
 
-import { renderReports } from './components/Reports.js';
+import { renderReports, renderReportsSkeleton } from './components/Reports.js';
 import { renderSpreadsheet, renderSpreadsheetSkeleton } from './components/Spreadsheet.js';
-import { renderTransferHub } from './components/TransferHub.js';
+import { renderTransferHub, renderTransferHubSkeleton } from './components/TransferHub.js';
 import { Student } from './models/Student.js';
 import { exportDatabase, triggerImportDialog } from './utils/exportData.js';
 import { initTheme, setTheme } from './components/ThemeToggle.js';
@@ -25,6 +25,7 @@ import { autoUpdater } from './components/AutoUpdater.js';
 import { initBackground } from './services/background.js';
 import { mountReactIsland } from './utils/reactIsland.js';
 import { initAiChat } from './components/AiChat.js';
+import { formatDate } from './utils/formatting.js';
 
 
 // Application state
@@ -313,6 +314,9 @@ async function navigateToPage(page, force = false) {
     case 'dashboard':  renderDashboardSkeleton(); break;
     case 'students':   renderStudentsSkeleton(); break;
     case 'spreadsheet': renderSpreadsheetSkeleton(); break;
+    case 'reports':    renderReportsSkeleton(); break;
+    case 'settings':   renderSettingsSkeleton(); break;
+    case 'transfer':   renderTransferHubSkeleton(); break;
     default:           showLoading(true); break; // Fallback for pages without skeletons
   }
 
@@ -532,6 +536,49 @@ async function showSettingsModal(options) {
 }
 
 /**
+ * Render Settings Page Skeleton
+ */
+function renderSettingsSkeleton() {
+  const container = document.getElementById('app-content');
+  container.innerHTML = `
+    <div class="skeleton-page settings-page">
+      <div class="flex justify-between items-center mb-2xl">
+        <div>
+          <div class="skeleton skeleton-heading" style="width:140px"></div>
+          <div class="skeleton skeleton-text medium"></div>
+        </div>
+        <div class="skeleton skeleton-circle" style="width:40px;height:40px"></div>
+      </div>
+
+      <!-- Update Status Card -->
+      <div class="skeleton-card mb-xl">
+        <div class="skeleton skeleton-heading" style="width:180px; margin-bottom: 1.5rem;"></div>
+        <div class="skeleton skeleton-text full"></div>
+        <div class="flex justify-between items-center mt-md">
+          <div class="skeleton skeleton-text short"></div>
+          <div class="skeleton" style="width:140px; height:36px; border-radius:var(--radius-md)"></div>
+        </div>
+      </div>
+
+      <!-- Theme Selector Card -->
+      <div class="skeleton-card mb-xl" style="height:250px;">
+        <div class="skeleton skeleton-heading" style="width:200px; margin-bottom:2rem;"></div>
+        <div class="grid grid-3 gap-md">
+          <div class="skeleton" style="height:140px; border-radius:var(--radius-lg)"></div>
+          <div class="skeleton" style="height:140px; border-radius:var(--radius-lg)"></div>
+          <div class="skeleton" style="height:140px; border-radius:var(--radius-lg)"></div>
+        </div>
+      </div>
+
+      <!-- Advanced Mode Card -->
+      <div class="skeleton-card" style="height:80px;">
+        <div class="skeleton skeleton-heading" style="width:250px; margin:0;"></div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Render Settings page
  */
 async function renderSettings() {
@@ -547,6 +594,8 @@ async function renderSettings() {
   const cloudFolderHealthy = gdriveStatus.connected;
   const gdriveEmail = gdriveStatus.email || '';
   const gdriveLastSync = gdriveStatus.lastSync;
+
+  const formattedLastSync = gdriveLastSync ? formatDate(gdriveLastSync, 'time') : '';
   
   // Initial Health Check
   let folderHealthy = false;
@@ -666,7 +715,7 @@ async function renderSettings() {
                         <span class="status-dot-live"></span>
                         <span class="status-text">Connected: ${gdriveEmail}</span>
                       </div>
-                      ${gdriveLastSync ? `<span style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.25rem;">Last synced: ${new Date(gdriveLastSync).toLocaleString()}</span>` : ''}
+                      ${gdriveLastSync ? `<span style="font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.25rem;">Last synced: ${formatDate(gdriveLastSync, 'time')}</span>` : ''}
                       <button class="btn btn-secondary w-full" id="linkCloudBtn" style="margin-top: 0.5rem;">
                         <span class="icon" style="margin-right: 0.5rem;">${Icons.cloud}</span>
                         Manage Connection
@@ -1291,10 +1340,10 @@ async function renderSettings() {
             <div class="gd-status-card gd-status-connected">
               <div class="gd-status-row">
                 <span class="gd-status-dot"></span>
-                <span>Google Drive Backup</span>
-              </div>
-              ${status.lastSync ? `<span class="gd-last-sync">Last synced: ${new Date(status.lastSync).toLocaleString()}</span>` : ''}
-              <span class="gd-folder-label">Folder: SCS_Master_Sync</span>
+                <div class="google-drive-info">
+            <span class="gd-email">${status.email}</span>
+            ${status.lastSync ? `<span class="gd-last-sync">Last synced: ${formatDate(status.lastSync, 'time')}</span>` : ''}
+          </div>    <span class="gd-folder-label">Folder: SCS_Master_Sync</span>
             </div>
             <div class="gd-actions">
               <button class="gd-btn gd-btn-sync" id="gd-sync-now">

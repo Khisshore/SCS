@@ -11,7 +11,9 @@
  * - Instruction stack: honors user rules ("ignore program changes")
  */
 
-import * as XLSX from 'xlsx';
+// ExcelJS via CDN — same pattern as spreadsheetExporter.js (reading side)
+const getExcelJS = () => import('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/+esm').then(m => m.default);
+
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 
@@ -177,6 +179,36 @@ export function sanitizeFinancialCell(value, fieldHint = 'unknown') {
 
   return null;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// EXCELJS WORKSHEET → ROW ARRAY ADAPTER
+// Mirrors XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Convert an ExcelJS worksheet to an array-of-arrays.
+ * ExcelJS rows are 1-indexed → slice(1) drops the phantom [0] slot.
+ * @param {import('exceljs').Worksheet} worksheet
+ * @param {boolean} raw - if false, prefer formatted text over raw values
+ * @returns {Array<Array<any>>}
+ */
+function worksheetToRows(worksheet, raw = true) {
+  const rows = [];
+  worksheet.eachRow({ includeEmpty: true }, (row) => {
+    rows.push(row.values.slice(1).map(cell => {
+      if (cell == null) return '';
+      if (typeof cell === 'object') {
+        if (!raw && cell.text !== undefined) return cell.text;     // rich-text
+        if (cell.result !== undefined) return cell.result;         // formula
+        if (cell.text !== undefined) return cell.text;             // rich-text fallback
+        if (cell instanceof Date) return cell;                     // date cell
+      }
+      return cell;
+    }));
+  });
+  return rows;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════
 // DATE PARSING
@@ -511,11 +543,13 @@ function findAnchorYear(rows, mapping) {
  * Returns: { mapping, headerRow, confidence, needsConfirmation, ambiguous[], colSamples[] }
  */
 export function discoveryPass(workbook) {
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
-  const formattedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  // Accept ExcelJS workbook: first sheet is workbook.worksheets[0]
+  const ws = workbook.worksheets[0];
+  const sheetName = ws ? ws.name : 'Sheet1';
+  const rows = ws ? worksheetToRows(ws, true) : [];
+  const formattedRows = ws ? worksheetToRows(ws, false) : [];
 
-  console.log(`📊 [DISCOVERY] Sheet "${workbook.SheetNames[0]}": ${rows.length} rows`);
+  console.log(`📊 [DISCOVERY] Sheet "${sheetName}": ${rows.length} rows`);
 
   const result = {
     mapping: null,
@@ -524,7 +558,7 @@ export function discoveryPass(workbook) {
     needsConfirmation: false,
     ambiguous: [],
     colSamples: [],
-    sheetName: workbook.SheetNames[0]
+    sheetName
   };
 
   // Build column samples for UI display
@@ -559,7 +593,7 @@ export function discoveryPass(workbook) {
     result.mapping = detection.mapping;
     result.headerRow = detection.headerRow;
 
-    // Check for ambiguity — columns where multiple field types scored similarly
+    // Check for ambiguity
     if (detection.colStats) {
       for (const cs of detection.colStats) {
         const scores = [
@@ -740,9 +774,9 @@ export async function extractionPass(workbook, confirmedMapping, headerRow = -1,
     confidence: 'high'
   };
 
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    const formattedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  // Accept ExcelJS workbook: iterate workbook.worksheets
+  for (const ws of workbook.worksheets) {
+    const formattedRows = worksheetToRows(ws, false);
 
     if (formattedRows.length < 2) continue;
 

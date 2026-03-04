@@ -1,8 +1,5 @@
-/**
- * FILE SYSTEM SERVICE
- * Manages structured folder creation and PDF file operations for SCS
- * Folder Structure: SCS/{Course}/{StudentName}/{Semester}/
- */
+// Portable Library: manages structured folder tree on disk (SCS/{Course}/{Programme}/{StudentName}/{Semester}/).
+// 2s timestamp buffer in conflict detection prevents false positives across OS/drive types.
 
 import { db } from '../db/database.js';
 

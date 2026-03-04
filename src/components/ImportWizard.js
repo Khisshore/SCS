@@ -7,7 +7,7 @@ import { Icons } from '../utils/icons.js';
 import { parseSpreadsheet, suggestColumnMapping, transformToPayments, matchProofFiles, importPayments } from '../services/importService.js';
 import { aiService } from '../services/aiService.js';
 import { Programme } from '../models/Programme.js';
-import { escapeHtml } from '../utils/formatting.js';
+import { escapeHtml, formatDate } from '../utils/formatting.js';
 
 let wizardState = {
   currentStep: 1,
@@ -320,7 +320,7 @@ function renderStep3() {
                   <td>${escapeHtml(p.studentName)}</td>
                   <td>${escapeHtml(p.studentId)}</td>
                   <td>RM ${p.amount.toFixed(2)}</td>
-                  <td>${escapeHtml(p.paymentDate.toLocaleDateString())}</td>
+                  <td>${escapeHtml(formatDate(p.paymentDate, 'short'))}</td>
                   <td>${p.proofMatched ? '<span style="color: var(--success-500);">✓</span>' : '<span style="color: var(--warning-500);">–</span>'}</td>
                 </tr>
               `).join('')}

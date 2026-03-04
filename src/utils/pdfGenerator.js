@@ -1,13 +1,11 @@
 import jsPDF from 'jspdf';
 import { Icons } from './icons.js';
-import { formatCurrency, formatDate } from './formatting.js';
+import { formatCurrency, formatDate, formatPaymentMethod } from './formatting.js';
 import { db } from '../db/database.js';
 import { fileSystem } from '../services/fileSystem.js';
 
-/**
- * PDF GENERATOR UTILITY
- * Handles creation and download of professional receipt PDFs
- */
+// Generates branded receipt PDFs matching Spectrum College mockups.
+// Uses dual-logo logic (Spectrum vs Twintech) based on student programme affiliation.
 
 /**
  * Generate and download a receipt PDF for a specific payment
@@ -187,7 +185,7 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
   
   // Left side
   doc.text('Payment mode', col1X, calcY);
-  doc.text(formatPaymentMethodLabel(currentPayment.method), col2X, calcY);
+  doc.text(formatPaymentMethod(currentPayment.method, 'Online Payment'), col2X, calcY);
   
   doc.text('Notes', col1X, calcY + 6);
   doc.text(currentPayment.description || '-', col2X, calcY + 6);
@@ -482,17 +480,3 @@ function formatCurrencyValue(amount) {
   });
 }
 
-/**
- * Helper to match mockup method labels
- */
-function formatPaymentMethodLabel(method) {
-  const methods = {
-    'cash': 'Cash',
-    'card': 'Credit Card',
-    'bank_transfer': 'Bank Transfer',
-    'online': 'Online Payment',
-    'other': 'Online Payment', 
-    'online_payment': 'Online Payment'
-  };
-  return methods[method] || 'Online Payment';
-}

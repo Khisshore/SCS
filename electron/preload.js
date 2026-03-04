@@ -1,7 +1,5 @@
-/**
- * SCS - ELECTRON PRELOAD SCRIPT
- * Secure bridge between renderer and main process using contextBridge
- */
+// contextBridge whitelist: only these IPC channels are exposed to the renderer.
+// Adding a new channel here requires a corresponding ipcMain.handle in main.js.
 
 const { contextBridge, ipcRenderer } = require('electron');
 

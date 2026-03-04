@@ -5,6 +5,7 @@
  */
 
 import { db, STORES } from "../db/database.js";
+import { formatDate } from "../utils/formatting.js";
 
 const OLLAMA_BASE = 'http://127.0.0.1:11434';
 const MODEL = 'qwen2.5:3b';
@@ -233,7 +234,7 @@ Only map confident columns. Return ONLY JSON: {"fieldName": colIndex}`;
     // Build system prompt — OPTIMIZED FOR SMALL LOCAL MODELS
     const systemPrompt = `You are "SCS Assistant". You help manage student records.
 
-TODAY: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Current year: ${new Date().getFullYear()}.
+TODAY: ${formatDate(new Date(), 'long')}. Current year: ${new Date().getFullYear()}.
 
 DATABASE:
 ${JSON.stringify(dataContext)}

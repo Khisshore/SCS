@@ -16,6 +16,74 @@ import autoTable from 'jspdf-autotable';
 // Store report data for export
 let reportData = [];
 
+/**
+ * Render quick skeleton layout for Reports
+ */
+export function renderReportsSkeleton() {
+  const container = document.getElementById('app-content');
+  if (!container) return;
+
+  const tableRows = Array(6).fill('').map(() => `
+    <div class="skeleton-table-row">
+      <div class="skeleton skeleton-text" style="width:20%;height:0.875rem"></div>
+      <div class="skeleton skeleton-text short" style="height:0.875rem"></div>
+      <div class="skeleton skeleton-text" style="width:15%;height:0.875rem"></div>
+      <div class="skeleton skeleton-text short" style="height:0.875rem"></div>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="skeleton-page reports-page">
+      <div class="flex justify-between items-center mb-2xl">
+        <div>
+          <div class="skeleton skeleton-heading" style="width:180px"></div>
+          <div class="skeleton skeleton-text medium"></div>
+        </div>
+        <div class="flex gap-md">
+          <div class="skeleton" style="width:160px;height:42px;border-radius:var(--radius-md)"></div>
+        </div>
+      </div>
+
+      <div class="card mb-xl">
+        <div style="padding:1.5rem 2rem; border-bottom:1px solid var(--skeleton-border)">
+          <div class="skeleton skeleton-heading" style="width:140px; margin:0"></div>
+        </div>
+        <div style="padding:2rem;" class="grid grid-3 gap-md">
+          <div class="skeleton" style="height:50px; border-radius:var(--radius-md)"></div>
+          <div class="skeleton" style="height:50px; border-radius:var(--radius-md)"></div>
+          <div class="skeleton" style="height:50px; border-radius:var(--radius-md)"></div>
+        </div>
+      </div>
+
+      <!-- Report Summary Skeletons -->
+      <div class="grid grid-3 gap-md mb-xl">
+        <div class="skeleton-card" style="height:120px;display:flex;flex-direction:column;justify-content:center;">
+          <div class="skeleton skeleton-text short" style="margin-bottom:1rem;"></div>
+          <div class="skeleton skeleton-heading" style="width:60%;margin:0;"></div>
+        </div>
+        <div class="skeleton-card" style="height:120px;display:flex;flex-direction:column;justify-content:center;">
+          <div class="skeleton skeleton-text short" style="margin-bottom:1rem;"></div>
+          <div class="skeleton skeleton-heading" style="width:50%;margin:0;"></div>
+        </div>
+        <div class="skeleton-card" style="height:120px;display:flex;flex-direction:column;justify-content:center;">
+          <div class="skeleton skeleton-text short" style="margin-bottom:1rem;"></div>
+          <div class="skeleton skeleton-heading" style="width:40%;margin:0;"></div>
+        </div>
+      </div>
+
+      <!-- Table Skeleton -->
+      <div class="skeleton-card" style="height:400px; padding:0;">
+        <div style="padding:1.5rem 2rem; border-bottom:1px solid var(--skeleton-border)">
+          <div class="skeleton skeleton-heading" style="width:200px; margin:0"></div>
+        </div>
+        <div style="padding:1rem 2rem;">
+          ${tableRows}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export async function renderReports() {
   const container = document.getElementById('app-content');
   

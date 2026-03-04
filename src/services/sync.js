@@ -1,6 +1,6 @@
 import { createRxDatabase } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-import { SupabaseReplication } from 'rxdb-supabase';
+import { replicateRxCollection } from 'rxdb/plugins/replication';
 import { 
   StudentSchema, 
   PaymentSchema, 
@@ -16,6 +16,7 @@ class SyncService {
     this.db = null;
     this.supabaseClient = null;
     this.isInitialized = false;
+    this.replications = [];
   }
 
   /**
@@ -118,6 +119,8 @@ class SyncService {
 
   /**
    * Setup Supabase Replication for all collections
+   * Uses RxDB's built-in replicateRxCollection plugin (rxdb/plugins/replication)
+   * instead of the removed rxdb-supabase third-party wrapper.
    */
   async setupReplication(supabaseUrl, supabaseKey) {
     try {
@@ -130,16 +133,73 @@ class SyncService {
         const collection = this.db[collectionName];
         if (!collection) continue;
 
-        new SupabaseReplication({
-          supabaseClient: this.supabaseClient,
+        const replication = replicateRxCollection({
           collection,
           replicationIdentifier: `supabase-${collectionName}`,
-          pull: {},
-          push: {},
+          live: true,
+          retryTime: 5000,
+
+          pull: {
+            handler: async (lastCheckpoint) => {
+              try {
+                const since = lastCheckpoint?.updatedAt || '1970-01-01T00:00:00Z';
+                const { data, error } = await this.supabaseClient
+                  .from(collectionName)
+                  .select('*')
+                  .gt('updatedAt', since)
+                  .order('updatedAt', { ascending: true })
+                  .limit(100);
+
+                if (error) {
+                  console.warn(`Pull error [${collectionName}]:`, error.message, error.code);
+                  throw error;
+                }
+
+                return {
+                  documents: data || [],
+                  checkpoint: data?.length
+                    ? { updatedAt: data[data.length - 1].updatedAt }
+                    : lastCheckpoint
+                };
+              } catch (err) {
+                console.error(`❌ Replication Pull Failed [${collectionName}]:`, err);
+                throw err;
+              }
+            }
+          },
+
+          push: {
+            handler: async (docs) => {
+              try {
+                for (const doc of docs) {
+                  const row = { ...doc.newDocumentState };
+                  
+                  // Strip RxDB internal fields that might not exist in Supabase
+                  // especially the '_deleted' field which causes 400 errors if missing in schema
+                  delete row._deleted;
+                  delete row._rev;
+                  delete row._attachments;
+
+                  const { error } = await this.supabaseClient
+                    .from(collectionName)
+                    .upsert(row, { onConflict: 'id' });
+
+                  if (error) {
+                    console.warn(`Push error [${collectionName}]:`, error.message, error.code);
+                  }
+                }
+              } catch (err) {
+                console.error(`❌ Replication Push Failed [${collectionName}]:`, err);
+              }
+              return [];
+            }
+          }
         });
+
+        this.replications.push(replication);
       }
 
-      console.log('🔄 Supabase replication setup complete');
+      console.log('🔄 Supabase replication setup complete (native RxDB plugin)');
     } catch (err) {
       console.warn('⚠️ Supabase replication setup failed:', err.message);
     }

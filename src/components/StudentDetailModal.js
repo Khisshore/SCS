@@ -6,7 +6,7 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { db } from '../db/database.js';
-import { formatCurrency, formatMonthYear, escapeHtml } from '../utils/formatting.js';
+import { formatCurrency, formatDate, formatMonthYear, formatPaymentMethod, escapeHtml } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/pdfGenerator.js';
 import { renderReceiptInput } from './ReceiptInput.js';
@@ -1073,7 +1073,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
               <tbody>
                 ${semesterData.payments.map(payment => `
                   <tr>
-                    <td>${new Date(payment.date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td>${formatDate(payment.date, 'short')}</td>
                     <td style="font-weight: 600;">${payment.description || '-'}</td>
                     <td class="amount">${formatCurrency(payment.amount, currency)}</td>
                     <td>${formatPaymentMethod(payment.method)}</td>
@@ -1735,18 +1735,4 @@ async function saveFeeUpdate(studentId, type) {
 async function openStudentDetailModalById(studentId) {
   const student = await Student.findById(studentId);
   if (student) openStudentDetailModal(student);
-}
-
-/**
- * Format payment method for display
- */
-function formatPaymentMethod(method) {
-  const methods = {
-    'cash': 'Cash',
-    'card': 'Credit Card',
-    'bank_transfer': 'Bank Transfer',
-    'online': 'Online Payment',
-    'other': 'Other'
-  };
-  return methods[method] || method || '-';
 }

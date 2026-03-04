@@ -1,8 +1,6 @@
-/**
- * DATABASE MODULE
- * Handles all IndexedDB operations for the Payment Management System
- * Provides a clean API for storing and retrieving students, payments, and receipts
- */
+// Dual-write database layer: Legacy IndexedDB is the primary store (written to disk via Portable Library),
+// RxDB provides reactive queries and optional Supabase replication.
+// All mutations write to both stores; Legacy is the master backup for disaster recovery.
 
 const DB_NAME = 'SCSDB';
 const DB_VERSION = 4;
@@ -26,11 +24,7 @@ class Database {
     this.isImporting = false;
   }
 
-  /**
-   * Initialize the database and create object stores (Legacy)
-   * Also initializes RxDB (New)
-   * @returns {Promise<any>}
-   */
+  // Dual init: Legacy IndexedDB first (required for Portable Library export), then RxDB overlay
   async init() {
     // 1. Initialize Legacy IndexedDB (Required for migration)
     const legacyReady = await new Promise((resolve, reject) => {
@@ -61,7 +55,7 @@ class Database {
       this.rxDb = await syncService.init(supabaseUrl, supabaseKey);
       console.log('🚀 RxDB Bridge Active');
 
-      // 3. Self-Healing: Sync Legacy Settings to RxDB (Conflict Resolution)
+      // Recover settings that exist in Legacy but are missing from RxDB (e.g., after a failed migration or app crash)
       const legacySettings = await new Promise((resolve) => {
         const transaction = this.db.transaction([STORES.SETTINGS], 'readonly');
         const store = transaction.objectStore(STORES.SETTINGS);
@@ -84,7 +78,7 @@ class Database {
             const legTime = new Date(legSetting.updatedAt || 0).getTime();
             const rxTime = new Date(rxSetting.updatedAt || 0).getTime();
             
-            // Prioritize most recent. If equal or missing, Legacy wins (Master Backup rule)
+            // Tie-breaker: Legacy wins because it's the master backup (written to disk via Portable Library)
             if (legTime >= rxTime) {
               shouldUpsert = true;
             }

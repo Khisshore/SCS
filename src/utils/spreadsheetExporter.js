@@ -5,7 +5,7 @@
  * Standards: A4 Landscape (PDF), Structured Data Blocks (CSV)
  */
 
-import { formatCurrency, formatMonthYear } from './formatting.js';
+import { formatCurrency, formatDate, formatMonthYear } from './formatting.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { openPdfPreviewModal } from '../components/PdfPreviewModal.js';
@@ -114,7 +114,7 @@ export class SpreadsheetExporter {
     
     worksheet.mergeCells('A2:G2');
     const dateCell = worksheet.getCell('A2');
-    dateCell.value = `Generated on: ${new Date().toLocaleString()}`;
+    dateCell.value = `Generated on: ${formatDate(new Date(), 'time')}`;
     dateCell.font = { size: 10, italic: true, color: { argb: 'FF64748B' } };
     
     worksheet.addRow([]); // Spacer
@@ -174,7 +174,7 @@ export class SpreadsheetExporter {
             
             // Build detailed multi-line string
             const detailLines = sem.payments.map(p => {
-              const date = new Date(p.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+              const date = formatDate(p.date, 'short');
               const ref = p.reference ? `Ref: ${p.reference}` : 'No Ref';
               const desc = p.description ? ` (${p.description})` : '';
               return `[${date}] RM ${p.amount.toFixed(2)} - ${ref}${desc}`;
@@ -337,7 +337,7 @@ export class SpreadsheetExporter {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...PDF_CONFIG.COLORS.SECONDARY);
-    doc.text(subtitle || `Generated: ${new Date().toLocaleString()}`, PDF_CONFIG.MARGINS.left, PDF_CONFIG.MARGINS.top - 4);
+    doc.text(subtitle || `Generated: ${formatDate(new Date(), 'time')}`, PDF_CONFIG.MARGINS.left, PDF_CONFIG.MARGINS.top - 4);
 
     // --- 2. Table Layout Reference ---
     const COL_DEFS = {

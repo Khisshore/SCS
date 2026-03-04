@@ -8,6 +8,50 @@ import { db } from '../db/database.js';
 import { fileSystem } from '../services/fileSystem.js';
 import { formatDate } from '../utils/formatting.js';
 
+export function renderTransferHubSkeleton() {
+  const container = document.getElementById('app-content');
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="skeleton-page transfer-hub-page">
+      <div class="mb-2xl">
+        <div class="skeleton skeleton-heading" style="width:240px"></div>
+        <div class="skeleton skeleton-text medium"></div>
+      </div>
+      
+      <div class="grid grid-2 gap-xl">
+        <!-- Export/Backup Card Skeleton -->
+        <div class="skeleton-card" style="height:320px">
+          <div class="skeleton skeleton-heading" style="width:160px; margin-bottom:1.5rem;"></div>
+          <div class="skeleton skeleton-text full"></div>
+          <div class="skeleton skeleton-text medium" style="margin-bottom:2rem;"></div>
+          
+          <div class="skeleton" style="height:60px; border-radius:var(--radius-md); margin-bottom:1rem;"></div>
+          <div class="skeleton" style="height:60px; border-radius:var(--radius-md);"></div>
+        </div>
+        
+        <!-- Import Card Skeleton -->
+        <div class="skeleton-card" style="height:320px">
+          <div class="skeleton skeleton-heading" style="width:180px; margin-bottom:1.5rem;"></div>
+          <div class="skeleton skeleton-text full"></div>
+          <div class="skeleton skeleton-text medium" style="margin-bottom:2rem;"></div>
+          
+          <div class="skeleton" style="height:120px; border-radius:var(--radius-md); border: 2px dashed var(--skeleton-border);"></div>
+        </div>
+      </div>
+      
+      <!-- Database Tools Card Skeleton -->
+      <div class="skeleton-card mt-xl" style="height:180px;">
+        <div class="skeleton skeleton-heading" style="width:200px; margin-bottom:1.5rem;"></div>
+        <div class="flex gap-md">
+           <div class="skeleton" style="width:200px; height:45px; border-radius:var(--radius-md);"></div>
+           <div class="skeleton" style="width:200px; height:45px; border-radius:var(--radius-md);"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 export async function renderTransferHub() {
   const container = document.getElementById('app-content');
   const baseFolder = fileSystem.getBaseFolder();

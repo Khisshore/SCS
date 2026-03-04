@@ -1,20 +1,17 @@
-/**
- * SCS - ELECTRON MAIN PROCESS
- * Handles application lifecycle, window creation, and native file system operations
- */
+// Orchestrates BrowserWindow lifecycle, IPC handlers, and native OS integrations (file system, Ollama, Google Drive).
+// Security: CSP headers are overridden per-request to allow Google OAuth while enforcing strict policy on app pages.
 
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, MenuItem, crashReporter } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, MenuItem } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const logger = require('./logger');
-const ollama = require('./ollama-manager');
-const googleDrive = require('./google-drive');
 
-// Load .env file for Google credentials
+// 1. Load .env file for Google credentials FIRST
+// This must happen before requiring modules that capture process.env at load time
 try {
-  const envPath = require('path').join(__dirname, '..', '.env');
-  const envContent = require('fs').readFileSync(envPath, 'utf8');
+  const envPath = path.join(__dirname, '..', '.env');
+  const envContent = fsSync.readFileSync(envPath, 'utf8');
   envContent.split(/\r?\n/).forEach(line => {
     const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
     if (match) {
@@ -24,9 +21,14 @@ try {
       process.env[match[1]] = value;
     }
   });
+  logger.info('✅ .env loaded');
 } catch (e) { 
   logger.warn('⚠️ .env not found or failed to load. Using system environment variables.');
 }
+
+// 2. Now require modules that depend on process.env
+const ollama = require('./ollama-manager');
+const googleDrive = require('./google-drive');
 
 // Suppress DevTools console errors related to experimental Autofill protocol
 app.commandLine.appendSwitch('disable-features', 'Autofill');

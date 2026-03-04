@@ -1,7 +1,5 @@
-/**
- * FORMATTING UTILITIES
- * Helper functions for consistent data display
- */
+// Canonical formatting functions used across all SCS components, PDF generators, and dashboards.
+// Any new display formatting should be added here to maintain a single source of truth.
 
 /**
  * Format number as currency
@@ -27,23 +25,26 @@ export function formatCurrency(amount, currency = 'RM') {
  * @returns {string} - Formatted date string
  */
 export function formatDate(date, format = 'long') {
+  if (!date) return '-';
+
   const d = typeof date === 'string' ? new Date(date) : date;
   
   if (!(d instanceof Date) || isNaN(d)) {
-    return 'Invalid Date';
+    // If the date is invalid, gracefully fail by returning the original string or a fallback
+    return typeof date === 'string' ? date : '-';
   }
   
   switch (format) {
     case 'short':
-      // DD/MM/YYYY
-      return d.toLocaleDateString('en-GB');
+      // DD/MM/YYYY (Malaysian standard)
+      return d.toLocaleDateString('en-GB'); 
       
     case 'malaysian':
-      // DD-MM-YYYY (Malaysian standard for transactional dates)
+      // DD-MM-YYYY (Transactional standard)
       return formatDateMalaysian(d);
       
     case 'month-year':
-      // Oct 2024 (for intake/completion fields)
+      // Oct 2024
       return formatMonthYear(d);
       
     case 'long':
@@ -66,7 +67,6 @@ export function formatDate(date, format = 'long') {
       });
       
     case 'iso':
-      // 2026-01-24
       return d.toISOString().split('T')[0];
       
     default:
@@ -74,13 +74,8 @@ export function formatDate(date, format = 'long') {
   }
 }
 
-/**
- * Format date in Malaysian standard (DD-MM-YYYY)
- * Used for transactional dates like payment dates
- * @param {string|Date} date - Date to format
- * @returns {string} - Formatted date string (DD-MM-YYYY)
- */
-export function formatDateMalaysian(date) {
+// DD-MM-YYYY — Malaysian transactional standard, used internally by formatDate('malaysian')
+function formatDateMalaysian(date) {
   const d = typeof date === 'string' ? new Date(date) : date;
   
   if (!(d instanceof Date) || isNaN(d)) {
@@ -113,56 +108,22 @@ export function formatMonthYear(date) {
   });
 }
 
-/**
- * Format payment method for display
- * @param {string} method - Payment method code
- * @returns {string} - Display-friendly method name
- */
-export function formatPaymentMethod(method) {
+// Single source of truth for payment method display labels.
+// defaultValue param lets PDF receipts default to 'Online Payment' for branding while UI falls back to the raw method string.
+export function formatPaymentMethod(method, defaultValue) {
   const methods = {
     cash: 'Cash',
-    card: 'Credit/Debit Card',
+    card: 'Credit Card',
     bank_transfer: 'Bank Transfer',
     online: 'Online Payment',
+    online_payment: 'Online Payment',
     other: 'Other'
   };
   
-  return methods[method] || method;
+  return methods[method] || (defaultValue !== undefined ? defaultValue : method);
 }
 
-/**
- * Format receipt number for display
- * @param {number} number - Receipt number
- * @returns {string} - Zero-padded receipt number
- */
-export function formatReceiptNumber(number) {
-  const year = new Date().getFullYear();
-  const paddedNumber = String(number).padStart(5, '0');
-  return `RCP-${year}-${paddedNumber}`;
-}
 
-/**
- * Parse currency string to number
- * @param {string} currencyString - Currency string to parse
- * @returns {number} - Parsed number
- */
-export function parseCurrency(currencyString) {
-  const cleaned = currencyString.replace(/[^0-9.-]+/g, '');
-  return parseFloat(cleaned) || 0;
-}
-
-/**
- * Get month name
- * @param {number} month - Month number (1-12)
- * @returns {string} - Month name
- */
-export function getMonthName(month) {
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  return months[month - 1] || '';
-}
 
 /**
  * Get relative time (e.g., "2 hours ago")
@@ -185,16 +146,7 @@ export function getRelativeTime(date) {
   return formatDate(d, 'short');
 }
 
-/**
- * Truncate text with ellipsis
- * @param {string} text - Text to truncate
- * @param {number} maxLength - Maximum length
- * @returns {string} - Truncated text
- */
-export function truncateText(text, maxLength = 50) {
-  if (!text || text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-}
+
 
 /**
  * Escape HTML to prevent XSS

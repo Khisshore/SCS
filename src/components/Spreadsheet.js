@@ -7,7 +7,7 @@
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
 import { StudentRemarks } from '../models/StudentRemarks.js';
-import { formatCurrency, formatMonthYear, escapeHtml } from '../utils/formatting.js';
+import { formatCurrency, formatDate, formatMonthYear, escapeHtml } from '../utils/formatting.js';
 import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
 import jsPDF from 'jspdf';
@@ -966,7 +966,7 @@ function setupEventListeners() {
     e.preventDefault();
     const exporter = new SpreadsheetExporter({
       title: `Student Payment Spreadsheet - ${currentCourse}`,
-      subtitle: `Generated: ${new Date().toLocaleString()}`,
+      subtitle: `Generated: ${formatDate(new Date(), 'time')}`,
       rows: spreadsheetData,
       currency: 'RM',
       course: currentCourse
@@ -1535,7 +1535,7 @@ async function prepareExportData() {
   return {
     title: `Student Payment Spreadsheet - ${courseName}`,
     course: courseName,
-    subtitle: `Generated on ${new Date().toLocaleDateString('en-GB')}`,
+    subtitle: `Generated on ${formatDate(new Date(), 'short')}`,
     currency: currency,
     columns: [
       { key: 'no', label: 'NO', width: 50, align: 'center' },
