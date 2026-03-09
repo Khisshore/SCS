@@ -13,7 +13,7 @@ export default defineConfig({
         manualChunks: {
           'chart': ['chart.js'],
           'pdf': ['jspdf', 'jspdf-autotable'],
-          'db': ['rxdb', 'rxdb-supabase', 'rxjs'],
+          'db': ['rxdb', 'rxjs'],
           'react-vendor': ['react', 'react-dom']
         },
         chunkFileNames: 'assets/[name]-[hash].js',
