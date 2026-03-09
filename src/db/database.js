@@ -98,7 +98,43 @@ class Database {
       console.warn('⚠️ RxDB initialization failed, falling back to legacy IndexedDB:', err);
     }
 
+    this.initAutoBackup();
     return legacyReady;
+  }
+
+  /**
+   * Initialize automatic local backups to prevent data loss.
+   */
+  initAutoBackup() {
+    if (!window.electronAPI || !window.electronAPI.isElectron) return;
+
+    // Clear existing interval to prevent duplicates
+    if (this.autoBackupInterval) {
+      clearInterval(this.autoBackupInterval);
+    }
+
+    let backupIndex = 0; // Rotate between 0 and 1
+
+    // Run auto-backup every 15 minutes
+    this.autoBackupInterval = setInterval(async () => {
+      try {
+        const baseFolder = await this.getSetting('baseFolder');
+        if (!baseFolder) return;
+
+        const data = await this.exportData();
+        // Use forward slashes for cross-platform compatibility
+        const backupPath = `${baseFolder}/SCS_AutoBackup_${backupIndex}.json`;
+
+        // Write to a rotating file to prevent corruption of the only backup during a crash
+        await window.electronAPI.writeFile(backupPath, JSON.stringify(data, null, 2));
+        console.log('✅ Auto-backup saved to:', backupPath);
+
+        // Toggle index for the next run (0 -> 1 -> 0)
+        backupIndex = (backupIndex + 1) % 2;
+      } catch (err) {
+        console.error('❌ Auto-backup failed:', err);
+      }
+    }, 15 * 60 * 1000);
   }
 
   /**
