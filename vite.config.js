@@ -25,7 +25,7 @@ export default defineConfig({
     reportCompressedSize: true
   },
   esbuild: {
-    drop: ['console', 'debugger']
+    drop: ['debugger']
   },
   server: {
     port: 5173,

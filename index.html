@@ -11,6 +11,20 @@
   
   <!-- PDF Generation handled via npm dependencies -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: http: ws: wss:;">
+  <!-- Fast Theme Initialization to prevent cursor delay / FOUC -->
+  <style>
+    html { color-scheme: light; }
+    html[data-theme="dark"] { color-scheme: dark; }
+  </style>
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/src/styles/index.css">
 </head>
 <body>

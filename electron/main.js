@@ -76,7 +76,7 @@ function createWindow() {
       sandbox: true, // Enable sandbox for security
       spellcheck: true // Enable native spellcheck
     },
-    backgroundColor: '#000000',
+    backgroundColor: '#00000000', // Transparent — prevents Chromium from using dark base for I-beam cursor color
     show: false,
     autoHideMenuBar: true,
     title: 'SCS'
