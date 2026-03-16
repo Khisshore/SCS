@@ -71,14 +71,10 @@ class Database {
           
           let shouldUpsert = false;
           if (!rxSetting) {
-            // Case 1: missing in RxDB -> Recovery from Legacy
             shouldUpsert = true;
           } else {
-            // Case 2: Conflict -> Check timestamps
             const legTime = new Date(legSetting.updatedAt || 0).getTime();
             const rxTime = new Date(rxSetting.updatedAt || 0).getTime();
-            
-            // Tie-breaker: Legacy wins because it's the master backup (written to disk via Portable Library)
             if (legTime >= rxTime) {
               shouldUpsert = true;
             }
@@ -98,7 +94,98 @@ class Database {
       console.warn('⚠️ RxDB initialization failed, falling back to legacy IndexedDB:', err);
     }
 
+    // Layer 3: Startup Integrity Check + Auto-Recovery
+    await this.performIntegrityCheck();
+
+    // Layer 1: Start Auto-Backup
+    this.initAutoBackup();
+
     return legacyReady;
+  }
+
+  /**
+   * Layer 3: Check if DB is empty but backups exist in Base Folder
+   */
+  async performIntegrityCheck() {
+    if (!window.electronAPI) return;
+    try {
+      const students = await this.getAll(STORES.STUDENTS);
+      const payments = await this.getAll(STORES.PAYMENTS);
+      
+      if (students.length === 0 && payments.length === 0) {
+        const baseFolder = await this.getSetting('baseFolder');
+        if (!baseFolder) return;
+
+        const files = await window.electronAPI.listFiles(baseFolder);
+        const backups = files.filter(f => f.name.startsWith('SCS_AutoBackup_') || f.name === 'SCS_ShutdownBackup.json');
+        
+        if (backups.length > 0) {
+          // Find the most recently modified backup
+          backups.sort((a, b) => b.mtimeMs - a.mtimeMs);
+          const latestBackup = backups[0];
+          
+          if (window.confirm(`Your database appears empty but we found a recent backup (${latestBackup.name}). Would you like to restore it now?`)) {
+            const separator = baseFolder.includes('\\') ? '\\' : '/';
+            const backupPath = `${baseFolder}${separator}${latestBackup.name}`;
+            const fileContent = await window.electronAPI.readFile(backupPath);
+            if (fileContent) {
+              const data = JSON.parse(fileContent);
+              await this.importData(data);
+              alert('✅ Database recovered successfully from backup.');
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Integrity check failed:', err);
+    }
+  }
+
+  /**
+   * Layer 1: Auto-Backup to Base Folder (every 15 min)
+   */
+  initAutoBackup() {
+    if (!window.electronAPI) return;
+    let index = 0;
+    
+    // Run every 15 minutes (900000 ms)
+    setInterval(async () => {
+      try {
+        const baseFolder = await this.getSetting('baseFolder');
+        if (!baseFolder) return;
+
+        const data = await this.exportData();
+        const separator = baseFolder.includes('\\\\') ? '\\\\' : '/';
+        const backupPath = `${baseFolder}${separator}SCS_AutoBackup_${index}.json`;
+        
+        await window.electronAPI.writeFile(backupPath, JSON.stringify(data, null, 2));
+        console.log(`🛡️ Auto-backup saved to ${backupPath}`);
+        
+        index = (index + 1) % 5;
+      } catch (err) {
+        console.error('❌ Auto-backup failed:', err);
+      }
+    }, 15 * 60 * 1000);
+  }
+
+  /**
+   * Layer 2: Shutdown Backup
+   */
+  async performShutdownBackup() {
+    if (!window.electronAPI) return;
+    try {
+      const baseFolder = await this.getSetting('baseFolder');
+      if (!baseFolder) return;
+      
+      const data = await this.exportData();
+      const separator = baseFolder.includes('\\\\') ? '\\\\' : '/';
+      const backupPath = `${baseFolder}${separator}SCS_ShutdownBackup.json`;
+      
+      await window.electronAPI.writeFile(backupPath, JSON.stringify(data, null, 2));
+      console.log(`🛡️ Shutdown backup saved to ${backupPath}`);
+    } catch (err) {
+      console.error('❌ Shutdown backup failed:', err);
+    }
   }
 
   /**

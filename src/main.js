@@ -40,6 +40,16 @@ const app = {
 async function init() {
   console.log('🚀 Initializing SCS...');
 
+  // Layer 4: Request Browser Storage Persistence
+  if (navigator.storage && navigator.storage.persist) {
+    try {
+      const isPersisted = await navigator.storage.persist();
+      console.log(`💾 Storage persisted: ${isPersisted}`);
+    } catch (err) {
+      console.warn('⚠️ Could not persist browser storage:', err);
+    }
+  }
+
   // Initialize theme first (before showing anything)
   initTheme();
   console.log('🎨 Theme initialized');
@@ -115,6 +125,13 @@ async function init() {
         // Shutdown guard: flush sync queue before app closes
         if (window.electronAPI?.onBeforeQuit) {
           window.electronAPI.onBeforeQuit(async () => {
+            // Layer 2: Immediate shutdown backup
+            try {
+              if (db.performShutdownBackup) await db.performShutdownBackup();
+            } catch (err) {
+              console.warn('⚠️ Shutdown backup failed:', err);
+            }
+
             if (syncQueue.getStatus() !== 'idle') {
               // Show brief overlay
               const overlay = document.createElement('div');
