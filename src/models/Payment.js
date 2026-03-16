@@ -73,6 +73,9 @@ class PaymentModel {
    * @returns {Promise<Array>} - Array of payments
    */
   async findByStudent(studentId) {
+    const student = await db.get(STORES.STUDENTS, String(studentId));
+    if (student && student.status === 'deleted') return [];
+    
     const sid = String(studentId);
     const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', sid);
     
@@ -89,6 +92,13 @@ class PaymentModel {
    */
   async findAll(filters = {}) {
     let payments = await db.getAll(STORES.PAYMENTS);
+    const students = await db.getAll(STORES.STUDENTS);
+    const deletedStudentIds = new Set(
+      students.filter(s => s.status === 'deleted').map(s => String(s.id))
+    );
+
+    // Filter out payments belonging to deleted students
+    payments = payments.filter(p => !deletedStudentIds.has(String(p.studentId)));
 
     // Filter by date range
     if (filters.startDate) {
@@ -135,6 +145,9 @@ class PaymentModel {
    * @returns {Promise<object>} - Payments grouped by semester
    */
   async getStudentPaymentsBySemester(studentId) {
+    const student = await db.get(STORES.STUDENTS, String(studentId));
+    if (student && student.status === 'deleted') return { grouped: {}, maxSemester: 0 };
+    
     const sid = String(studentId);
     const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', sid);
     
@@ -183,6 +196,17 @@ class PaymentModel {
   }
 
   /**
+   * Find a payment by its reference (receipt number)
+   * @param {string} reference - Receipt/reference number
+   * @returns {Promise<object|null>} - Payment record or null
+   */
+  async findByReference(reference) {
+    if (!reference) return null;
+    const allPayments = await db.getAll(STORES.PAYMENTS);
+    return allPayments.find(p => p.reference === reference) || null;
+  }
+
+  /**
    * Delete a payment
    * @param {number|string} id - Payment database ID
    */
@@ -213,7 +237,7 @@ class PaymentModel {
       throw new Error('Payment method is required');
     }
 
-    const validMethods = ['cash', 'card', 'bank_transfer', 'online', 'other'];
+    const validMethods = ['cash', 'card', 'bank_transfer', 'online', 'online_banking', 'bank_in', 'other', 'registration_fee', 'commission'];
     if (!validMethods.includes(data.method)) {
       throw new Error('Invalid payment method');
     }
@@ -283,7 +307,14 @@ class PaymentModel {
    * @returns {Promise<Array>} - Recent payments
    */
   async getRecent(limit = 10) {
-    const payments = await db.getAll(STORES.PAYMENTS);
+    let payments = await db.getAll(STORES.PAYMENTS);
+    const students = await db.getAll(STORES.STUDENTS);
+    const deletedStudentIds = new Set(
+      students.filter(s => s.status === 'deleted').map(s => String(s.id))
+    );
+    
+    // Filter out deleted students' payments
+    payments = payments.filter(p => !deletedStudentIds.has(String(p.studentId)));
     
     // Sort by date (newest first) and limit
     return payments

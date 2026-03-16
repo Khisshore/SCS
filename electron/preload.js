@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createFolder: (path) => ipcRenderer.invoke('create-folder', path),
   folderExists: (path) => ipcRenderer.invoke('folder-exists', path),
   openFolderInExplorer: (path) => ipcRenderer.invoke('open-folder-in-explorer', path),
+  openFile: (path) => ipcRenderer.invoke('open-file', path),
   
   // PDF operations
   savePDF: (filePath, pdfData) => ipcRenderer.invoke('save-pdf', filePath, pdfData),

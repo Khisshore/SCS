@@ -5,7 +5,7 @@
 
 import { Payment } from '../models/Payment.js';
 import { Student } from '../models/Student.js';
-import { formatCurrency, formatDate } from '../utils/formatting.js';
+import { formatCurrency, formatDate, formatPaymentMethod } from '../utils/formatting.js';
 import { db } from '../db/database.js';
 import { Icons } from '../utils/icons.js';
 import { SpreadsheetExporter } from '../utils/spreadsheetExporter.js';
@@ -87,9 +87,9 @@ export function renderReportsSkeleton() {
 export async function renderReports() {
   const container = document.getElementById('app-content');
   
-  // Set default date range (this month)
+  // Set default date range (last 3 months)
   const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+  const firstDay = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().split('T')[0];
   const lastDay = today.toISOString().split('T')[0];
 
   container.innerHTML = `
@@ -142,7 +142,7 @@ export async function renderReports() {
           <div class="flex gap-sm mt-lg">
             <span style="font-size: 0.8rem; color: var(--text-tertiary); font-weight: 600; align-self: center; margin-right: 0.5rem;">PRESETS:</span>
             <button class="badge badge-secondary cursor-pointer preset-btn" data-preset="month">THIS MONTH</button>
-            <button class="badge badge-secondary cursor-pointer preset-btn" data-preset="quarter">LAST 3 MONTHS</button>
+            <button class="badge badge-secondary cursor-pointer preset-btn active" data-preset="quarter">LAST 3 MONTHS</button>
             <button class="badge badge-secondary cursor-pointer preset-btn" data-preset="year">THIS YEAR</button>
           </div>
         </div>
@@ -161,6 +161,7 @@ export async function renderReports() {
                 <tr>
                   <th>Date</th>
                   <th>Student</th>
+                  <th>Type</th>
                   <th>Method</th>
                   <th>Reference</th>
                   <th style="text-align: right;">Amount</th>
@@ -204,6 +205,26 @@ export async function renderReports() {
         box-shadow: var(--shadow-md);
       }
       
+      /* Table Typography consistency */
+      #reportTable th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-tertiary);
+        padding: 0.75rem 1rem;
+        font-weight: 700;
+      }
+      #reportTable td {
+        font-size: 0.9rem;
+        padding: 0.75rem 1rem;
+        vertical-align: middle;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      #reportTable .badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.65rem;
+      }
       /* Export dropdown styles - consistent with Spreadsheet page */
       .export-dropdown {
         position: relative;
@@ -262,11 +283,28 @@ export async function renderReports() {
       .export-menu a:last-child {
         border-radius: 0 0 var(--radius-xl) var(--radius-xl);
       }
+
+      /* Link style for references matching modern theme */
+      .receipt-link {
+        color: var(--primary-600);
+        text-decoration: none;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-md);
+        background: transparent;
+        transition: all 0.2s ease;
+      }
+      .receipt-link:hover {
+        background: var(--primary-50);
+        color: var(--primary-700);
+      }
     </style>
   `;
 
   // Initialize shared modals
   initPdfPreviewModal();
+
+  // Attach global functions to window for PDF preview from reports
+  window.previewReceiptFromReport = previewReceiptFromReport;
 
   // Attach event listeners
   document.getElementById('reportStartDate').addEventListener('change', updateReport);
@@ -369,6 +407,12 @@ async function updateReport() {
   reportData = [];
   for (const payment of payments) {
     const student = await Student.findById(payment.studentId);
+    
+    // Explicitly filter out payments for deleted students
+    if (student && student.status === 'deleted') {
+      continue;
+    }
+
     reportData.push({
       payment,
       student,
@@ -376,26 +420,88 @@ async function updateReport() {
     });
   }
   
-  document.getElementById('transactionCountBadge').textContent = `${payments.length} record${payments.length !== 1 ? 's' : ''}`;
+  document.getElementById('transactionCountBadge').textContent = `${reportData.length} record${reportData.length !== 1 ? 's' : ''}`;
 
   // Render Table
   const tbody = document.getElementById('reportTbody');
-  if (payments.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-tertiary);">No transactions found for this period.</td></tr>`;
+  if (reportData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-tertiary);">No transactions found for this period.</td></tr>`;
     return;
   }
 
-  const rows = reportData.map(({ payment, student, currency }) => `
+  // Group payments by student+semester for "Payment N" labeling
+  const semPaymentCounters = {};
+  // Sort by date ascending first to number payments chronologically
+  const sortedForLabeling = [...reportData].sort((a, b) => new Date(a.payment.date) - new Date(b.payment.date));
+  sortedForLabeling.forEach(({ payment }) => {
+    if (payment.semester) {
+      const key = `${payment.studentId}_${payment.semester}`;
+      if (!semPaymentCounters[key]) semPaymentCounters[key] = 0;
+      semPaymentCounters[key]++;
+      payment._paymentIndex = semPaymentCounters[key];
+    }
+  });
+
+  // Helper to get raw type string for export or display badge
+  const getPaymentTypeLabel = (payment) => {
+    const tt = payment.transactionType || '';
+    
+    // We use theme-adaptive CSS classes instead of hardcoded colors
+    let badgeClass = '';
+    let label = '';
+    
+    if (tt === 'REGISTRATION_FEE') {
+      badgeClass = 'badge badge-primary-subtle'; // primary color adapts to theme
+      label = 'Registration Fee';
+    } else if (tt === 'COMMISSION_PAYOUT') {
+      badgeClass = 'badge badge-primary-subtle'; 
+      label = 'Commission Payout';
+    } else if (payment.semester) {
+      badgeClass = 'badge badge-primary-subtle';
+      label = `Sem ${payment.semester}: Payment ${payment._paymentIndex || ''}`;
+    } else if (payment.description) {
+      badgeClass = 'badge badge-secondary';
+      label = payment.description;
+    } else {
+      badgeClass = 'badge badge-secondary';
+      label = 'Other';
+    }
+    
+    return `<span class="${badgeClass}" style="font-weight: 600;">${label}</span>`;
+  };
+
+  const rows = reportData.map(({ payment, student, currency }) => {
+    // 1. Method format: only show real payment methods, not internal identifiers
+    const internalMethods = ['registration_fee', 'commission', 'SYSTEM_TRANSFER', 'SYSTEM TRANSFER'];
+    const rawMethod = payment.method || '';
+    let methodText = '-';
+    if (rawMethod && !internalMethods.includes(rawMethod)) {
+      methodText = formatPaymentMethod(rawMethod, rawMethod.replace(/_/g, ' ').toUpperCase());
+    }
+
+    // 2. Reference Clickable Fix
+    let refHtml = `<span style="font-family: monospace;">-</span>`;
+    if (payment.reference) {
+      refHtml = `<a href="#" class="receipt-link" onclick="window.previewReceiptFromReport('${student.id}', '${payment.id}'); return false;" style="display:inline-flex; align-items:center; gap:0.25rem; font-family:var(--font-mono); font-size:0.875rem;">
+                   <span class="icon" style="font-size:0.875rem;">${Icons.file}</span>
+                   ${payment.reference}
+                 </a>`;
+    }
+
+    return `
     <tr>
-      <td>${formatDate(payment.date, 'short')}</td>
+      <td style="white-space: nowrap;">${formatDate(payment.date, 'short')}</td>
       <td>
         <div style="font-weight: 600; color: var(--text-primary);">${student ? student.name : 'Unknown'}</div>
       </td>
-      <td><span class="badge badge-primary">${payment.method.replace('_', ' ').toUpperCase()}</span></td>
-      <td style="font-family: monospace;">${payment.reference || '-'}</td>
-      <td style="text-align: right; font-weight: 700; color: var(--text-primary);">${formatCurrency(payment.amount, currency)}</td>
+      <td>${getPaymentTypeLabel(payment)}</td>
+      <td><span style="font-weight: 500; color: var(--text-secondary);">${methodText}</span></td>
+      <td style="white-space: nowrap;">${refHtml}</td>
+      <td style="text-align: right; font-weight: 700; white-space: nowrap; color: ${payment.category === 'EXPENSE' ? 'var(--danger-600, #dc2626)' : 'var(--text-primary)'};">${
+        payment.category === 'EXPENSE' ? '- ' : ''
+      }${formatCurrency(payment.amount, currency)}</td>
     </tr>
-  `);
+  `});
   tbody.innerHTML = rows.join('');
 }
 
@@ -453,14 +559,16 @@ async function exportReportXLSX() {
   };
   
   // Define column keys and widths (Initial placeholder)
+  // Define column keys and widths
   const columns = [
     { key: 'no', width: 6 },
     { key: 'date', width: 12 },
-    { key: 'student', width: 30 },
+    { key: 'student', width: 25 },
+    { key: 'type', width: 20 },
     { key: 'method', width: 10 },
     { key: 'reference', width: 15 },
     { key: 'amount', width: 15 },
-    { key: 'description', width: 35 }
+    { key: 'description', width: 30 }
   ];
   worksheet.columns = columns;
 
@@ -468,20 +576,30 @@ async function exportReportXLSX() {
   const titleText = `Transaction Report (${displayPeriod})`;
   const titleRow = worksheet.addRow([titleText]);
   titleRow.font = { bold: true, size: 16, name: 'Inter', color: { argb: 'FF1E293B' } };
-  worksheet.mergeCells(`A${titleRow.number}:G${titleRow.number}`);
+  worksheet.mergeCells(`A${titleRow.number}:H${titleRow.number}`);
   titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   titleRow.height = 30; // Professional height for title
   
   worksheet.addRow([]); // Gap row
   
   // Headers Row (Manual)
-  const headers = ['No', 'Date', 'Student Name', 'Method', 'Reference', 'Amount', 'Description'];
+  const headers = ['No', 'Date', 'Student Name', 'Type', 'Method', 'Reference', 'Amount', 'Description'];
   const headerRow = worksheet.addRow(headers);
   headerRow.height = 25;
   headerRow.eachCell((cell) => {
     Object.assign(cell.style, styles.header);
   });
   
+  // Helper to get raw type string for export
+  const getRawTypeName = (payment) => {
+    const tt = payment.transactionType || '';
+    if (tt === 'REGISTRATION_FEE') return 'Registration Fee';
+    if (tt === 'COMMISSION_PAYOUT') return 'Commission Payout';
+    if (payment.semester) return `Sem ${payment.semester}: Payment ${payment._paymentIndex || ''}`;
+    if (payment.description) return payment.description;
+    return 'Other';
+  };
+
   // Data rows
   let rowNum = 1;
   for (const { payment, student } of reportData) {
@@ -489,9 +607,10 @@ async function exportReportXLSX() {
       no: rowNum++,
       date: formatDate(payment.date, 'short'),
       student: student ? student.name : 'Unknown',
-      method: payment.method.toUpperCase(),
+      type: getRawTypeName(payment),
+      method: (payment.method || '').toUpperCase(),
       reference: payment.reference || '-',
-      amount: payment.amount,
+      amount: payment.category === 'EXPENSE' ? -payment.amount : payment.amount,
       description: payment.description || ''
     });
     
@@ -502,16 +621,16 @@ async function exportReportXLSX() {
       if (colIdx === 1) { // No. column
         cell.numFmt = '0';
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      } else if (colIdx === 6) { // Amount column
+      } else if (colIdx === 7) { // Amount column
         cell.numFmt = styles.money.numFmt;
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
         cell.font = { bold: true, name: 'Inter', size: 10, color: { argb: 'FF1A1D1F' } };
-      } else if (colIdx === 4) { // Method column
+      } else if (colIdx === 5) { // Method column
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
         if (cell.value === 'CASH') {
           cell.font = { name: 'Inter', size: 10, color: { argb: 'FF1A1D1F' } };
         }
-      } else if (colIdx === 3 || colIdx === 7) { // Name or Description
+      } else if (colIdx === 3 || colIdx === 4 || colIdx === 8) { // Name, Type, Description
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       } else {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -524,7 +643,8 @@ async function exportReportXLSX() {
   const columnConfigs = [
     { header: 'No', key: 'no', min: 8, buffer: 2 },
     { header: 'Date', key: 'date', min: 14, buffer: 3 },
-    { header: 'Student Name', key: 'student', min: 35, buffer: 5 }, // Extra space for names
+    { header: 'Student Name', key: 'student', min: 25, buffer: 5 },
+    { header: 'Type', key: 'type', min: 15, buffer: 3 },
     { header: 'Method', key: 'method', min: 12, buffer: 3 },
     { header: 'Reference', key: 'reference', min: 15, buffer: 3 },
     { header: 'Amount', key: 'amount', min: 18, buffer: 5 },
@@ -540,7 +660,8 @@ async function exportReportXLSX() {
       if (config.key === 'no') val = (rowIndex + 1).toString();
       else if (config.key === 'date') val = formatDate(row.payment.date, 'short');
       else if (config.key === 'student') val = row.student.name;
-      else if (config.key === 'method') val = row.payment.method;
+      else if (config.key === 'type') val = getRawTypeName(row.payment);
+      else if (config.key === 'method') val = row.payment.method || '';
       else if (config.key === 'reference') val = row.payment.reference || '';
       else if (config.key === 'amount') val = `RM ${row.payment.amount.toFixed(2)}`;
       else if (config.key === 'description') val = row.payment.description || '';
@@ -554,9 +675,11 @@ async function exportReportXLSX() {
 
   // Summary Row
   worksheet.addRow([]);
-  const totalAmount = reportData.reduce((sum, { payment }) => sum + payment.amount, 0);
-  // Place TOTAL: in col 5 (Reference) and amount in col 6 (Amount)
-  const summaryRow = worksheet.addRow(['', '', '', '', 'TOTAL:', totalAmount]);
+  const totalAmount = reportData.reduce((sum, { payment }) => {
+    return sum + (payment.category === 'EXPENSE' ? -payment.amount : payment.amount);
+  }, 0);
+  // Place TOTAL: in col 6 (Reference) and amount in col 7 (Amount)
+  const summaryRow = worksheet.addRow(['', '', '', '', '', 'TOTAL:', totalAmount]);
   
   // Apply a solid border to the ENTIRE total row to close the table cleanly
   summaryRow.eachCell({ includeEmpty: true }, (cell, colIdx) => {
@@ -564,10 +687,10 @@ async function exportReportXLSX() {
       top: { style: 'thin', color: { argb: 'FF1E293B' } }
     };
     
-    if (colIdx === 5 || colIdx === 6) { // TOTAL: and Amount
+    if (colIdx === 6 || colIdx === 7) { // TOTAL: and Amount
       cell.font = { bold: true, name: 'Inter', size: 10, color: { argb: 'FF059669' } }; // Green for total emphasis
       cell.alignment = { horizontal: 'right', vertical: 'middle' };
-      if (colIdx === 6) {
+      if (colIdx === 7) {
         cell.numFmt = styles.money.numFmt;
         cell.border = {
           top: { style: 'thin', color: { argb: 'FF1E293B' } },
@@ -605,14 +728,25 @@ async function generateReportPDF(startDate, endDate) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Period: ${formatMY(startDate)} to ${formatMY(endDate)}`, 14, 22);
   
+  // Helper for raw type string
+  const getRawTypeName = (payment) => {
+    const tt = payment.transactionType || '';
+    if (tt === 'REGISTRATION_FEE') return 'Registration Fee';
+    if (tt === 'COMMISSION_PAYOUT') return 'Commission Payout';
+    if (payment.semester) return `Sem ${payment.semester}: Payment ${payment._paymentIndex || ''}`;
+    if (payment.description) return payment.description;
+    return 'Other';
+  };
+
   // Table
   const tableData = reportData.map(({ payment, student }, idx) => [
     idx + 1,
     formatDate(payment.date, 'short'),
     student ? student.name : 'Unknown',
-    payment.method.toUpperCase(),
+    getRawTypeName(payment),
+    (payment.method || '').toUpperCase(),
     payment.reference || '-',
-    `${currency} ${payment.amount.toFixed(2)}`,
+    `${payment.category === 'EXPENSE' ? '-' : ''}${currency} ${payment.amount.toFixed(2)}`,
     payment.description || ''
   ]);
   
@@ -620,9 +754,9 @@ async function generateReportPDF(startDate, endDate) {
 
   autoTable(doc, {
     startY: 28,
-    head: [['No', 'Date', 'Student Name', 'Method', 'Reference', 'Amount', 'Description']],
+    head: [['No', 'Date', 'Student Name', 'Type', 'Method', 'Reference', 'Amount', 'Description']],
     body: tableData,
-    foot: [['', '', '', '', 'TOTAL:', `${currency} ${totalAmount.toFixed(2)}`, '']],
+    foot: [['', '', '', '', '', 'TOTAL:', `${currency} ${totalAmount.toFixed(2)}`, '']],
     theme: 'grid',
     headStyles: {
       fillColor: [30, 41, 59],
@@ -641,13 +775,14 @@ async function generateReportPDF(startDate, endDate) {
       lineColor: [200, 200, 200]
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 12 },
-      1: { halign: 'center', cellWidth: 25 },
+      0: { halign: 'center', cellWidth: 10 },
+      1: { halign: 'center', cellWidth: 22 },
       2: { halign: 'left' },
-      3: { halign: 'center', cellWidth: 20 },
-      4: { halign: 'center', cellWidth: 25 },
-      5: { halign: 'right', cellWidth: 35 },
-      6: { halign: 'left' }
+      3: { halign: 'left', cellWidth: 35 },
+      4: { halign: 'center', cellWidth: 18 },
+      5: { halign: 'center', cellWidth: 30 },
+      6: { halign: 'right', cellWidth: 28 },
+      7: { halign: 'left' }
     },
     styles: {
       fontSize: 9,
@@ -699,5 +834,45 @@ async function printReport() {
   const timestamp = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   const formatFilename = (d) => d.split('-').reverse().join('-');
   const filename = `Report_${formatFilename(startDate)}_to_${formatFilename(endDate)}_${timestamp}`;
-  openPdfPreviewModal(doc, filename);
+  openPdfPreviewModal(doc, filename, null);
+}
+
+/**
+ * Handle clicking on a reference number in the report
+ */
+async function previewReceiptFromReport(studentId, paymentId) {
+  try {
+    const student = await Student.findById(studentId);
+    const payment = await Payment.findById(paymentId);
+    const allPayments = await Payment.findByStudent(studentId);
+    
+    if (!student || !payment) {
+      alert('Error: Could not find student or payment data.');
+      return;
+    }
+
+    // Need to dynamically import generation to avoid circular deps with StudentDetailModal
+    const { generateReceiptPDF, generateFeeReceiptPDF } = await import('../utils/pdfGenerator.js');
+
+    let result;
+    if (payment.transactionType === 'REGISTRATION_FEE') {
+      result = await generateFeeReceiptPDF(student, 'Registration Fee', payment.amount, payment.reference, null);
+    } else if (payment.transactionType === 'COMMISSION_PAYOUT') {
+      result = await generateFeeReceiptPDF(student, 'Commission Fee', payment.amount, payment.reference, student.commissionPaidTo || '');
+    } else {
+      result = await generateReceiptPDF(student, payment, allPayments);
+    }
+
+    const { doc, saveResult } = result;
+    
+    if (saveResult?.success && window.electronAPI) {
+      await window.electronAPI.openFile(saveResult.path);
+    } else {
+      const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
+      openPdfPreviewModal(doc, filename, saveResult);
+    }
+  } catch (error) {
+    console.error('Error opening receipt preview from reports:', error);
+    alert('Failed to open receipt. Please try again.');
+  }
 }

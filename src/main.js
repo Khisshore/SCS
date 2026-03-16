@@ -61,6 +61,22 @@ async function init() {
     await db.init();
     console.log('✅ Database ready');
 
+    // ═══ ONE-TIME DATA CLEANUP: mark previously-deleted students who slipped through ═══
+    const cleanupDone = await db.getSetting('cleanup_lehasre_done');
+    if (!cleanupDone) {
+      try {
+        const allStudents = await Student.findAll({ includeDeleted: true });
+        const targets = allStudents.filter(s => s.name && s.name.toLowerCase().includes('lehasre') && s.status !== 'deleted');
+        for (const t of targets) {
+          await Student.delete(t.id);
+          console.log(`🧹 Cleanup: marked "${t.name}" (id=${t.id}) as deleted`);
+        }
+        await db.setSetting('cleanup_lehasre_done', true);
+      } catch (e) {
+        console.warn('⚠️ Cleanup script error (non-fatal):', e);
+      }
+    }
+
     // Initialize background AFTER DB is ready
     initBackground();
     console.log('🌌 Background service initialized');

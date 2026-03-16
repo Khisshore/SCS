@@ -243,13 +243,14 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
   doc.text('Thank you for your payment. This is a computer-generated receipt. All payment made is NON-REFUNDABLE.', margin, currentY);
 
   // Save to file system if running in desktop app
+  let saveResult = null;
   if (fileSystem.isDesktopApp()) {
     try {
       const pdfData = doc.output('arraybuffer');
       const baseFilename = `Receipt_${currentPayment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
       const semesterLabel = currentPayment.semester ? `Semester ${currentPayment.semester}` : null;
       
-      await fileSystem.savePDF(
+      saveResult = await fileSystem.savePDF(
         student.course || 'Other',
         student.program || 'General',
         student.name,
@@ -259,10 +260,11 @@ export async function generateReceiptPDF(student, currentPayment, allPayments) {
       );
     } catch (error) {
       console.error('❌ Failed to save receipt to file system:', error);
+      saveResult = { success: false, error: error.message };
     }
   }
 
-  return doc;
+  return { doc, saveResult };
 }
 
 /**
@@ -397,13 +399,14 @@ export async function generateFeeReceiptPDF(student, feeType, amount, receiptNo,
   doc.text('Thank you for your payment. This is a computer-generated receipt.', margin, currentY);
 
   // Save to file system
+  let saveResult = null;
   if (fileSystem.isDesktopApp()) {
     try {
       const pdfData = doc.output('arraybuffer');
       const baseFilename = `${feeType.replace(/\s+/g, '_')}_Receipt_${student.name.replace(/\s+/g, '_')}`;
       
       // Pass null for semester to save in student root folder
-      const result = await fileSystem.savePDF(
+      saveResult = await fileSystem.savePDF(
         student.course || 'Other',
         student.program || 'General',
         student.name,
@@ -412,19 +415,18 @@ export async function generateFeeReceiptPDF(student, feeType, amount, receiptNo,
         pdfData
       );
 
-      if (result.success) {
-        // Log success instead of alert for smoother experience
-        console.log(`✅ Receipt saved to: ${result.path}`);
+      if (saveResult.success) {
+        // Successfully saved
       } else {
-        alert(`❌ Failed to save receipt: ${result.error}`);
+        console.warn(`⚠️ Failed to save receipt: ${saveResult.error}`);
       }
     } catch (error) {
       console.error('❌ Failed to save fee receipt to file system:', error);
-      alert(`❌ Error saving receipt: ${error.message}`);
+      saveResult = { success: false, error: error.message };
     }
   }
 
-  return doc;
+  return { doc, saveResult };
 }
 
 /**

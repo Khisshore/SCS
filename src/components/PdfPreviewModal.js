@@ -159,7 +159,8 @@ export function initPdfPreviewModal() {
 
   const closeModal = () => {
     modalContainer.style.display = 'none';
-    document.getElementById('pdfPreviewFrame').src = 'about:blank';
+    const modalBody = modalContainer.querySelector('.modal-body');
+    if (modalBody) modalBody.innerHTML = ''; // Clear object to stop rendering
     if (currentBlobUrl) {
       URL.revokeObjectURL(currentBlobUrl);
       currentBlobUrl = null;
@@ -171,8 +172,27 @@ export function initPdfPreviewModal() {
 
   printBtn?.addEventListener('click', () => {
     const frame = document.getElementById('pdfPreviewFrame');
+    const embed = document.getElementById('pdfPreviewEmbed');
+    
+    // For iframes, we can try direct print
     if (frame && frame.contentWindow) {
-      frame.contentWindow.print();
+      try {
+        return frame.contentWindow.print();
+      } catch (e) { console.warn('Iframe print failed'); }
+    }
+
+    // For embeds or if frame print failed, the most robust way in Electron is a new window with the blob
+    if (currentBlobUrl) {
+      const printWin = window.open(currentBlobUrl, '_blank');
+      if (printWin) {
+        printWin.onload = () => {
+          printWin.print();
+          // Optional: close after print
+          // printWin.onafterprint = () => printWin.close();
+        };
+      }
+    } else {
+      alert('Could not prepare document for printing. Please try downloading instead.');
     }
   });
 
@@ -201,23 +221,63 @@ export function initPdfPreviewModal() {
  * Open the PDF Preview Modal
  * @param {jsPDF} doc - jsPDF instance
  * @param {string} filename - Filename for download (without .pdf)
+ * @param {object} saveResult - Result from fileSystem.savePDF { success, path, error }
  */
-export function openPdfPreviewModal(doc, filename) {
+export function openPdfPreviewModal(doc, filename, saveResult = null) {
   const modal = document.getElementById('pdfPreviewModal');
   if (!modal) {
     initPdfPreviewModal();
-    return openPdfPreviewModal(doc, filename);
+    return openPdfPreviewModal(doc, filename, saveResult);
   }
 
-  // Cleanup old blob if any (though closeModal does it, safe guard)
-  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-
-  currentFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
-  currentBlobUrl = doc.output('bloburl');
+  // Sanitize filename to remove characters that break URI headers or Windows filesystems (like slashes)
+  const sanitizedFilename = filename.replace(/[\/\\?%*:|"<>]/g, '-');
+  const displayTitle = sanitizedFilename.replace(/_/g, ' ');
   
-  document.getElementById('pdfModalTitle').textContent = filename.replace(/_/g, ' ');
-  // Hide native toolbar to prevent duplicate confusion and random naming issues
-  document.getElementById('pdfPreviewFrame').src = `${currentBlobUrl}#toolbar=0&navpanes=0`;
+  // Clean up old blob and create a new one
+  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+  const pdfBlob = doc.output('blob');
+  currentBlobUrl = URL.createObjectURL(pdfBlob);
+  currentFilename = displayTitle.endsWith('.pdf') ? displayTitle : `${displayTitle}.pdf`;
+
+
+  document.getElementById('pdfModalTitle').textContent = displayTitle;
+  
+  const modalBody = document.querySelector('.pdf-modal .modal-body');
+  
+  // Define fallback target: prefer the actual saved file path, then the blob URL
+  const fallbackPath = saveResult?.success ? saveResult.path : currentBlobUrl;
+  const isNativeFallback = !!(saveResult?.success && window.electronAPI);
+  const fallbackAction = isNativeFallback 
+    ? `window.electronAPI.openFile('${saveResult.path.replace(/\\/g, '\\\\')}')`
+    : `window.open('${currentBlobUrl}', '_blank')`;
+
+  // Using iframe with the BLOB URL (shorter, safer than DataURI for long documents)
+  // Removing #fragments as they can sometimes interfere with initial plugin load on Windows
+  modalBody.innerHTML = `
+    <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-tertiary); pointer-events: none; z-index: 0; background: #525659;">
+      <div class="loader-spinner" style="width: 2rem; height: 2rem; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem;"></div>
+      <p>Rendering Receipt...</p>
+      <small style="margin-top: 0.5rem; opacity: 0.7;">If it remains blank, please use the button below.</small>
+    </div>
+    <iframe 
+      id="pdfPreviewFrame"
+      src="${currentBlobUrl}" 
+      width="100%" 
+      height="100%"
+      style="position: relative; z-index: 1; border:none; background: transparent;"
+      onload="this.style.background='#525659'"
+    ></iframe>
+    <div style="position: absolute; bottom: 1.5rem; left: 0; right: 0; display: flex; justify-content: center; z-index: 10; pointer-events: none;">
+      <button class="btn btn-secondary btn-sm" style="pointer-events: auto; background: var(--surface); box-shadow: var(--shadow-xl); border: 1px solid var(--border-color); padding: 0.75rem 1.25rem;" onclick="${fallbackAction}">
+        <span class="icon" style="margin-right: 0.5rem;">${Icons.external || Icons.fileText}</span>
+        <span>Trouble viewing? Open in System Viewer</span>
+      </button>
+    </div>
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  `;
   
   modal.style.display = 'flex';
 }

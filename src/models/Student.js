@@ -36,8 +36,10 @@ class StudentModel {
       institutionalCost: parseFloat(studentData.institutionalCost) || 0,
       registrationFee: parseFloat(studentData.registrationFee) || 0,
       registrationFeeReceipt: studentData.registrationFeeReceipt || '',
+      registrationFeeMethod: studentData.registrationFeeMethod || '',
       commission: parseFloat(studentData.commission) || 0,
       commissionReceipt: studentData.commissionReceipt || '',
+      commissionMethod: studentData.commissionMethod || '',
       commissionPaidTo: studentData.commissionPaidTo || '',
       totalSemesters: parseInt(studentData.totalSemesters) || 1,
       status: studentData.status || 'active',
@@ -137,6 +139,11 @@ class StudentModel {
         s.program.toLowerCase().includes(searchTerm)
       );
     }
+    
+    // By default filter out deleted students
+    if (!filters.status && !filters.includeDeleted) {
+      students = students.filter(s => s.status !== 'deleted');
+    }
 
     // Sort by relevance (starts with > includes) then by name
     if (filters.search) {
@@ -195,11 +202,11 @@ class StudentModel {
   }
 
   /**
-   * Delete a student (soft delete - mark as inactive)
+   * Delete a student (soft delete - mark as deleted)
    * @param {number} id - Student database ID
    */
   async delete(id) {
-    return await this.update(id, { status: 'inactive' });
+    return await this.update(id, { status: 'deleted' });
   }
 
   /**
@@ -241,7 +248,8 @@ class StudentModel {
    * @returns {Promise<object>} - Statistics object
    */
   async getStatistics() {
-    const students = await db.getAll(STORES.STUDENTS);
+    const allStudents = await db.getAll(STORES.STUDENTS);
+    const students = allStudents.filter(s => s.status !== 'deleted');
     
     return {
       total: students.length,

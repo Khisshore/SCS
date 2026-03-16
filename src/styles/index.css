@@ -89,8 +89,8 @@
 }
 
 html {
-  background-color: #050505; /* Neutral true dark fallback */
-  height: 100%;
+  background-color: var(--background); /* Fixed hardcoded black which caused the scroll bleeding */
+  min-height: 100%;
 }
 
 :root[data-theme="dark"] {
@@ -808,6 +808,7 @@ p {
 /* Main Content */
 .main-content {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-current-width);
   padding: 1.75rem 2.5rem 2.5rem 2.5rem; /* Dropped slightly for perfect logo alignment */
   min-height: 100vh;
@@ -829,6 +830,7 @@ p {
 }
 
 .content-wrapper {
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -1185,11 +1187,13 @@ p {
   border-radius: var(--radius-xl);
   box-shadow: none;
   background: transparent;
+  border: 1px solid var(--border-color);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  border-style: hidden;
 }
 
 .table thead {
@@ -1197,7 +1201,7 @@ p {
 }
 
 .table th {
-  padding: var(--space-lg);
+  padding: 1rem; /* Reduced from 1.5rem for better fit */
   text-align: left;
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -1209,7 +1213,7 @@ p {
 }
 
 .table td {
-  padding: var(--space-lg);
+  padding: 1rem; /* Reduced from 1.5rem for better fit */
   border: 1px solid var(--border-color); /* Full border */
   color: var(--text-secondary);
   vertical-align: middle;
@@ -1246,8 +1250,8 @@ p {
 }
 
 .badge-info {
-  background: rgba(139, 92, 246, 0.1);
-  color: #7c3aed;
+  background: rgba(6, 182, 212, 0.1); /* Cyan-themed background */
+  color: #0891b2; /* Cyan-themed text */
 }
 
 .badge-success {
@@ -1297,9 +1301,9 @@ p {
 }
 
 [data-theme="dark"] .badge-info {
-  background: rgba(139, 92, 246, 0.15);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
 /* Modal */

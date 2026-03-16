@@ -133,8 +133,19 @@ export class SpreadsheetExporter {
     let globalNo = 1;
     let currentRowIdx = 5;
     
+    // Use the actual students from the filtered rows instead of undefined 'allStudents'
+    const blockStudentsRaw = rows.filter(r => r.type === 'data').map(r => r._originalStudent || { id: r.id, name: r.studentName, program: r.program, course: r.course });
+    
     const studentsByProgram = {};
+    const processedStudentIds = new Set();
+    
+    // We need complete student objects for the payments, so fetch them to be safe
+    const allStudents = await Student.findAll();
+    
     allStudents.forEach(s => {
+      // Only include students that are part of the current filtered report view
+      if (!rows.some(r => r.type === 'data' && r.studentName === s.name)) return;
+      
       const p = s.program || 'Unassigned';
       if (!studentsByProgram[p]) studentsByProgram[p] = [];
       studentsByProgram[p].push(s);
@@ -569,7 +580,7 @@ export class SpreadsheetExporter {
   async printSpreadsheet() {
     const doc = this._generatePDFDoc();
     const filename = this.generateFilename(''); // Filename without extension for the modal
-    openPdfPreviewModal(doc, filename);
+    openPdfPreviewModal(doc, filename, null);
   }
 
 

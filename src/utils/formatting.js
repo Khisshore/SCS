@@ -117,6 +117,10 @@ export function formatPaymentMethod(method, defaultValue) {
     bank_transfer: 'Bank Transfer',
     online: 'Online Payment',
     online_payment: 'Online Payment',
+    online_banking: 'Online Banking',
+    bank_in: 'Bank-In',
+    registration_fee: 'Registration Fee',
+    commission: 'Commission',
     other: 'Other'
   };
   

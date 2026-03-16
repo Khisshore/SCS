@@ -90,9 +90,9 @@ export async function renderStudents() {
             </div>
             <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 200px;">
               <select id="statusFilter" class="form-select">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
+                <option value="active" selected>Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="">All Status</option>
               </select>
             </div>
             <button class="btn btn-secondary" id="refreshStudentsBtn" style="padding: 0.75rem;">
@@ -136,6 +136,27 @@ export async function renderStudents() {
           transform: translateX(0);
         }
       }
+
+      /* Table Typography consistency */
+      .table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-tertiary);
+        padding: 1rem 1.5rem;
+        font-weight: 700;
+      }
+      .table td {
+        font-size: 0.9rem;
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      .table .badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.65rem;
+      }
     </style>
   `;
 
@@ -158,7 +179,7 @@ export async function renderStudents() {
   };
 
   // Attach event listeners
-  document.getElementById('addStudentBtn').addEventListener('click', showStudentForm);
+  document.getElementById('addStudentBtn').addEventListener('click', () => showStudentForm());
   document.getElementById('refreshStudentsBtn').addEventListener('click', loadStudents);
   document.getElementById('studentSearch').addEventListener('input', debounceSearch);
   document.getElementById('statusFilter').addEventListener('change', loadStudents);
@@ -169,7 +190,10 @@ export async function renderStudents() {
  */
 async function loadStudents() {
   const search = document.getElementById('studentSearch')?.value || '';
-  const status = document.getElementById('statusFilter')?.value || '';
+  const statusFilterEl = document.getElementById('statusFilter');
+  // Default to active if the select exists but is somehow empty during init, 
+  // actually document.getElementById('statusFilter')?.value will be 'active' natively because of 'selected' attribute.
+  const status = statusFilterEl ? statusFilterEl.value : 'active';
 
   const filters = {};
   if (search) filters.search = search;
@@ -278,7 +302,7 @@ async function loadStudents() {
                     class="btn btn-sm btn-danger"
                     onclick="window.deleteStudent('${student.id}')"
                     style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
-                    title="Deactivate"
+                    title="Delete"
                   >
                     <span class="icon">${Icons.trash}</span>
                   </button>
@@ -322,15 +346,23 @@ function showStudentForm(studentId = null) {
   const modal = document.getElementById('modal-container');
   modal.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal" style="max-width: 1100px; width: 95%;">
+      <div class="modal-content" style="max-width: 900px; width: 95%; max-height: 90vh;">
         <div class="modal-header">
-          <h2 class="modal-title">${isEdit ? 'Edit Student' : 'Add New Student'}</h2>
-          <button class="modal-close" onclick="window.closeModal()">×</button>
+          <div class="modal-student-title">
+            <h2 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+              ${isEdit ? 'Edit Student' : 'Add New Student'}
+            </h2>
+          </div>
+          <div class="modal-header-actions">
+            <button class="modal-close-btn" onclick="window.closeModal()" title="Close">
+              <span class="icon">${Icons.close}</span>
+            </button>
+          </div>
         </div>
         <form id="studentForm" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
           <div class="modal-body">
             <!-- Basic Info Section -->
-            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+            <div class="form-section mb-xl p-xl rounded-2xl" style="background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: none; box-shadow: none;">
               <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
                 <span class="icon icon-sm text-primary-600">${Icons.user}</span> Basic Information
               </h4>
@@ -349,7 +381,7 @@ function showStudentForm(studentId = null) {
               <div class="grid grid-2 gap-md mt-md">
                 <div class="form-group">
                   <label class="form-label">Course Type</label>
-                  <select id="studentCourse" class="form-select" onchange="window.updateProgrammeOptions()">
+                  <select id="studentCourse" class="form-select" onchange="window.handleCourseSelectChange()">
                     <option value="">Select Course</option>
                     <option value="Diploma">Diploma</option>
                     <option value="BBA">BBA (Bachelor)</option>
@@ -357,6 +389,7 @@ function showStudentForm(studentId = null) {
                     <option value="DBA">DBA (Doctorate)</option>
                     <option value="Other">Other</option>
                   </select>
+                  <input type="text" id="studentCourseOther" class="form-input mt-sm hidden" placeholder="Enter new course type" spellcheck="true" autocorrect="on" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Programme</label>
@@ -385,7 +418,7 @@ function showStudentForm(studentId = null) {
             </div>
 
             <!-- Enrollment Section -->
-            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+            <div class="form-section mb-xl p-xl rounded-2xl" style="background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: none; box-shadow: none;">
               <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
                 <span class="icon icon-sm text-primary-600">
                   <svg viewBox="0 0 24 24" fill="none" class="icon-sm" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -421,7 +454,7 @@ function showStudentForm(studentId = null) {
             </div>
 
             <!-- Financial Section -->
-            <div class="form-section mb-xl p-lg rounded-xl bg-surface-hover border border-light">
+            <div class="form-section mb-xl p-xl rounded-2xl" style="background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: none; box-shadow: none;">
               <h4 class="text-primary font-bold mb-md flex items-center gap-sm">
                 <span class="icon icon-sm text-primary-600">${Icons.dollarSign}</span> Financial Details
               </h4>
@@ -440,19 +473,39 @@ function showStudentForm(studentId = null) {
               <div class="grid grid-2 gap-md mt-md">
                 <div class="form-group">
                   <label class="form-label">Registration Fee (RM)</label>
-                  <div class="grid" style="grid-template-columns: 1fr 1.5fr; gap: var(--space-sm);">
-                    <input type="number" id="studentRegistrationFee" class="form-input" min="0" step="0.01" placeholder="0.00" />
-                    <div id="regReceiptContainer"></div>
+                  <div class="flex flex-col gap-sm">
+                    <div class="grid" style="grid-template-columns: 1.2fr 1fr; gap: var(--space-sm);">
+                      <input type="number" id="studentRegistrationFee" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                      <div id="regReceiptContainer"></div>
+                    </div>
+                    <select id="studentRegistrationFeeMethod" class="form-select">
+                      <option value="" disabled selected>Payment Method</option>
+                      <option value="cash">Cash</option>
+                      <option value="online_banking">Online Banking</option>
+                      <option value="bank_in">Bank-In</option>
+                      <option value="card">Credit Card</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Commission (RM)</label>
                   <div class="flex flex-col gap-sm">
-                    <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--space-sm);">
+                    <div class="grid" style="grid-template-columns: 1.2fr 1fr; gap: var(--space-sm);">
                       <input type="number" id="studentCommission" class="form-input" min="0" step="0.01" placeholder="0.00" />
                       <div id="commReceiptContainer"></div>
                     </div>
-                    <input type="text" id="studentCommissionPaidTo" class="form-input" placeholder="Paid To" spellcheck="true" autocorrect="on" />
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+                      <select id="studentCommissionMethod" class="form-select">
+                        <option value="" disabled selected>Payment Method</option>
+                        <option value="cash">Cash</option>
+                        <option value="online_banking">Online Banking</option>
+                        <option value="bank_in">Bank-In</option>
+                        <option value="card">Credit Card</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <input type="text" id="studentCommissionPaidTo" class="form-input" placeholder="Paid To" spellcheck="true" autocorrect="on" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -512,6 +565,21 @@ function showStudentForm(studentId = null) {
     context: 'COM'
   });
 
+  // Helper to handle course selection and program options
+  window.handleCourseSelectChange = async () => {
+    const courseSelect = document.getElementById('studentCourse');
+    const courseOtherInput = document.getElementById('studentCourseOther');
+    
+    if (courseSelect.value === 'Other') {
+      courseOtherInput.classList.remove('hidden');
+      courseOtherInput.focus();
+    } else {
+      courseOtherInput.classList.add('hidden');
+    }
+    
+    await window.updateProgrammeOptions();
+  };
+
   // Helper to update programme options
   window.updateProgrammeOptions = async (selectedProgram = null) => {
     const course = document.getElementById('studentCourse').value;
@@ -524,8 +592,13 @@ function showStudentForm(studentId = null) {
     // Hide delete button initially
     if(deleteBtn) deleteBtn.classList.add('hidden');
     
-    if (course) {
-      const programmes = await Programme.findByCourse(course);
+    let activeCourse = document.getElementById('studentCourse').value;
+    if (activeCourse === 'Other') {
+      activeCourse = document.getElementById('studentCourseOther').value.trim();
+    }
+
+    if (activeCourse) {
+      const programmes = await Programme.findByCourse(activeCourse);
       programmes.forEach(p => {
         programSelect.innerHTML += `<option value="${p.name}">${p.name}</option>`;
       });
@@ -613,18 +686,32 @@ function showStudentForm(studentId = null) {
  * Load student data for editing
  */
 async function loadStudentData(studentId) {
-  // Validate studentId
-  if (!studentId || typeof studentId !== 'number') {
+  // Coerce string IDs to numbers (HTML data-attributes and some call-sites pass strings)
+  const numericId = Number(studentId);
+  const lookupId = (!isNaN(numericId) && numericId) ? numericId : studentId;
+
+  if (!lookupId) {
     console.error('Invalid student ID:', studentId);
     return;
   }
   
-  const student = await Student.findById(studentId);
+  const student = await Student.findById(lookupId);
   if (!student) return;
 
   document.getElementById('studentId').value = student.studentId;
   document.getElementById('studentName').value = student.name;
-  document.getElementById('studentCourse').value = student.course || 'Other';
+  
+  // Set Course
+  const courseSelect = document.getElementById('studentCourse');
+  const courseOptions = Array.from(courseSelect.options).map(opt => opt.value);
+  if (student.course && !courseOptions.includes(student.course)) {
+    courseSelect.value = 'Other';
+    const courseOtherInput = document.getElementById('studentCourseOther');
+    courseOtherInput.value = student.course;
+    courseOtherInput.classList.remove('hidden');
+  } else {
+    courseSelect.value = student.course || '';
+  }
   
   // Load programmes for this course then set value
   await window.updateProgrammeOptions(student.program);
@@ -654,8 +741,10 @@ async function loadStudentData(studentId) {
   document.getElementById('studentInstitutionalCost').value = student.institutionalCost || '';
   document.getElementById('studentRegistrationFee').value = student.registrationFee || '';
   document.getElementById('studentRegistrationFeeReceipt').value = student.registrationFeeReceipt || '';
+  document.getElementById('studentRegistrationFeeMethod').value = student.registrationFeeMethod || '';
   document.getElementById('studentCommission').value = student.commission || '';
   document.getElementById('studentCommissionReceipt').value = student.commissionReceipt || '';
+  document.getElementById('studentCommissionMethod').value = student.commissionMethod || '';
   document.getElementById('studentCommissionPaidTo').value = student.commissionPaidTo || '';
   document.getElementById('studentRemarks').value = student.remarks || '';
 }
@@ -673,7 +762,10 @@ async function saveStudent(studentId) {
       program = document.getElementById('studentProgramOther').value.trim();
     }
 
-    const course = document.getElementById('studentCourse').value;
+    let course = document.getElementById('studentCourse').value;
+    if (course === 'Other') {
+      course = document.getElementById('studentCourseOther').value.trim();
+    }
 
     // Validate
     if (!program) throw new Error('Programme is required');
@@ -699,10 +791,10 @@ async function saveStudent(studentId) {
 
     // Auto-generate receipts if not provided but amount exists
     if (parseFloat(regFee) > 0 && !regReceipt) {
-      regReceipt = await Receipt.getNextReceiptNumber();
+      regReceipt = await Receipt.getNextReceiptNumber('REG');
     }
     if (parseFloat(commFee) > 0 && !commReceipt) {
-      commReceipt = await Receipt.getNextReceiptNumber();
+      commReceipt = await Receipt.getNextReceiptNumber('COM');
     }
 
     const studentData = {
@@ -720,16 +812,74 @@ async function saveStudent(studentId) {
       institutionalCost: document.getElementById('studentInstitutionalCost').value || 0,
       registrationFee: regFee,
       registrationFeeReceipt: regReceipt,
+      registrationFeeMethod: document.getElementById('studentRegistrationFeeMethod').value,
       commission: commFee,
       commissionReceipt: commReceipt,
+      commissionMethod: document.getElementById('studentCommissionMethod').value,
       commissionPaidTo: document.getElementById('studentCommissionPaidTo').value.trim(),
       remarks: document.getElementById('studentRemarks').value.trim()
     };
 
+    let savedStudentDbId;
     if (studentId) {
       await Student.update(studentId, studentData);
+      savedStudentDbId = studentId;
     } else {
-      await Student.create(studentData);
+      savedStudentDbId = await Student.create(studentData);
+    }
+
+    // ═══ AUTO-CREATE PAYMENT RECORDS FOR REG/COMMISSION FEES ═══
+    const numericRegFee = parseFloat(regFee) || 0;
+    const numericCommFee = parseFloat(commFee) || 0;
+
+    // Registration Fee → Payment record (REVENUE)
+    if (numericRegFee > 0 && regReceipt) {
+      const existing = await Payment.findByReference(regReceipt);
+      if (existing) {
+        // Update existing payment if amount or details changed
+        await Payment.update(existing.id, {
+          amount: numericRegFee,
+          description: 'Registration Fee',
+          date: existing.date // keep original date
+        });
+      } else {
+        await Payment.create({
+          studentId: savedStudentDbId,
+          amount: numericRegFee,
+          date: new Date().toISOString(),
+          method: studentData.registrationFeeMethod || 'cash',
+          reference: regReceipt,
+          description: 'Registration Fee',
+          transactionType: 'REGISTRATION_FEE',
+          category: 'REVENUE'
+        });
+      }
+    }
+
+    // Commission Fee → Payment record (EXPENSE)
+    if (numericCommFee > 0 && commReceipt) {
+      const existing = await Payment.findByReference(commReceipt);
+      const paidTo = document.getElementById('studentCommissionPaidTo').value.trim();
+      if (existing) {
+        await Payment.update(existing.id, {
+          amount: numericCommFee,
+          description: `Commission Payout${paidTo ? ' - ' + paidTo : ''}`,
+          recipient: paidTo,
+          date: existing.date
+        });
+      } else {
+        await Payment.create({
+          studentId: savedStudentDbId,
+          amount: numericCommFee,
+          date: new Date().toISOString(),
+          method: studentData.commissionMethod || 'cash',
+          reference: commReceipt,
+          description: `Commission Payout${paidTo ? ' - ' + paidTo : ''}`,
+          transactionType: 'COMMISSION_PAYOUT',
+          category: 'EXPENSE',
+          recipient: paidTo
+        });
+      }
     }
 
     window.closeModal();
@@ -759,7 +909,7 @@ async function viewStudent(studentId) {
  * Delete (deactivate) student — Optimistic UI
  */
 async function deleteStudent(studentId) {
-  if (!confirm('Are you sure you want to deactivate this student?')) return;
+  if (!confirm('Are you sure you want to delete this student?')) return;
 
   // Find the row in the DOM
   const btn = document.querySelector(`button[onclick="window.deleteStudent('${studentId}')"]`);
@@ -767,8 +917,8 @@ async function deleteStudent(studentId) {
 
   if (row) {
     await optimisticRemove(row, () => Student.delete(studentId), {
-      successMsg: 'Student deactivated!',
-      errorMsg: 'Failed to deactivate. Reverted.'
+      successMsg: 'Student deleted!',
+      errorMsg: 'Failed to delete. Reverted.'
     });
     // Update count badge
     const countBadge = document.getElementById('studentCount');
@@ -781,7 +931,7 @@ async function deleteStudent(studentId) {
     try {
       await Student.delete(studentId);
       await loadStudents();
-      showToast('Student deactivated!', 'success');
+      showToast('Student deleted!', 'success');
     } catch (error) {
       showToast(error.message, 'error');
     }

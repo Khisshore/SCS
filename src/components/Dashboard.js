@@ -5,7 +5,7 @@
 
 import { Student } from '../models/Student.js';
 import { Payment } from '../models/Payment.js';
-import { formatCurrency, formatDate, getRelativeTime } from '../utils/formatting.js';
+import { formatCurrency, formatDate, getRelativeTime, formatPaymentMethod } from '../utils/formatting.js';
 import { db, STORES } from '../db/database.js';
 import { Icons } from '../utils/icons.js';
 import { fileSystem } from '../services/fileSystem.js';
@@ -167,7 +167,7 @@ export async function renderDashboard() {
           </div>
           <div class="card-body dashboard-card-body">
             ${recentPayments.length > 0 ? `
-              <div class="table-container" style="box-shadow: none;">
+              <div class="table-container" style="box-shadow: none; overflow-x: hidden;">
                 <table class="table">
                   <thead>
                     <tr>
@@ -449,27 +449,26 @@ async function renderRecentPaymentRows(payments, currency) {
   
   for (const payment of payments) {
     const student = await Student.findById(payment.studentId);
-    const studentName = student ? student.name : 'Unknown';
     
     let badgeClass = 'badge-secondary';
-    const method = payment.method?.toUpperCase() || '';
+    const method = payment.method?.toLowerCase() || '';
     
-    if (method.includes('CASH')) {
+    if (method.includes('cash')) {
       badgeClass = 'badge-success';
-    } else if (method.includes('ONLINE')) {
-      badgeClass = 'badge-info';
-    } else if (method.includes('TRANSFER') || method.includes('BANK')) {
+    } else if (method.includes('online')) {
+      badgeClass = 'badge-info'; // Uses the new thematic cyan instead of purple
+    } else if (method.includes('transfer') || method.includes('bank')) {
       badgeClass = 'badge-primary';
-    } else if (method.includes('CREDIT') || method.includes('CARD')) {
+    } else if (method.includes('card')) {
       badgeClass = 'badge-danger';
     }
     
     rows.push(`
       <tr style="animation: slideIn 0.3s ease-out;">
-        <td>${formatDate(payment.date, 'short')}</td>
-        <td><strong>${formatCurrency(payment.amount, currency)}</strong></td>
-        <td><span class="badge ${badgeClass}">${payment.method}</span></td>
-        <td style="color: var(--text-tertiary); font-size: var(--font-size-sm);">${getRelativeTime(payment.createdAt)}</td>
+        <td style="white-space: nowrap;">${formatDate(payment.date, 'short')}</td>
+        <td style="white-space: nowrap;"><strong>${formatCurrency(payment.amount, currency)}</strong></td>
+        <td style="width: 1%; white-space: nowrap;"><span class="badge ${badgeClass}">${formatPaymentMethod(payment.method)}</span></td>
+        <td style="color: var(--text-tertiary); font-size: var(--font-size-sm); white-space: nowrap; text-align: right;">${getRelativeTime(payment.createdAt)}</td>
       </tr>
     `);
   }

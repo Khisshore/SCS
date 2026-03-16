@@ -117,6 +117,7 @@ class Database {
         if (!baseFolder) return;
 
         const files = await window.electronAPI.listFiles(baseFolder);
+        if (!Array.isArray(files)) return; // listFiles returned non-array, skip check
         const backups = files.filter(f => f.name.startsWith('SCS_AutoBackup_') || f.name === 'SCS_ShutdownBackup.json');
         
         if (backups.length > 0) {
@@ -354,10 +355,22 @@ class Database {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
-      const index = store.index(indexName);
-      const request = index.getAll(value);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      
+      try {
+        const index = store.index(indexName);
+        const request = index.getAll(value);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        // Fallback for missing indexes in legacy IndexedDB
+        console.warn(`Fallback: index ${indexName} missing on ${storeName}, performing full scan.`);
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const results = (request.result || []).filter(item => item[indexName] === value);
+          resolve(results);
+        };
+        request.onerror = () => reject(request.error);
+      }
     });
   }
 

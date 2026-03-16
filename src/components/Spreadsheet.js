@@ -151,9 +151,16 @@ export async function renderSpreadsheet() {
     </div>
 
     <style>
+      /* Let the spreadsheet use the full available width */
       .spreadsheet-page {
         animation: fadeIn 0.4s ease-out;
         width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+      }
+
+      /* Override content-wrapper constraint while spreadsheet is active */
+      .content-wrapper {
         max-width: none;
       }
 
@@ -419,6 +426,7 @@ export async function renderSpreadsheet() {
         width: 100%;
         border-collapse: collapse;
         table-layout: auto;
+        border-style: hidden;
       }
 
       .spreadsheet-table thead {
@@ -467,22 +475,17 @@ export async function renderSpreadsheet() {
         text-align: center;
       }
 
-      .spreadsheet-table th.sticky-col {
-        position: sticky;
-        left: 50px;
-        background: var(--background-secondary);
-        z-index: 25;
-        min-width: 480px;
-        width: 480px;
+      .spreadsheet-table th.name-col {
+        min-width: 200px;
+        max-width: 250px;
       }
 
-      .spreadsheet-table td.sticky-col {
-        position: sticky;
-        left: 50px;
-        background: var(--surface);
-        z-index: 10;
-        min-width: 480px;
-        width: 480px;
+      .spreadsheet-table td.name-col {
+        min-width: 200px;
+        max-width: 250px;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
 
       .spreadsheet-table tbody tr {
@@ -551,17 +554,7 @@ export async function renderSpreadsheet() {
       }
 
 
-      .spreadsheet-table tr:hover td.sticky-col {
-        background: var(--surface-hover);
-      }
 
-      .spreadsheet-table tr.institution-header td.sticky-col {
-        background: var(--primary-50);
-      }
-
-      .spreadsheet-table tr.institution-header:hover td.sticky-col {
-        background: var(--primary-100);
-      }
 
       .student-cell {
         display: flex;
@@ -823,8 +816,6 @@ export async function renderSpreadsheet() {
       }
 
 
-
-      .sort-control {
 
       .empty-state p {
         font-size: 0.875rem;
@@ -1123,7 +1114,8 @@ async function loadSpreadsheetData() {
     const studentData = [];
     for (const student of students) {
       const studentPayments = paymentsByStudent[student.id] || [];
-      const totalPaid = studentPayments.reduce((sum, p) => sum + p.amount, 0);
+      const tuitionPayments = studentPayments.filter(p => p.transactionType !== 'REGISTRATION_FEE' && p.transactionType !== 'COMMISSION_PAYOUT');
+      const totalPaid = tuitionPayments.reduce((sum, p) => sum + p.amount, 0);
       const balance = (student.totalFees || 0) - totalPaid;
       
       studentData.push({
@@ -1308,7 +1300,7 @@ function renderTable(courseGroups, currency) {
         rowsHtml += `
           <tr class="${student.status === 'inactive' ? 'inactive-row' : ''}" data-student-id="${student.id}" style="cursor: pointer;">
             <td>${rowNumber++}</td>
-            <td class="sticky-col">
+            <td class="name-col">
               <div class="student-name">
                 ${escapeHtml(student.name)}
                 ${student.status === 'inactive' ? '<span class="status-tag">Completed</span>' : ''}
@@ -1341,7 +1333,7 @@ function renderTable(courseGroups, currency) {
                 <thead>
                   <tr>
                     <th style="width: 50px;">NO.</th>
-                    <th class="sticky-col">STUDENT NAME</th>
+                    <th class="name-col">STUDENT NAME</th>
                     <th>INTAKE</th>
                     <th>COMPLETION</th>
                     <th>INST. COST</th>
@@ -1453,8 +1445,9 @@ async function prepareExportData() {
   // Calculate payment data for each student
   const studentData = [];
   for (const student of students) {
-    const payments = await Payment.findAll({ studentId: student.id });
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const payments = await Payment.findByStudent(student.id);
+    const tuitionPayments = payments.filter(p => p.transactionType !== 'REGISTRATION_FEE' && p.transactionType !== 'COMMISSION_PAYOUT');
+    const totalPaid = tuitionPayments.reduce((sum, p) => sum + p.amount, 0);
     const balance = (student.totalFees || 0) - totalPaid;
     
     studentData.push({

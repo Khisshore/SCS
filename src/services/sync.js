@@ -179,6 +179,12 @@ class SyncService {
                   delete row._deleted;
                   delete row._rev;
                   delete row._attachments;
+                  delete row._meta;
+                  delete row.createdAt; // Not all Supabase tables have this column
+
+                  // Strip non-existent Supabase columns
+                  delete row.registrationFeeMethod;
+                  delete row.commissionMethod;
 
                   const { error } = await this.supabaseClient
                     .from(collectionName)

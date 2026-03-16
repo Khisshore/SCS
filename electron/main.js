@@ -73,7 +73,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true, // Enable sandbox for security
+      sandbox: false, // Sandbox must be false for the Chromium PDF plugins to load local Blob URLs in iframes/objects
+      plugins: true, // Enable Chromium PDF viewer plugin
       spellcheck: true // Enable native spellcheck
     },
     backgroundColor: '#00000000', // Transparent — prevents Chromium from using dark base for I-beam cursor color
@@ -93,6 +94,20 @@ function createWindow() {
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Ensure child windows (POPs) have same PDF-friendly settings
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        webPreferences: {
+          plugins: true,
+          sandbox: false,
+          contextIsolation: true
+        }
+      }
+    };
   });
 
   mainWindow.on('closed', () => {
@@ -120,16 +135,20 @@ app.whenReady().then(() => {
     const isDev = process.env.NODE_ENV === 'development';
     
     const csp = isDev
-      ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173 ws://localhost:5173 https://fonts.googleapis.com https://fonts.gstatic.com; " +
+      ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: http://localhost:5173 ws://localhost:5173 https://fonts.googleapis.com https://fonts.gstatic.com; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
-        "img-src 'self' data:; " +
+        "img-src 'self' data: blob:; " +
+        "frame-src 'self' data: blob:; " +
+        "object-src 'self' data: blob:; " +
         "connect-src 'self' http://localhost:5173 ws://localhost:5173 http://127.0.0.1:11434 https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com;"
-      : "default-src 'self'; " +
+      : "default-src 'self' data: blob:; " +
         "script-src 'self'; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
-        "img-src 'self' data:; " +
+        "img-src 'self' data: blob:; " +
+        "frame-src 'self' data: blob:; " +
+        "object-src 'self' data: blob:; " +
         "connect-src 'self' http://127.0.0.1:11434 https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com;"
     
     // Explicitly remove existing CSP headers to prevent conflicts
@@ -235,6 +254,18 @@ app.whenReady().then(() => {
 
   // Set spellcheck language
   session.defaultSession.setSpellCheckerLanguages(['en-US']);
+
+  // Move core IPC handlers here to ensure they are registered before window interaction
+  ipcMain.handle('open-file', async (event, filePath) => {
+    try {
+      if (!filePath) throw new Error('No file path provided');
+      await shell.openPath(filePath);
+      return { success: true };
+    } catch (error) {
+      logger.error('Error opening file:', error);
+      return { success: false, error: error.message };
+    }
+  });
 });
 
 // ==================== IPC HANDLERS ====================
@@ -394,6 +425,7 @@ ipcMain.handle('open-folder-in-explorer', async (event, folderPath) => {
     return { success: false, error: error.message };
   }
 });
+
 
 /**
  * Get app version

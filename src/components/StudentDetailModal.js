@@ -606,6 +606,37 @@ export function initStudentDetailModal() {
         align-items: center;
       }
 
+      .btn-icon-xs {
+        width: 1.85rem;
+        height: 1.85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        color: var(--text-tertiary);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 0;
+      }
+
+      .btn-icon-xs:hover {
+        background: var(--primary-500);
+        color: #fff;
+        border-color: var(--primary-600);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+      }
+      
+      .btn-icon-xs .icon {
+        width: 1.125rem;
+        height: 1.125rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       /* --- Premium Inline Payment Form --- */
       .inline-payment-form {
         background: var(--surface);
@@ -935,7 +966,9 @@ export async function openStudentDetailModal(studentIdOrObject) {
   const { grouped: paymentsBySemester, maxSemester } = await Payment.getStudentPaymentsBySemester(student.id);
 
   // Calculate totals
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  // Calculate totals (excluding registration/commission which are handled separately)
+  const tuitionPayments = payments.filter(p => p.transactionType !== 'REGISTRATION_FEE' && p.transactionType !== 'COMMISSION_PAYOUT');
+  const totalPaid = tuitionPayments.reduce((sum, p) => sum + p.amount, 0);
   const balance = (student.totalFees || 0) - totalPaid;
 
   // Populate header
@@ -964,9 +997,12 @@ export async function openStudentDetailModal(studentIdOrObject) {
       <div class="modal-info-label">Registration Fees</div>
       <div class="modal-info-value">
         ${formatCurrency(student.registrationFee || 0, currency)}
-        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
-          ${student.registrationFeeReceipt ? `Receipt #: ${student.registrationFeeReceipt}` : 'No receipt'}
-          <div class="flex gap-xs">
+        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+          <div class="flex items-center gap-sm">
+            ${student.registrationFeeReceipt ? `Receipt #: <strong>${student.registrationFeeReceipt}</strong>` : 'No receipt'}
+            ${student.registrationFeeMethod ? `&bull; <span>${formatPaymentMethod(student.registrationFeeMethod)}</span>` : ''}
+          </div>
+          <div class="flex gap-xs" style="align-items: center;">
             ${student.registrationFeeReceipt ? `
               <button class="btn-icon-xs" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
                 ${Icons.eye}
@@ -976,7 +1012,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
               </button>
             ` : ''}
             <button class="btn-icon-xs" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'registration')">
-              ${Icons.edit}
+              <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
             </button>
           </div>
         </div>
@@ -986,9 +1022,12 @@ export async function openStudentDetailModal(studentIdOrObject) {
       <div class="modal-info-label">Commission Fees</div>
       <div class="modal-info-value">
         ${formatCurrency(student.commission || 0, currency)}
-        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
-          ${student.commissionReceipt ? `Receipt #: ${student.commissionReceipt}` : 'No receipt'}
-          <div class="flex gap-xs">
+        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+          <div class="flex items-center gap-sm">
+            ${student.commissionReceipt ? `Receipt #: <strong>${student.commissionReceipt}</strong>` : 'No receipt'}
+            ${student.commissionMethod ? `&bull; <span>${formatPaymentMethod(student.commissionMethod)}</span>` : ''}
+          </div>
+          <div class="flex gap-xs" style="align-items: center;">
             ${student.commissionReceipt ? `
               <button class="btn-icon-xs" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
                 ${Icons.eye}
@@ -998,7 +1037,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
               </button>
             ` : ''}
             <button class="btn-icon-xs" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'commission')">
-              ${Icons.edit}
+              <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
             </button>
           </div>
         </div>
@@ -1217,9 +1256,9 @@ function addPaymentEntry(studentId, semester) {
           <label class="inline-form-label">Payment Method <span class="req">*</span></label>
           <select id="inlineMethod-${semester}" class="inline-form-select">
             <option value="cash">Cash</option>
+            <option value="online_banking">Online Banking</option>
+            <option value="bank_in">Bank-In</option>
             <option value="card">Credit Card</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="online">Online Payment</option>
             <option value="other">Other</option>
           </select>
         </div>
@@ -1378,9 +1417,9 @@ async function editPaymentEntry(studentId, semester, paymentId) {
           <label class="inline-form-label">Payment Method <span class="req">*</span></label>
           <select id="inlineMethod-${semester}" class="inline-form-select">
             <option value="cash" ${payment.method === 'cash' ? 'selected' : ''}>Cash</option>
+            <option value="online_banking" ${payment.method === 'online_banking' ? 'selected' : ''}>Online Banking</option>
+            <option value="bank_in" ${payment.method === 'bank_in' ? 'selected' : ''}>Bank-In</option>
             <option value="card" ${payment.method === 'card' ? 'selected' : ''}>Credit Card</option>
-            <option value="bank_transfer" ${payment.method === 'bank_transfer' ? 'selected' : ''}>Bank Transfer</option>
-            <option value="online" ${payment.method === 'online' ? 'selected' : ''}>Online Payment</option>
             <option value="other" ${payment.method === 'other' ? 'selected' : ''}>Other</option>
           </select>
         </div>
@@ -1553,7 +1592,7 @@ async function downloadReceipt(studentId, paymentId) {
       return;
     }
     
-    const doc = await generateReceiptPDF(student, payment, allPayments);
+    const { doc, saveResult } = await generateReceiptPDF(student, payment, allPayments);
     const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}.pdf`;
     doc.save(filename);
   } catch (error) {
@@ -1576,9 +1615,15 @@ async function previewReceipt(studentId, paymentId) {
       return;
     }
     
-    const doc = await generateReceiptPDF(student, payment, allPayments);
-    const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
-    openPdfPreviewModal(doc, filename);
+    const { doc, saveResult } = await generateReceiptPDF(student, payment, allPayments);
+    
+    if (saveResult?.success && window.electronAPI) {
+      await window.electronAPI.openFile(saveResult.path);
+    } else {
+      // Fallback to modal only if file saving failed or not in Electron
+      const filename = `Receipt_${payment.reference || 'PAY'}_${student.name.replace(/\s+/g, '_')}`;
+      openPdfPreviewModal(doc, filename, saveResult);
+    }
   } catch (error) {
     console.error('Error previewing receipt:', error);
     alert('Failed to preview receipt. Please try again.');
@@ -1593,7 +1638,7 @@ async function generateFeeReceipt(studentId, feeType, amount, receiptNo, paidTo 
     const student = await Student.findById(studentId);
     if (!student) return;
     
-    const doc = await generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo);
+    const { doc, saveResult } = await generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo);
     const filename = `${feeType.replace(/\s+/g, '_')}_Receipt_${student.name.replace(/\s+/g, '_')}.pdf`;
     doc.save(filename);
   } catch (error) {
@@ -1610,9 +1655,14 @@ async function previewFeeReceipt(studentId, feeType, amount, receiptNo, paidTo =
     const student = await Student.findById(studentId);
     if (!student) return;
     
-    const doc = await generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo);
-    const filename = `${feeType} Receipt - ${student.name}`;
-    openPdfPreviewModal(doc, filename);
+    const { doc, saveResult } = await generateFeeReceiptPDF(student, feeType, amount, receiptNo, paidTo);
+    
+    if (saveResult?.success && window.electronAPI) {
+      await window.electronAPI.openFile(saveResult.path);
+    } else {
+      const filename = `${feeType} Receipt - ${student.name}`;
+      openPdfPreviewModal(doc, filename, saveResult);
+    }
   } catch (error) {
     console.error('Error previewing fee receipt:', error);
     alert('Failed to preview receipt.');
@@ -1633,6 +1683,7 @@ async function editFeeDetail(studentId, type) {
   const amount = isReg ? student.registrationFee : student.commission;
   const receipt = isReg ? student.registrationFeeReceipt : student.commissionReceipt;
   const paidTo = isReg ? null : student.commissionPaidTo;
+  const method = isReg ? student.registrationFeeMethod : student.commissionMethod;
 
   itemEl.innerHTML = `
     <div class="modal-info-label">${isReg ? 'Registration Fees' : 'Commission Fees'}</div>
@@ -1644,6 +1695,16 @@ async function editFeeDetail(studentId, type) {
       <div class="form-group mb-xs">
         <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase;">Receipt #</label>
         <div id="editFeeReceiptContainer-${type}"></div>
+      </div>
+      <div class="form-group mb-xs">
+        <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase;">Method</label>
+        <select id="editFeeMethod-${type}" class="form-select" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">
+          <option value="cash" ${method === 'cash' ? 'selected' : (!method ? 'selected' : '')}>Cash</option>
+          <option value="online_banking" ${method === 'online_banking' ? 'selected' : ''}>Online Banking</option>
+          <option value="bank_in" ${method === 'bank_in' ? 'selected' : ''}>Bank-In</option>
+          <option value="card" ${method === 'card' ? 'selected' : ''}>Credit Card</option>
+          <option value="other" ${method === 'other' ? 'selected' : ''}>Other</option>
+        </select>
       </div>
       ${!isReg ? `
         <div class="form-group mb-xs">
@@ -1673,6 +1734,7 @@ async function editFeeDetail(studentId, type) {
 async function saveFeeUpdate(studentId, type) {
   const amount = document.getElementById(`editFeeAmount-${type}`).value;
   const receipt = document.getElementById(`editFeeReceipt-${type}`).value;
+  const method = document.getElementById(`editFeeMethod-${type}`).value;
   const paidToEl = document.getElementById(`editFeePaidTo-${type}`);
   const paidTo = paidToEl ? paidToEl.value : null;
 
@@ -1683,14 +1745,45 @@ async function saveFeeUpdate(studentId, type) {
     if (type === 'registration') {
       updates.registrationFee = parseFloat(amount) || 0;
       updates.registrationFeeReceipt = receipt.trim();
+      updates.registrationFeeMethod = method;
     } else {
       updates.commission = parseFloat(amount) || 0;
       updates.commissionReceipt = receipt.trim();
+      updates.commissionMethod = method;
       updates.commissionPaidTo = paidTo ? paidTo.trim() : '';
     }
 
     await Student.update(studentId, updates);
     const updatedStudent = await Student.findById(studentId);
+
+    // Sync Payment Record
+    const feeReceipt = type === 'registration' ? updates.registrationFeeReceipt : updates.commissionReceipt;
+    const feeAmount = type === 'registration' ? updates.registrationFee : updates.commission;
+    const feeMethod = method || 'cash';
+    
+    if (feeReceipt) {
+      const existingPayment = await Payment.findByReference(feeReceipt);
+      if (existingPayment) {
+        await Payment.update(existingPayment.id, {
+          amount: feeAmount,
+          method: feeMethod,
+          recipient: type === 'registration' ? undefined : paidTo,
+          description: type === 'registration' ? 'Registration Fee' : ('Commission Payout' + (paidTo ? ' - ' + paidTo : ''))
+        });
+      } else {
+        await Payment.create({
+          studentId: studentId,
+          amount: feeAmount,
+          date: new Date().toISOString(),
+          method: feeMethod,
+          reference: feeReceipt,
+          description: type === 'registration' ? 'Registration Fee' : ('Commission Payout' + (paidTo ? ' - ' + paidTo : '')),
+          transactionType: type === 'registration' ? 'REGISTRATION_FEE' : 'COMMISSION_PAYOUT',
+          category: type === 'registration' ? 'REVENUE' : 'EXPENSE',
+          recipient: type === 'registration' ? undefined : paidTo
+        });
+      }
+    }
 
     // Sync files
     if (fileSystem.isDesktopApp()) {
