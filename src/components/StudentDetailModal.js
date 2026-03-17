@@ -607,26 +607,41 @@ export function initStudentDetailModal() {
       }
 
       .btn-icon-xs {
-        width: 1.85rem;
-        height: 1.85rem;
+        width: 2rem;
+        height: 2rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--surface-subtle);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
         cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 0;
       }
 
       .btn-icon-xs:hover {
-        background: var(--primary-500);
-        color: #fff;
-        border-color: var(--primary-600);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn-icon-xs.view:hover {
+        background: var(--primary-500);
+        color: white;
+        border-color: var(--primary-600);
+      }
+
+      .btn-icon-xs.download:hover {
+        background: var(--success-500);
+        color: white;
+        border-color: var(--success-600);
+      }
+
+      .btn-icon-xs.edit:hover {
+        background: var(--warning-500);
+        color: white;
+        border-color: var(--warning-600);
       }
       
       .btn-icon-xs .icon {
@@ -1002,17 +1017,17 @@ export async function openStudentDetailModal(studentIdOrObject) {
             ${student.registrationFeeReceipt ? `Receipt #: <strong>${student.registrationFeeReceipt}</strong>` : 'No receipt'}
             ${student.registrationFeeMethod ? `&bull; <span>${formatPaymentMethod(student.registrationFeeMethod)}</span>` : ''}
           </div>
-          <div class="flex gap-xs" style="align-items: center;">
+          <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.registrationFeeReceipt ? `
-              <button class="btn-icon-xs" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
-                ${Icons.eye}
+              <button class="btn-icon-xs view" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
+                <span class="icon">${Icons.eye}</span>
               </button>
-              <button class="btn-icon-xs" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
-                ${Icons.download}
+              <button class="btn-icon-xs download" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
+                <span class="icon">${Icons.download}</span>
               </button>
             ` : ''}
-            <button class="btn-icon-xs" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'registration')">
-              <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
+            <button class="btn-icon-xs edit" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'registration')">
+              <span class="icon">${Icons.edit}</span>
             </button>
           </div>
         </div>
@@ -1022,26 +1037,26 @@ export async function openStudentDetailModal(studentIdOrObject) {
       <div class="modal-info-label">Commission Fees</div>
       <div class="modal-info-value">
         ${formatCurrency(student.commission || 0, currency)}
-        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+        ${student.commissionPaidTo ? `<div style="font-size: 0.725rem; color: var(--text-secondary); margin-top: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; display: flex; align-items: center; gap: 4px;"><span style="color: var(--text-tertiary); font-weight: 500;">PAID TO:</span> ${student.commissionPaidTo}</div>` : ''}
+        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
           <div class="flex items-center gap-sm">
             ${student.commissionReceipt ? `Receipt #: <strong>${student.commissionReceipt}</strong>` : 'No receipt'}
             ${student.commissionMethod ? `&bull; <span>${formatPaymentMethod(student.commissionMethod)}</span>` : ''}
           </div>
-          <div class="flex gap-xs" style="align-items: center;">
+          <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.commissionReceipt ? `
-              <button class="btn-icon-xs" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
-                ${Icons.eye}
+              <button class="btn-icon-xs view" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
+                <span class="icon">${Icons.eye}</span>
               </button>
-              <button class="btn-icon-xs" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
-                ${Icons.download}
+              <button class="btn-icon-xs download" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
+                <span class="icon">${Icons.download}</span>
               </button>
             ` : ''}
-            <button class="btn-icon-xs" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'commission')">
-              <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
+            <button class="btn-icon-xs edit" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'commission')">
+              <span class="icon">${Icons.edit}</span>
             </button>
           </div>
         </div>
-        ${student.commissionPaidTo ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px;">Paid To: ${student.commissionPaidTo}</div>` : ''}
       </div>
     </div>
     <div class="modal-info-item">

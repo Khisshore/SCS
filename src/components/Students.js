@@ -326,7 +326,50 @@ function getCompletionStatusBadge(status) {
   return map[status] || 'badge-secondary';
 }
 
-// Sorting function exposed to window
+/**
+ * Auto-update student status based on completion date and validate date range
+ */
+window.autoUpdateStudentStatus = () => {
+    const intakeMonth = document.getElementById('studentIntakeMonth')?.value;
+    const intakeYear = document.getElementById('studentIntakeYear')?.value;
+    const compMonth = document.getElementById('studentCompletionMonth')?.value;
+    const compYear = document.getElementById('studentCompletionYear')?.value;
+    const statusSelect = document.getElementById('studentCompletionStatus');
+    const formError = document.getElementById('formError');
+    
+    if (!compMonth || !compYear || !statusSelect) return;
+    
+    const today = new Date();
+    // Completion date is considered the LAST day of the selected month
+    const completionDate = new Date(parseInt(compYear), parseInt(compMonth), 0);
+    
+    // Validate against intake date if set
+    if (intakeMonth && intakeYear) {
+        // Intake date is considered the FIRST day of the selected month
+        const intakeDate = new Date(parseInt(intakeYear), parseInt(intakeMonth) - 1, 1);
+        
+        if (completionDate < intakeDate) {
+            if (formError) {
+                formError.textContent = 'Completion date cannot be before intake date.';
+                formError.classList.remove('hidden');
+            }
+            // Optional: You might want to unset status or show it's invalid
+            return;
+        } else {
+            // Only hide if it's OUR error message (don't hide errors from other fields)
+            if (formError && formError.textContent === 'Completion date cannot be before intake date.') {
+                formError.classList.add('hidden');
+            }
+        }
+    }
+    
+    if (completionDate < today) {
+        statusSelect.value = 'Completed';
+    } else {
+        statusSelect.value = 'In Progress';
+    }
+};
+
 window.sortStudents = (field) => {
   if (currentSort.field === field) {
     currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
@@ -430,15 +473,15 @@ function showStudentForm(studentId = null) {
                 <div class="form-group">
                   <label class="form-label">Intake</label>
                   <div class="grid grid-2 gap-sm">
-                    <select id="studentIntakeMonth" class="form-select bg-white"></select>
-                    <select id="studentIntakeYear" class="form-select bg-white"></select>
+                    <select id="studentIntakeMonth" class="form-select bg-white" onchange="window.autoUpdateStudentStatus()"></select>
+                    <select id="studentIntakeYear" class="form-select bg-white" onchange="window.autoUpdateStudentStatus()"></select>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Completion Date</label>
                   <div class="grid grid-2 gap-sm">
-                    <select id="studentCompletionMonth" class="form-select bg-white"></select>
-                    <select id="studentCompletionYear" class="form-select bg-white"></select>
+                    <select id="studentCompletionMonth" class="form-select bg-white" onchange="window.autoUpdateStudentStatus()"></select>
+                    <select id="studentCompletionYear" class="form-select bg-white" onchange="window.autoUpdateStudentStatus()"></select>
                   </div>
                 </div>
                 <div class="form-group">
@@ -777,11 +820,20 @@ async function saveStudent(studentId) {
     }
 
     // Combine date selectors
-    const getCombinedDate = (monthId, yearId) => {
-      const m = document.getElementById(monthId).value;
-      const y = document.getElementById(yearId).value;
-      return (m && y) ? `${y}-${m}` : '';
-    };
+    const intakeDateStr = getCombinedDate('studentIntakeMonth', 'studentIntakeYear');
+    const completionDateStr = getCombinedDate('studentCompletionMonth', 'studentCompletionYear');
+
+    // Date validation
+    if (intakeDateStr && completionDateStr) {
+        const [iY, iM] = intakeDateStr.split('-');
+        const [cY, cM] = completionDateStr.split('-');
+        const intakeDate = new Date(parseInt(iY), parseInt(iM) - 1, 1);
+        const completionDate = new Date(parseInt(cY), parseInt(cM), 0);
+        
+        if (completionDate < intakeDate) {
+            throw new Error('Completion date cannot be before intake date.');
+        }
+    }
 
     const regFee = document.getElementById('studentRegistrationFee').value || 0;
     let regReceipt = document.getElementById('studentRegistrationFeeReceipt').value.trim();
@@ -804,8 +856,8 @@ async function saveStudent(studentId) {
       course: course,
       email: document.getElementById('studentEmail').value.trim(),
       phone: document.getElementById('studentPhone').value.trim(),
-      intake: getCombinedDate('studentIntakeMonth', 'studentIntakeYear'),
-      completionDate: getCombinedDate('studentCompletionMonth', 'studentCompletionYear'),
+      intake: intakeDateStr,
+      completionDate: completionDateStr,
       completionStatus: document.getElementById('studentCompletionStatus').value,
       status: 'active', // Default to active since field removed
       totalFees: document.getElementById('studentTotalFees').value || 0,

@@ -284,18 +284,37 @@ export async function renderReports() {
         border-radius: 0 0 var(--radius-xl) var(--radius-xl);
       }
 
-      /* Link style for references matching modern theme */
+      /* Modern badge-style links for references */
       .receipt-link {
-        color: var(--primary-600);
-        text-decoration: none;
-        padding: 0.25rem 0.5rem;
-        border-radius: var(--radius-md);
-        background: transparent;
-        transition: all 0.2s ease;
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.35rem; 
+        padding: 0.35rem 0.75rem; 
+        background: var(--primary-50); 
+        color: var(--primary-600); 
+        text-decoration: none; 
+        border-radius: var(--radius-full, 50px); 
+        font-weight: 700; 
+        font-family: var(--font-mono); 
+        font-size: 0.8rem; 
+        border: 1px solid var(--primary-100); 
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
       }
       .receipt-link:hover {
-        background: var(--primary-50);
-        color: var(--primary-700);
+        background: var(--primary-600);
+        color: white;
+        border-color: var(--primary-600);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+      .receipt-link .icon {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+      .receipt-link:hover .icon {
+        opacity: 1;
       }
     </style>
   `;
@@ -479,11 +498,11 @@ async function updateReport() {
       methodText = formatPaymentMethod(rawMethod, rawMethod.replace(/_/g, ' ').toUpperCase());
     }
 
-    // 2. Reference Clickable Fix
-    let refHtml = `<span style="font-family: monospace;">-</span>`;
+    // 2. Reference Clickable Fix - Modern Badge UI
+    let refHtml = `<span style="font-family: monospace; opacity: 0.4;">-</span>`;
     if (payment.reference) {
-      refHtml = `<a href="#" class="receipt-link" onclick="window.previewReceiptFromReport('${student.id}', '${payment.id}'); return false;" style="display:inline-flex; align-items:center; gap:0.25rem; font-family:var(--font-mono); font-size:0.875rem;">
-                   <span class="icon" style="font-size:0.875rem;">${Icons.file}</span>
+      refHtml = `<a href="#" class="receipt-link" title="Click to view receipt" onclick="window.previewReceiptFromReport('${student.id}', '${payment.id}'); return false;">
+                   <span class="icon">${Icons.file}</span>
                    ${payment.reference}
                  </a>`;
     }
