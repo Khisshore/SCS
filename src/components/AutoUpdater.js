@@ -43,6 +43,7 @@ class AutoUpdater {
             this.setVisible(true);
             break;
           case 'not-available':
+            this.info = data;
             this.setStatus('not-available');
             // Keep visible for a few seconds to show "up to date" message if it was a manual check
             if (this.manualCheck) {
@@ -177,7 +178,7 @@ class AutoUpdater {
     } else if (this.status === 'not-available') {
       body = `
         <div class="updater-body">
-          <p>SCS is already running the latest version (v${this.info?.version || '1.0.0'}).</p>
+          <p>SCS is already running the latest version${this.info?.version ? ` (v${this.info.version})` : ''}.</p>
         </div>
       `;
     } else if (this.status === 'available') {
