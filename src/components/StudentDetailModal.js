@@ -533,8 +533,8 @@ export function initStudentDetailModal() {
         letter-spacing: -1px;
       }
 
-      .modal-total-value.paid { color: var(--success-500); }
-      .modal-total-value.balance { color: var(--danger-500); }
+      .modal-total-value.paid { color: var(--success-600); }
+      .modal-total-value.balance { color: var(--danger-600); }
 
       /* Empty Semester State */
       .empty-semester {
@@ -860,38 +860,7 @@ export function initStudentDetailModal() {
       }
       input[type=number] { -moz-appearance: textfield; }
 
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.35rem 0.85rem;
-        border-radius: var(--radius-full);
-        background: var(--success-100);
-        color: var(--success-700);
-        font-size: 0.725rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        border: 1px solid var(--success-200);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-      }
-
-      .status-badge.paid {
-        background: var(--success-100);
-        color: var(--success-700);
-        border-color: var(--success-200);
-      }
-
-      .status-badge.pending {
-        background: var(--warning-100);
-        color: var(--warning-700);
-        border-color: var(--warning-200);
-      }
-
-      .status-badge.inactive {
-        background: var(--border-light);
-        color: var(--text-tertiary);
-        border-color: var(--border-color);
-      }
+      /* Universal status-badge is handled in index.css */
     </style>
   `;
 
@@ -994,10 +963,16 @@ export async function openStudentDetailModal(studentIdOrObject) {
   
   const statusBadge = document.getElementById('modalStudentStatus');
   if (statusBadge) {
-      statusBadge.textContent = (student.status || 'ACTIVE').toUpperCase();
-      statusBadge.className = `status-badge ${student.status === 'inactive' ? 'inactive' : 'active'}`;
+      const compStatus = student.completionStatus || 'In Progress';
+      statusBadge.textContent = compStatus.toUpperCase();
+      
+      // Reset and apply semantic classes
+      statusBadge.className = 'status-badge';
+      if (compStatus === 'Completed') statusBadge.classList.add('completed');
+      else if (compStatus === 'Withdrawn') statusBadge.classList.add('withdrawn');
+      else if (compStatus === 'Deferred') statusBadge.classList.add('deferred');
+      else statusBadge.classList.add('in-progress');
   }
-
   // Populate info grid
   const infoGrid = document.getElementById('modalInfoGrid');
   infoGrid.innerHTML = `
@@ -1013,10 +988,18 @@ export async function openStudentDetailModal(studentIdOrObject) {
       <div class="modal-info-label">Registration Fees</div>
       <div class="modal-info-value">
         ${formatCurrency(student.registrationFee || 0, currency)}
-        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
-          <div class="flex items-center gap-sm">
-            ${student.registrationFeeReceipt ? `Receipt #: <strong>${student.registrationFeeReceipt}</strong>` : 'No receipt'}
-            ${student.registrationFeeMethod ? `&bull; <span>${formatPaymentMethod(student.registrationFeeMethod)}</span>` : ''}
+        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.625rem; background: var(--surface-subtle); padding: 0.625rem 0.875rem; border-radius: var(--radius-xl); border: 1px solid var(--border-light);">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
+              <span style="opacity: 0.85; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Receipt:</span>
+              <strong style="color: var(--text-primary); font-family: monospace; font-size: 0.8rem; letter-spacing: -0.01em;">${student.registrationFeeReceipt || '-'}</strong>
+            </div>
+            ${student.registrationFeeMethod ? `
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary-600); font-weight: 800; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                <span style="opacity: 0.8; font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Method:</span>
+                ${formatPaymentMethod(student.registrationFeeMethod)}
+              </div>
+            ` : ''}
           </div>
           <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.registrationFeeReceipt ? `
@@ -1039,10 +1022,18 @@ export async function openStudentDetailModal(studentIdOrObject) {
       <div class="modal-info-value">
         ${formatCurrency(student.commission || 0, currency)}
         ${student.commissionPaidTo ? `<div style="font-size: 0.725rem; color: var(--text-secondary); margin-top: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; display: flex; align-items: center; gap: 4px;"><span style="color: var(--text-tertiary); font-weight: 500;">PAID TO:</span> ${student.commissionPaidTo}</div>` : ''}
-        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; background: var(--surface-subtle); padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
-          <div class="flex items-center gap-sm">
-            ${student.commissionReceipt ? `Receipt #: <strong>${student.commissionReceipt}</strong>` : 'No receipt'}
-            ${student.commissionMethod ? `&bull; <span>${formatPaymentMethod(student.commissionMethod)}</span>` : ''}
+        <div style="font-size: 0.75rem; color: var(--text-tertiary); font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.625rem; background: var(--surface-subtle); padding: 0.625rem 0.875rem; border-radius: var(--radius-xl); border: 1px solid var(--border-light);">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;">
+              <span style="opacity: 0.85; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Receipt:</span>
+              <strong style="color: var(--text-primary); font-family: monospace; font-size: 0.8rem; letter-spacing: -0.01em;">${student.commissionReceipt || '-'}</strong>
+            </div>
+            ${student.commissionMethod ? `
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary-600); font-weight: 800; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                <span style="opacity: 0.8; font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Method:</span>
+                ${formatPaymentMethod(student.commissionMethod)}
+              </div>
+            ` : ''}
           </div>
           <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.commissionReceipt ? `
@@ -1130,7 +1121,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
                   <tr>
                     <td>${formatDate(payment.date, 'short')}</td>
                     <td style="font-weight: 600;">${payment.description || '-'}</td>
-                    <td class="amount">${formatCurrency(payment.amount, currency)}</td>
+                    <td class="amount amount-positive">${formatCurrency(payment.amount, currency)}</td>
                     <td>${formatPaymentMethod(payment.method)}</td>
                     <td>
                       ${payment.reference ? `
@@ -1337,7 +1328,7 @@ async function saveInlinePayment(studentId, semester) {
 
   try {
     const paymentData = {
-      studentId: parseInt(studentId),
+      studentId: String(studentId),
       amount: parseFloat(amount),
       date: new Date(date).toISOString(),
       method: method,

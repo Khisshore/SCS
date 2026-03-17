@@ -284,6 +284,7 @@ class Database {
    * Generic method to get a record by ID
    */
   async get(storeName, id) {
+    if (id === null || id === undefined) return null;
     const collection = this.getCollection(storeName);
     if (collection) {
       const doc = await collection.findOne(id.toString()).exec();

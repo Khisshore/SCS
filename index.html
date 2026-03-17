@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- PDF Generation handled via npm dependencies -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: http: ws: wss:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; frame-src 'self' data: blob:; object-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:11434 https://*.supabase.co wss://*.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com;">
   <!-- Fast Theme Initialization to prevent cursor delay / FOUC -->
   <style>
     html { color-scheme: light; }
@@ -25,7 +25,7 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="/src/styles/index.css">
+  <link rel="stylesheet" href="src/styles/index.css">
 </head>
 <body>
   <!-- ═══ SPLASH SCREEN — renders instantly before JS bundle ═══ -->
@@ -40,7 +40,7 @@
     z-index: 99999;
     transition: opacity 0.6s ease-out;
   ">
-    <img src="/src/assets/logos/scs-logo.png" alt="SCS" style="
+    <img src="src/assets/logos/scs-logo.png" alt="SCS" style="
       width: 120px; height: auto;
       animation: splashPulse 2s ease-in-out infinite;
     ">
@@ -68,7 +68,7 @@
       <div class="sidebar-header">
         <a href="#dashboard" class="logo" title="SCS Dashboard">
           <div class="logo-icon">
-            <img src="/src/assets/logos/scs-logo.png" alt="SCS Logo" class="main-logo-img">
+            <img src="src/assets/logos/scs-logo.png" alt="SCS Logo" class="main-logo-img">
           </div>
         </a>
       </div>
@@ -149,7 +149,7 @@
     <div class="spinner"></div>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="src/main.js"></script>
 
   <!-- Branded SVG Gradients -->
   <svg width="0" height="0" style="position: absolute;">

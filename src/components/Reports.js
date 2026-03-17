@@ -516,7 +516,7 @@ async function updateReport() {
       <td>${getPaymentTypeLabel(payment)}</td>
       <td><span style="font-weight: 500; color: var(--text-secondary);">${methodText}</span></td>
       <td style="white-space: nowrap;">${refHtml}</td>
-      <td style="text-align: right; font-weight: 700; white-space: nowrap; color: ${payment.category === 'EXPENSE' ? 'var(--danger-600, #dc2626)' : 'var(--text-primary)'};">${
+      <td style="text-align: right; white-space: nowrap;" class="${payment.category === 'EXPENSE' ? 'amount-negative' : 'amount-positive'}">${
         payment.category === 'EXPENSE' ? '- ' : ''
       }${formatCurrency(payment.amount, currency)}</td>
     </tr>

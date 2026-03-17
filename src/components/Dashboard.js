@@ -122,13 +122,13 @@ export async function renderDashboard() {
           <div class="stat-card-label">Total Students</div>
         </div>
 
-        <!-- Active Students -->
+        <!-- In Progress Students -->
         <div class="stat-card" style="--card-accent: linear-gradient(90deg, #22c55e, #10b981);">
           <div class="stat-card-icon" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white;">
             <span class="icon">${Icons.userCheck}</span>
           </div>
-          <div class="stat-card-value">${studentStats.active}</div>
-          <div class="stat-card-label">Active Students</div>
+          <div class="stat-card-value">${studentStats.inProgress}</div>
+          <div class="stat-card-label">In Progress</div>
         </div>
 
         <!-- Today's Payments -->
@@ -164,7 +164,7 @@ export async function renderDashboard() {
         <div class="card dashboard-sync-card">
           <div class="card-header dashboard-card-header">
             <h3 class="card-title">Recent Payments</h3>
-            <button class="btn-icon-only" id="expandPaymentsBtn" title="Show all details" style="margin-left: auto; border-radius: 8px; padding: 4px; color: var(--primary-500); background: var(--primary-50); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+            <button class="btn-icon-only" id="viewReportsBtn" title="View all reports" style="margin-left: auto; border-radius: 8px; padding: 4px; color: var(--primary-500); background: var(--primary-50); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
               <span class="icon" style="width: 18px; height: 18px;">${Icons.external}</span>
             </button>
           </div>
@@ -442,75 +442,11 @@ export async function renderDashboard() {
     await renderPaymentTrendChart(months);
   });
 
-  // Attach event listener for expand payments button
-  document.getElementById('expandPaymentsBtn')?.addEventListener('click', async () => {
-    showFullPaymentsModal(recentPayments, currency);
+  // Attach event listener for view reports button
+  document.getElementById('viewReportsBtn')?.addEventListener('click', () => {
+    window.location.hash = '#reports';
   });
 }
-
-/**
- * Show full payments detailed modal
- */
-async function showFullPaymentsModal(payments, currency) {
-  const tableRows = [];
-  for (const payment of payments) {
-    const student = await Student.findById(payment.studentId);
-    const method = payment.method?.toLowerCase() || '';
-    let badgeClass = 'badge-secondary';
-    if (method.includes('cash')) badgeClass = 'badge-success';
-    else if (method.includes('online')) badgeClass = 'badge-info';
-    else if (method.includes('transfer') || method.includes('bank')) badgeClass = 'badge-primary';
-    else if (method.includes('card')) badgeClass = 'badge-danger';
-
-    tableRows.push(`
-      <tr>
-        <td style="padding: 1rem;">
-          <div style="font-weight: 600;">${formatDate(payment.date, 'short')}</div>
-          <div style="font-size: 0.75rem; color: var(--text-tertiary);">${getRelativeTime(payment.createdAt)}</div>
-        </td>
-        <td style="padding: 1rem; font-weight: 600;">${student ? student.name : 'Unknown Student'}</td>
-        <td style="padding: 1rem; font-weight: 700;">${formatCurrency(payment.amount, currency)}</td>
-        <td style="padding: 1rem; text-align: center;">
-          <span class="badge ${badgeClass}">${formatPaymentMethod(payment.method)}</span>
-        </td>
-      </tr>
-    `);
-  }
-
-  const modalHtml = `
-    <div class="modal-backdrop" id="fullPaymentsModal" style="z-index: 10001; position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); animation: fadeIn 0.3s ease;">
-      <div class="scs-modal-card" style="max-width: 800px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 1.5rem; letter-spacing: -0.02em;">Detailed Payments</h2>
-          <button class="btn-close" onclick="document.getElementById('fullPaymentsModal').remove()" style="background: none; border: none; cursor: pointer; color: var(--text-tertiary);">${Icons.close}</button>
-        </div>
-        <div style="flex: 1; overflow-y: auto; padding: 1.5rem 2rem;">
-          <div class="table-container" style="box-shadow: none;">
-            <table class="table" style="width: 100%;">
-              <thead>
-                <tr>
-                  <th style="text-align: left;">Date / Time</th>
-                  <th style="text-align: left;">Student</th>
-                  <th style="text-align: left;">Amount</th>
-                  <th style="text-align: center;">Method</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRows.join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div style="padding: 1.5rem 2rem; border-top: 1px solid var(--border-light); text-align: right;">
-          <button class="btn btn-secondary" onclick="document.getElementById('fullPaymentsModal').remove()">Close</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
 /**
  * Render recent payment rows
  */
@@ -544,7 +480,7 @@ async function renderRecentPaymentRows(payments, currency) {
             ${student ? student.name : '<span style="color: var(--text-tertiary);">Orphaned Account</span>'}
           </div>
         </td>
-        <td style="white-space: nowrap; vertical-align: middle; text-align: right;"><strong>${formatCurrency(payment.amount, currency)}</strong></td>
+        <td style="white-space: nowrap; vertical-align: middle; text-align: right;"><strong class="amount-positive">${formatCurrency(payment.amount, currency)}</strong></td>
       </tr>
     `);
   }

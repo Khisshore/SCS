@@ -90,9 +90,11 @@ export async function renderStudents() {
             </div>
             <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 200px;">
               <select id="statusFilter" class="form-select">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
                 <option value="" selected>All Status</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Withdrawn">Withdrawn</option>
+                <option value="Deferred">Deferred</option>
               </select>
             </div>
             <button class="btn btn-secondary" id="refreshStudentsBtn" style="padding: 0.75rem;">
@@ -156,6 +158,25 @@ export async function renderStudents() {
       .table .badge {
         font-size: 0.85rem;
         padding: 0.35rem 0.65rem;
+      }
+
+      /* Hover and Clicks for Student Table */
+      #studentsTableContainer tr:not(thead tr) {
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      #studentsTableContainer tr:not(thead tr):hover {
+        background-color: var(--surface-hover);
+        transform: scale(1.002);
+        box-shadow: inset 0 0 0 1px var(--border-color), var(--shadow-sm);
+      }
+      #studentsTableContainer tr:not(thead tr) td:first-child {
+        border-top-left-radius: var(--radius-md);
+        border-bottom-left-radius: var(--radius-md);
+      }
+      #studentsTableContainer tr:not(thead tr) td:last-child {
+        border-top-right-radius: var(--radius-md);
+        border-bottom-right-radius: var(--radius-md);
       }
     </style>
   `;
@@ -241,6 +262,9 @@ async function loadStudents() {
   const container = document.getElementById('studentsTableContainer');
   const countBadge = document.getElementById('studentCount');
 
+  // Guard: If we are not on the students page, stop here
+  if (!container) return;
+
   if (countBadge) {
     countBadge.textContent = `${students.length} student${students.length !== 1 ? 's' : ''}`;
   }
@@ -278,7 +302,10 @@ async function loadStudents() {
         </thead>
         <tbody>
           ${students.map((student, index) => `
-            <tr style="animation: slideIn 0.3s ease-out ${index * 0.05}s both;">
+            <tr 
+              style="animation: slideIn 0.3s ease-out ${index * 0.05}s both;"
+              onclick="window.viewStudent('${student.id}')"
+            >
               <td style="color: var(--text-tertiary); font-size: 0.85rem;">${index + 1}</td>
               <td style="font-weight: 500; color: var(--text-primary);">${escapeHtml(student.name)}</td>
               <td>${escapeHtml(student.program)}</td>
@@ -292,7 +319,7 @@ async function loadStudents() {
                 <div class="flex gap-sm" style="justify-content: center;">
                   <button
                     class="btn btn-sm btn-primary"
-                    onclick="window.viewStudent('${student.id}')"
+                    onclick="event.stopPropagation(); window.viewStudent('${student.id}')"
                     style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="View & Edit Details"
                   >
@@ -300,7 +327,7 @@ async function loadStudents() {
                   </button>
                   <button
                     class="btn btn-sm btn-danger"
-                    onclick="window.deleteStudent('${student.id}')"
+                    onclick="event.stopPropagation(); window.deleteStudent('${student.id}')"
                     style="width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);"
                     title="Delete"
                   >
@@ -318,12 +345,12 @@ async function loadStudents() {
 
 function getCompletionStatusBadge(status) {
   const map = {
-    'In Progress': 'badge-primary',
-    'Completed': 'badge-success',
-    'Withdrawn': 'badge-danger',
-    'Deferred': 'badge-warning'
+    'In Progress': 'status-badge in-progress',
+    'Completed': 'status-badge completed',
+    'Withdrawn': 'status-badge withdrawn',
+    'Deferred': 'status-badge deferred'
   };
-  return map[status] || 'badge-secondary';
+  return map[status] || 'status-badge secondary';
 }
 
 /**
@@ -859,7 +886,7 @@ async function saveStudent(studentId) {
       intake: intakeDateStr,
       completionDate: completionDateStr,
       completionStatus: document.getElementById('studentCompletionStatus').value,
-      status: 'active', // Default to active since field removed
+      status: 'active', // Strictly for soft-deletion (active vs deleted)
       totalFees: document.getElementById('studentTotalFees').value || 0,
       institutionalCost: document.getElementById('studentInstitutionalCost').value || 0,
       registrationFee: regFee,

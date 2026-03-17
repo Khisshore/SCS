@@ -90,6 +90,7 @@ class StudentModel {
    * @returns {Promise<object>} - Student record
    */
   async findById(id) {
+    if (!id) return null;
     // IndexedDB auto-increment keys are integers, but data-attributes return strings.
     // Try numeric key first, then string fallback.
     const numericId = Number(id);
@@ -271,8 +272,10 @@ class StudentModel {
     
     return {
       total: students.length,
-      active: students.filter(s => s.status === 'active').length,
-      inactive: students.filter(s => s.status === 'inactive').length
+      inProgress: students.filter(s => s.completionStatus === 'In Progress').length,
+      completed: students.filter(s => s.completionStatus === 'Completed').length,
+      withdrawn: students.filter(s => s.completionStatus === 'Withdrawn').length,
+      deferred: students.filter(s => s.completionStatus === 'Deferred').length
     };
   }
 
@@ -304,21 +307,18 @@ class StudentModel {
         // Strict comparison: must be strictly BEFORE current month/year
         const hasPassed = (currentYear > compYear) || (currentYear === compYear && currentMonth > compMonth);
 
-        // Case 1: Student is active but completion date has passed -> Auto-complete
-        if (student.status === 'active' && hasPassed) {
+        // Case 1: Student is In Progress but completion date has passed -> Auto-complete
+        if (student.completionStatus === 'In Progress' && hasPassed) {
           console.log(`🎓 Auto-completing student: ${student.name} (id: ${student.id}) due to completion date: ${student.completionDate}`);
           await this.update(student.id, { 
-            status: 'inactive',
             completionStatus: 'Completed'
           });
           completedCount++;
         }
         
-        // Case 2: Student is inactive (Completed) but completion date is in the future -> Re-activate
-        // Only re-activate if completionStatus is 'Completed' (don't override manual deletions)
-        else if (student.status === 'inactive' && student.completionStatus === 'Completed' && !hasPassed) {
+        // Case 2: Student is Completed but completion date is in the future -> Re-activate
+        else if (student.completionStatus === 'Completed' && !hasPassed) {
           await this.update(student.id, {
-            status: 'active',
             completionStatus: 'In Progress'
           });
           reactivatedCount++;

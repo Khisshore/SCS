@@ -476,13 +476,11 @@ export async function renderSpreadsheet() {
       }
 
       .spreadsheet-table th.name-col {
-        min-width: 200px;
-        max-width: 250px;
+        min-width: 280px;
       }
 
       .spreadsheet-table td.name-col {
-        min-width: 200px;
-        max-width: 250px;
+        min-width: 280px;
         white-space: normal;
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -590,7 +588,11 @@ export async function renderSpreadsheet() {
       }
 
       .student-name {
-        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        font-size: 1rem;
         font-weight: 700;
         color: var(--text-primary);
         margin: 0;
@@ -861,18 +863,7 @@ export async function renderSpreadsheet() {
         to { transform: rotate(360deg); }
       }
 
-      .status-tag {
-        font-size: 0.65rem;
-        font-weight: 800;
-        padding: 0.125rem 0.5rem;
-        border-radius: var(--radius-full);
-        background: var(--border-color);
-        color: var(--text-tertiary);
-        margin-left: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-style: normal;
-      }
+      /* Universal status-badge is handled in index.css */
     </style>
   `;
 
@@ -1297,21 +1288,26 @@ function renderTable(courseGroups, currency) {
       students.forEach(data => {
         const { student, totalPaid, balance, cost } = data;
         
+        // Determine badge class and text
+        const compStatus = student.completionStatus || 'In Progress';
+        const badgeClass = compStatus === 'In Progress' ? 'in-progress' : compStatus.toLowerCase();
+        let tagHtml = `<span class="status-badge ${badgeClass}">${escapeHtml(compStatus)}</span>`;
+        
         rowsHtml += `
-          <tr class="${student.status === 'inactive' ? 'inactive-row' : ''}" data-student-id="${student.id}" style="cursor: pointer;">
+          <tr data-student-id="${student.id}" style="cursor: pointer;">
             <td>${rowNumber++}</td>
             <td class="name-col">
-              <div class="student-name">
+              <div class="student-name" style="display: flex; align-items: center;">
                 ${escapeHtml(student.name)}
-                ${student.status === 'inactive' ? '<span class="status-tag">Completed</span>' : ''}
+                ${tagHtml}
               </div>
             </td>
             <td>${student.intake ? escapeHtml(formatMonthYear(student.intake)) : '-'}</td>
             <td>${student.completionDate ? escapeHtml(formatMonthYear(student.completionDate)) : '-'}</td>
             <td class="amount-bold">${formatCurrency(cost, currency)}</td>
             <td class="amount-bold">${formatCurrency(student.totalFees || 0, currency)}</td>
-            <td class="amount-paid">${formatCurrency(totalPaid, currency)}</td>
-            <td class="${balance >= 0.01 ? 'amount-outstanding' : 'amount-paid'}">
+            <td class="amount-positive">${formatCurrency(totalPaid, currency)}</td>
+            <td class="${balance >= 0.01 ? 'amount-negative' : 'amount-positive'}">
               ${formatCurrency(balance, currency)}
             </td>
           </tr>
@@ -1375,12 +1371,12 @@ function renderSummaryCards(totalCollected, totalOutstanding, activeEnrollments,
     <div class="summary-cards">
       <div class="summary-card">
         <div class="summary-card-label">Total Fees Collected</div>
-        <div class="summary-card-value success">${formatCurrency(totalCollected, currency)}</div>
+        <div class="summary-card-value amount-positive">${formatCurrency(totalCollected, currency)}</div>
       </div>
       
       <div class="summary-card">
         <div class="summary-card-label">Pending Balance</div>
-        <div class="summary-card-value danger">${formatCurrency(totalOutstanding, currency)}</div>
+        <div class="summary-card-value amount-negative">${formatCurrency(totalOutstanding, currency)}</div>
       </div>
       
       <div class="summary-card">

@@ -77,7 +77,7 @@ function updateBackground(theme, preset) {
     
     // Choose component based on preset
     let Component = Aurora;
-    let props = { colorStops: ["#5194db", "#4ba078", "#1493a3"], amplitude: 1.0, blend: 0.5 };
+    let props = { colorStops: ["#2d6ab3", "#3a825f", "#0e6b77"], amplitude: 0.9, blend: 0.9 };
 
     if (preset === 'grainient') {
       Component = Grainient;

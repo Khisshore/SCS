@@ -223,6 +223,8 @@ class SyncService {
                   // Strip non-existent Supabase columns
                   delete row.registrationFeeMethod;
                   delete row.commissionMethod;
+                  delete row.description; // Not in payments schema yet
+                  delete row.remarks;    // Not in students schema yet
 
                   const { error } = await this.supabaseClient
                     .from(collectionName)

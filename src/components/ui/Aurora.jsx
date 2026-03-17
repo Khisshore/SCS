@@ -84,6 +84,11 @@ struct ColorStop {
   finalColor = mix(currentColor.color, nextColor.color, lerpFactor); \
 }
 
+vec3 dither(vec3 color, vec2 uv) {
+  float n = fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
+  return color + (n - 0.5) / 255.0;
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy / uResolution;
   
@@ -97,15 +102,19 @@ void main() {
   
   float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
   height = exp(height);
-  height = (uv.y * 2.0 - height + 0.2);
-  float intensity = 0.6 * height;
+  height = (uv.y * 2.0 - height + 0.1); // Slightly lower for more base depth
+  float intensity = 0.5 * height; // Reduced base intensity for smoother fade
   
-  float midPoint = 0.20;
-  float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
+  float midPoint = 0.15; // Adjusted midpoint
+  float auroraAlpha = smoothstep(midPoint - uBlend, midPoint + uBlend, intensity);
   
   vec3 auroraColor = intensity * rampColor;
   
-  fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
+  // Refined dithering to eliminate banding without visible noise
+  vec3 finalColor = dither(auroraColor * auroraAlpha, uv);
+  
+  // Use a softer alpha transition
+  fragColor = vec4(finalColor, auroraAlpha * 0.9);
 }
 `;
 
@@ -123,7 +132,8 @@ export default function Aurora(props) {
     const renderer = new Renderer({
       alpha: true,
       premultipliedAlpha: true,
-      antialias: true
+      antialias: true,
+      dpr: window.devicePixelRatio || 1
     });
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
@@ -137,9 +147,13 @@ export default function Aurora(props) {
       if (!ctn) return;
       const width = ctn.offsetWidth;
       const height = ctn.offsetHeight;
+      
+      // Handle high-DPI scaling
+      const dpr = window.devicePixelRatio || 1;
       renderer.setSize(width, height);
+      
       if (program) {
-        program.uniforms.uResolution.value = [width, height];
+        program.uniforms.uResolution.value = [width * dpr, height * dpr];
       }
     }
     window.addEventListener('resize', resize);

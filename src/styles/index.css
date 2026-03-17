@@ -61,6 +61,8 @@
   --scrollbar-thumb: #CBD5E1;
   --scrollbar-thumb-hover: #94A3B8;
 
+  --header-border: #CBD5E1; /* Matches scrollbar thumb */
+
   /* Glassmorphism - Light */
   --glass-bg: rgba(255, 255, 255, 0.4);
   --glass-blur: blur(24px);
@@ -89,12 +91,13 @@
 }
 
 html {
-  background-color: var(--background); /* Fixed hardcoded black which caused the scroll bleeding */
+  background-color: var(--background-root, var(--background)); /* Deep base for Aurora transparency */
   min-height: 100%;
 }
 
 :root[data-theme="dark"] {
   /* Modern Dark Theme Colors - Neutral Palette */
+  --background-root: #050505;
   --background: transparent;
   --background-fallback: #080808;
   --background-secondary: rgba(18, 18, 18, 0.45); 
@@ -150,6 +153,8 @@ html {
   --scrollbar-thumb: #30363D;
   --scrollbar-thumb-hover: #484F58;
 
+  --header-border: #30363D; /* Matches scrollbar thumb */
+
   /* Glassmorphism - Dark */
   --glass-bg: rgba(25, 30, 40, 0.25);
   --glass-blur: blur(32px);
@@ -171,6 +176,49 @@ html {
   --skeleton-base: rgba(255, 255, 255, 0.06);
   --skeleton-shine: rgba(255, 255, 255, 0.12);
   --skeleton-border: rgba(255, 255, 255, 0.06);
+}
+
+/* Global Scrollbar Container (Universal) */
+*::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Scrollbar Track - Using large vertical borders to "shorten" the visible area */
+*::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-top: 24px solid transparent !important;
+  border-bottom: 24px solid transparent !important;
+  background-clip: content-box !important;
+}
+
+/* Hide native scrollbar buttons (arrows) */
+*::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Scrollbar Thumb - The "Floating Pill" */
+*::-webkit-scrollbar-thumb {
+  background: var(--header-border, var(--border-color)) !important;
+  border-radius: 20px !important;
+  /* Further shorten the thumb and pull it away from horizontal edges */
+  border-top: 32px solid transparent !important;
+  border-bottom: 32px solid transparent !important;
+  border-left: 4px solid transparent !important;
+  border-right: 4px solid transparent !important;
+  background-clip: content-box !important;
+  transition: background 0.2s ease !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  background: var(--header-border) !important;
+  opacity: 0.6 !important;
 }
 
 :root {
@@ -250,6 +298,7 @@ html {
   
   --border-color: #b3bac1;
   --border-light: #d1d8dc;
+  --header-border: #4a6781;    /* Thunder Blue for strong contrast */
   --radius-lg: 12px;           /* Sharper architectural corners */
 
   /* ZERO GLASS POLICY */
@@ -1200,31 +1249,41 @@ p {
   background: var(--surface-hover);
 }
 
-.table th {
-  padding: 1rem; /* Reduced from 1.5rem for better fit */
+.table th, 
+.spreadsheet-table th {
+  padding: 1rem;
   text-align: left;
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 800; /* Bolder headers */
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid var(--border-color); /* Full border */
-  background: var(--surface-hover); /* Light header bg */
+  letter-spacing: 0.08em; /* Slightly more letter spacing */
+  border-bottom: 2px solid var(--header-border, var(--border-color)); /* Premium outline synced with scroll */
+  background: var(--surface-subtle); /* Better contrast */
+  transition: all 0.2s ease;
 }
 
 .table td {
-  padding: 1rem; /* Reduced from 1.5rem for better fit */
-  border: 1px solid var(--border-color); /* Full border */
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light); /* Refined row line */
   color: var(--text-secondary);
   vertical-align: middle;
 }
 
-.table tbody tr {
-  transition: background var(--transition-fast);
+/* Financial Color Utilities */
+.amount-positive {
+  color: var(--success-600) !important;
+  font-weight: 700;
 }
 
-.table tbody tr:hover {
-  background: var(--surface-hover);
+.amount-negative {
+  color: var(--danger-600) !important;
+  font-weight: 700;
+}
+
+.amount-neutral {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /* Badges */
@@ -1240,64 +1299,80 @@ p {
 }
 
 .badge-primary {
-  background: var(--primary-100);
-  color: var(--primary-700);
+  background: var(--primary-600);
+  color: white;
 }
 
 .badge-secondary {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--text-tertiary);
+  color: white;
 }
 
 .badge-info {
-  background: rgba(6, 182, 212, 0.1); /* Cyan-themed background */
-  color: #0891b2; /* Cyan-themed text */
+  background: var(--primary-500);
+  color: white;
 }
 
 .badge-success {
-  background: var(--success-100);
-  color: var(--success-600);
+  background: var(--success-600);
+  color: white;
 }
 
 .badge-warning {
-  background: var(--warning-50);
-  color: var(--warning-600);
+  background: var(--warning-500);
+  color: white;
 }
 
 .badge-danger {
-  background: var(--danger-50);
-  color: var(--danger-600);
+  background: var(--danger-600);
+  color: white;
 }
+
+/* Universal Status Badge System */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-badge.in-progress { background: var(--success-600); }
+.status-badge.completed   { background: var(--primary-600); }
+.status-badge.withdrawn   { background: var(--danger-600); }
+.status-badge.deferred    { background: var(--warning-600); }
 
 /* Dark Mode Badge Overrides */
 [data-theme="dark"] .badge-primary {
-  background: rgba(88, 166, 255, 0.15);
-  color: #58A6FF;
-  border: 1px solid rgba(88, 166, 255, 0.2);
+  background: var(--primary-600);
+  color: white;
 }
 
 [data-theme="dark"] .badge-success {
-  background: rgba(63, 185, 80, 0.15);
-  color: #3FB950;
-  border: 1px solid rgba(63, 185, 80, 0.2);
+  background: var(--success-600);
+  color: white;
 }
 
 [data-theme="dark"] .badge-warning {
-  background: rgba(224, 155, 19, 0.15);
-  color: #E09B13;
-  border: 1px solid rgba(224, 155, 19, 0.2);
+  background: var(--warning-600);
+  color: white;
 }
 
 [data-theme="dark"] .badge-danger {
-  background: rgba(248, 81, 73, 0.15);
-  color: #F85149;
-  border: 1px solid rgba(248, 81, 73, 0.2);
+  background: var(--danger-600);
+  color: white;
 }
 
 [data-theme="dark"] .badge-secondary {
-  background: rgba(139, 148, 158, 0.15);
-  color: #B1BAC4;
-  border: 1px solid rgba(139, 148, 158, 0.2);
+  background: var(--text-tertiary);
+  color: white;
 }
 
 [data-theme="dark"] .badge-info {
