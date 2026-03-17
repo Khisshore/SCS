@@ -42,6 +42,7 @@ class StudentModel {
       commissionMethod: studentData.commissionMethod || '',
       commissionPaidTo: studentData.commissionPaidTo || '',
       totalSemesters: parseInt(studentData.totalSemesters) || 1,
+      remarks: studentData.remarks || '',
       status: studentData.status || 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -206,6 +207,23 @@ class StudentModel {
    * @param {number} id - Student database ID
    */
   async delete(id) {
+    // 1. Cascaded Deletion: Delete all associated payments first
+    try {
+      const student = await this.findById(id);
+      if (student) {
+        // Find all payments for this student directly from DB to be safe
+        const sid = String(student.id);
+        const payments = await db.getByIndex(STORES.PAYMENTS, 'studentId', sid);
+        for (const payment of payments) {
+          await db.delete(STORES.PAYMENTS, payment.id);
+        }
+        console.log(`🗑️ Deleted ${payments.length} associated payments for student: ${student.name}`);
+      }
+    } catch (e) {
+      console.warn('Cascaded payment deletion failed:', e);
+    }
+
+    // 2. Soft delete the student
     return await this.update(id, { status: 'deleted' });
   }
 
@@ -288,6 +306,7 @@ class StudentModel {
 
         // Case 1: Student is active but completion date has passed -> Auto-complete
         if (student.status === 'active' && hasPassed) {
+          console.log(`🎓 Auto-completing student: ${student.name} (id: ${student.id}) due to completion date: ${student.completionDate}`);
           await this.update(student.id, { 
             status: 'inactive',
             completionStatus: 'Completed'

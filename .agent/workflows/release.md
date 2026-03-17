@@ -28,6 +28,7 @@ node -e "const pkg=require('./package.json'); const v=pkg.version.split('.'); v[
 4. Stage the version bump:
 ```
 git add package.json
+
 ```
 
 5. Commit with the new version (read version from package.json):

@@ -90,9 +90,9 @@ export async function renderStudents() {
             </div>
             <div class="form-group" style="margin-bottom: 0; flex: 1; max-width: 200px;">
               <select id="statusFilter" class="form-select">
-                <option value="active" selected>Active</option>
+                <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="">All Status</option>
+                <option value="" selected>All Status</option>
               </select>
             </div>
             <button class="btn btn-secondary" id="refreshStudentsBtn" style="padding: 0.75rem;">
@@ -193,7 +193,7 @@ async function loadStudents() {
   const statusFilterEl = document.getElementById('statusFilter');
   // Default to active if the select exists but is somehow empty during init, 
   // actually document.getElementById('statusFilter')?.value will be 'active' natively because of 'selected' attribute.
-  const status = statusFilterEl ? statusFilterEl.value : 'active';
+  const status = statusFilterEl ? statusFilterEl.value : '';
 
   const filters = {};
   if (search) filters.search = search;
@@ -936,13 +936,22 @@ async function saveStudent(studentId) {
 
     window.closeModal();
     await loadStudents();
-    showNotification(studentId ? 'Student updated successfully!' : 'Student added successfully!', 'success');
+    
+    // Use the custom modal for success feedback instead of simple alert
+    await showSettingsModal({
+      title: 'Success',
+      message: studentId ? 'Student details have been updated successfully.' : 'New student record has been created.',
+      type: 'success',
+      icon: Icons.check
+    });
   } catch (error) {
+    console.error('Save student error:', error);
     if (formError) {
-      formError.textContent = error.message;
+      formError.textContent = 'Error: ' + error.message;
       formError.classList.remove('hidden');
+      formError.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      alert(error.message);
+      alert('Error saving student: ' + error.message);
     }
   }
 }
@@ -988,6 +997,16 @@ async function deleteStudent(studentId) {
       showToast(error.message, 'error');
     }
   }
+}
+
+/**
+ * Get combined date string (YYYY-MM) from month and year selectors
+ */
+function getCombinedDate(monthId, yearId) {
+  const month = document.getElementById(monthId).value;
+  const year = document.getElementById(yearId).value;
+  if (!month || !year) return '';
+  return `${year}-${month.padStart(2, '0')}`;
 }
 
 /**

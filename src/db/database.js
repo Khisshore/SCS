@@ -266,7 +266,12 @@ class Database {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
-      const request = store.put(data);
+      
+      // Coerce to number if possible for IndexedDB (which often uses numeric keys)
+      const numericId = Number(data.id);
+      const prioritizedData = (!isNaN(numericId) && data.id !== undefined) ? { ...data, id: numericId } : data;
+      
+      const request = store.put(prioritizedData);
       request.onsuccess = () => {
         resolve(request.result);
         if (this.onChange && !this.isImporting) this.onChange();
@@ -283,14 +288,29 @@ class Database {
     if (collection) {
       const doc = await collection.findOne(id.toString()).exec();
       if (doc) return doc.toJSON();
-      // Fall through to legacy IndexedDB if RxDB has no record
     }
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readonly');
       const store = transaction.objectStore(storeName);
+      
+      // Try string ID first
       const request = store.get(id);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        if (request.result) {
+          resolve(request.result);
+        } else {
+          // If string ID fails, try numeric ID
+          const numericId = Number(id);
+          if (!isNaN(numericId)) {
+            const numRequest = store.get(numericId);
+            numRequest.onsuccess = () => resolve(numRequest.result);
+            numRequest.onerror = () => reject(numRequest.error);
+          } else {
+            resolve(null);
+          }
+        }
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -330,8 +350,16 @@ class Database {
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([storeName], 'readwrite');
       const store = transaction.objectStore(storeName);
+      
+      // Try original ID first
       const request = store.delete(id);
       request.onsuccess = () => {
+        // Unfortunately request.result is undefined for delete, so we can't easily check 'success'
+        // But we can try numeric ID if it might have failed (no-op doesn't error in IndexedDB)
+        const numericId = Number(id);
+        if (!isNaN(numericId) && id !== numericId) {
+          store.delete(numericId);
+        }
         resolve();
         if (this.onChange && !this.isImporting) this.onChange();
       };

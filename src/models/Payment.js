@@ -97,18 +97,31 @@ class PaymentModel {
       students.filter(s => s.status === 'deleted').map(s => String(s.id))
     );
 
-    // Filter out payments belonging to deleted students
+    // Cleanup: Physically delete payments belonging to students already marked as 'deleted'
+    const orphans = payments.filter(p => deletedStudentIds.has(String(p.studentId)));
+    if (orphans.length > 0) {
+      console.log(`🧹 Cleaning up ${orphans.length} orphaned payments in findAll...`);
+      for (const p of orphans) {
+        await db.delete(STORES.PAYMENTS, p.id);
+      }
+      // Re-fetch after cleanup
+      payments = await db.getAll(STORES.PAYMENTS);
+    }
+
+    // Filter out payments belonging to deleted students (redundant but safe)
     payments = payments.filter(p => !deletedStudentIds.has(String(p.studentId)));
 
     // Filter by date range
     if (filters.startDate) {
-      const start = new Date(filters.startDate);
+      // Handle both ISO strings and YYYY-MM-DD
+      const dateStr = filters.startDate.includes('T') ? filters.startDate : filters.startDate + 'T00:00:00';
+      const start = new Date(dateStr);
       payments = payments.filter(p => new Date(p.date) >= start);
     }
 
     if (filters.endDate) {
-      const end = new Date(filters.endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
+      const dateStr = filters.endDate.includes('T') ? filters.endDate : filters.endDate + 'T23:59:59';
+      const end = new Date(dateStr);
       payments = payments.filter(p => new Date(p.date) <= end);
     }
 
@@ -313,8 +326,23 @@ class PaymentModel {
       students.filter(s => s.status === 'deleted').map(s => String(s.id))
     );
     
-    // Filter out deleted students' payments
-    payments = payments.filter(p => !deletedStudentIds.has(String(p.studentId)));
+    // Cleanup: Physically delete payments belonging to students already marked as 'deleted'
+    // This handles orphaned data from before the cascaded deletion fix
+    const orphans = payments.filter(p => deletedStudentIds.has(String(p.studentId)));
+    if (orphans.length > 0) {
+      console.log(`🧹 Cleaning up ${orphans.length} orphaned payments...`);
+      for (const p of orphans) {
+        await db.delete(STORES.PAYMENTS, p.id);
+      }
+      // Re-fetch after cleanup
+      payments = await db.getAll(STORES.PAYMENTS);
+    }
+    
+    // Ensure we only return payments for students that still exist and are NOT deleted
+    const activeStudentIds = new Set(
+      students.filter(s => s.status !== 'deleted').map(s => String(s.id))
+    );
+    payments = payments.filter(p => activeStudentIds.has(String(p.studentId)));
     
     // Sort by date (newest first) and limit
     return payments

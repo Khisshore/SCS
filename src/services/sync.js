@@ -1,6 +1,7 @@
-import { createRxDatabase } from 'rxdb';
+import { createRxDatabase, addRxPlugin } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { replicateRxCollection } from 'rxdb/plugins/replication';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { 
   StudentSchema, 
   PaymentSchema, 
@@ -10,6 +11,8 @@ import {
   StudentRemarksSchema, 
   ProgrammeSchema 
 } from '../db/schemas.js';
+
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 class SyncService {
   constructor() {
@@ -59,13 +62,48 @@ class SyncService {
       // Add Collections
       console.log('📦 Initializing RxDB collections...');
       await this.db.addCollections({
-        students: { schema: StudentSchema },
-        payments: { schema: PaymentSchema },
-        receipts: { schema: ReceiptSchema },
-        settings: { schema: SettingSchema },
-        fileMetadata: { schema: FileMetadataSchema },
-        studentRemarks: { schema: StudentRemarksSchema },
-        programmes: { schema: ProgrammeSchema }
+        students: { 
+          schema: StudentSchema,
+          migrationStrategies: {
+            1: (doc) => doc // Simple identity migration for field additions
+          }
+        },
+        payments: { 
+          schema: PaymentSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        },
+        receipts: { 
+          schema: ReceiptSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        },
+        settings: { 
+          schema: SettingSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        },
+        fileMetadata: { 
+          schema: FileMetadataSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        },
+        studentRemarks: { 
+          schema: StudentRemarksSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        },
+        programmes: { 
+          schema: ProgrammeSchema,
+          migrationStrategies: {
+            1: (doc) => doc
+          }
+        }
       }).catch(err => {
         console.error('❌ addCollections failed:', err);
         throw err;

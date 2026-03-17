@@ -914,14 +914,12 @@ export function initStudentDetailModal() {
   modalBackdrop?.addEventListener('click', closeModal);
 
   // Edit Student button
-  document.getElementById('modalEditStudentBtn')?.addEventListener('click', async () => {
-    // We need to know which student is currently open
-    const name = document.getElementById('modalStudentName').textContent;
-    const students = await Student.findAll();
-    const student = students.find(s => s.name === name);
-    if (student && window.editStudent) {
+  document.getElementById('modalEditStudentBtn')?.addEventListener('click', () => {
+    const modal = document.getElementById('studentDetailModal');
+    const studentId = modal.dataset.studentId;
+    if (studentId && window.editStudent) {
       closeModal();
-      window.editStudent(student.id);
+      window.editStudent(studentId);
     }
   });
 
@@ -972,6 +970,9 @@ export async function openStudentDetailModal(studentIdOrObject) {
     initPdfPreviewModal();
     return openStudentDetailModal(student);
   }
+
+  // Store student ID for actions like Edit
+  modal.dataset.studentId = student.id;
 
   // Get currency
   const currency = await db.getSetting('currency') || 'RM';

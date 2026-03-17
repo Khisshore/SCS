@@ -5,7 +5,7 @@
 
 export const StudentSchema = {
   title: 'student schema',
-  version: 0,
+  version: 1,
   description: 'describes a student',
   primaryKey: 'id',
   type: 'object',
@@ -25,10 +25,13 @@ export const StudentSchema = {
     institutionalCost: { type: 'number' },
     registrationFee: { type: 'number' },
     registrationFeeReceipt: { type: 'string' },
+    registrationFeeMethod: { type: 'string' },
     commission: { type: 'number' },
     commissionReceipt: { type: 'string' },
+    commissionMethod: { type: 'string' },
     commissionPaidTo: { type: 'string' },
     totalSemesters: { type: 'integer' },
+    remarks: { type: 'string' },
     status: { type: 'string', maxLength: 100 },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
@@ -39,32 +42,33 @@ export const StudentSchema = {
 
 export const PaymentSchema = {
   title: 'payment schema',
-  version: 0,
+  version: 1,
   description: 'describes a payment/transaction',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
     studentId: { type: 'string', maxLength: 100 },
-    amount: { type: 'number' },
+    amount: { type: ['number', 'null'] },
     date: { type: 'string', format: 'date-time', maxLength: 100 },
     method: { type: 'string', maxLength: 100 },
-    semester: { type: 'string', maxLength: 100 },
+    semester: { type: ['string', 'null'], maxLength: 100 },
     reference: { type: 'string' }, // maps to receipt_id
     remarks: { type: 'string' },
-    transactionType: { type: 'string', enum: ['REGISTRATION', 'SEMESTER_PAYMENT', 'COMMISSION_PAYOUT', 'OTHER'] },
+    description: { type: 'string' },
+    transactionType: { type: 'string' }, // more flexible
     category: { type: 'string', enum: ['REVENUE', 'EXPENSE'] },
     recipient: { type: 'string' }, // for EXPENSE types
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time', maxLength: 100 }
   },
-  required: ['id', 'studentId', 'amount', 'date', 'method', 'semester', 'updatedAt'],
-  indexes: ['studentId', 'date', 'method', 'semester', 'updatedAt']
+  required: ['id', 'studentId', 'date', 'method', 'updatedAt'],
+  indexes: ['studentId', 'date', 'method', 'updatedAt']
 };
 
 export const ReceiptSchema = {
   title: 'receipt schema',
-  version: 0,
+  version: 1,
   description: 'describes a receipt',
   primaryKey: 'id',
   type: 'object',
@@ -83,7 +87,7 @@ export const ReceiptSchema = {
 
 export const SettingSchema = {
   title: 'setting schema',
-  version: 0,
+  version: 1,
   description: 'describes a system setting',
   primaryKey: 'key',
   type: 'object',
@@ -98,7 +102,7 @@ export const SettingSchema = {
 
 export const FileMetadataSchema = {
   title: 'file metadata schema',
-  version: 0,
+  version: 1,
   description: 'describes metadata for a stored file',
   primaryKey: 'id',
   type: 'object',
@@ -119,7 +123,7 @@ export const FileMetadataSchema = {
 
 export const StudentRemarksSchema = {
   title: 'student remarks schema',
-  version: 0,
+  version: 1,
   description: 'describes remarks for a student',
   primaryKey: 'id',
   type: 'object',

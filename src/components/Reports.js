@@ -427,8 +427,8 @@ async function updateReport() {
   for (const payment of payments) {
     const student = await Student.findById(payment.studentId);
     
-    // Explicitly filter out payments for deleted students
-    if (student && student.status === 'deleted') {
+    // Explicitly filter out payments for deleted or missing students
+    if (!student || student.status === 'deleted') {
       continue;
     }
 

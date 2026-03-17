@@ -184,22 +184,9 @@ async function init() {
           // 2. DEBOUNCED REFRESH: Wait for batch to finish before re-rendering
           clearTimeout(refreshTimer);
           refreshTimer = setTimeout(() => {
-            const content = document.getElementById('main-content');
-            if (content) {
-              content.style.opacity = '0.6';
-              content.style.transition = 'opacity 0.15s ease';
-            }
-            
-            navigateToPage(app.currentPage, true);
-            
-            // Fade back in after render
-            requestAnimationFrame(() => {
-              const c = document.getElementById('main-content');
-              if (c) {
-                c.style.opacity = '1';
-              }
-            });
-          }, 300);
+            // Soft refresh current page to reflect data changes without flickering skeletons
+            refreshCurrentPage();
+          }, 500);
         }
       };
     }
@@ -384,11 +371,35 @@ async function navigateToPage(page, force = false) {
       default:
         await renderDashboard();
     }
-  } catch (error) {
-    console.error(`Error loading ${page}:`, error);
-    showError(`Failed to load ${page} page`);
   } finally {
     showLoading(false);
+  }
+}
+
+/**
+ * Perform a "soft" content refresh.
+ * Updates the current page's data without showing skeletons or resetting navigation state.
+ */
+async function refreshCurrentPage() {
+  if (!app.initialized) return;
+  
+  // Guard: Don't refresh if a modal is potentially being interacted with
+  if (document.querySelector('.modal-backdrop:not(#fullPaymentsModal)')) {
+    return;
+  }
+
+  try {
+    const page = app.currentPage;
+    switch (page) {
+      case 'dashboard': await renderDashboard(); break;
+      case 'students': await renderStudents(); break;
+      case 'reports': await renderReports(); break;
+      case 'spreadsheet': await renderSpreadsheet(); break;
+      case 'transfer': await renderTransferHub(); break;
+      case 'settings': await renderSettings(); break;
+    }
+  } catch (err) {
+    console.warn(`Soft refresh failed for ${app.currentPage}:`, err);
   }
 }
 
