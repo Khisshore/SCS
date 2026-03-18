@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Electron
 out/
+
+# Build-time generated config (contains credentials, never commit)
+electron/env-config.js

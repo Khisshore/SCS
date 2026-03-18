@@ -7,24 +7,48 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const logger = require('./logger');
 
-// 1. Load .env file for Google credentials FIRST
-// This must happen before requiring modules that capture process.env at load time
-try {
-  const envPath = path.join(__dirname, '..', '.env');
-  const envContent = fsSync.readFileSync(envPath, 'utf8');
-  envContent.split(/\r?\n/).forEach(line => {
-    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-    if (match) {
-      let value = match[2] || '';
-      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-      if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
-      process.env[match[1]] = value;
+// 1. Load environment credentials FIRST
+// This must happen before requiring modules that capture process.env at load time.
+// In development: reads .env from project root
+// In production:  uses electron/env-config.js (generated at build time by scripts/inject-env.js,
+//                 bundled inside the .asar archive — NOT a plain-text file on disk)
+function loadEnvFile() {
+  // Strategy A: Development — read .env directly
+  const devEnvPath = path.join(__dirname, '..', '.env');
+  try {
+    const envContent = fsSync.readFileSync(devEnvPath, 'utf8');
+    envContent.split(/\r?\n/).forEach(line => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?$/);
+      if (match) {
+        let value = match[2] || '';
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+        process.env[match[1]] = value;
+      }
+    });
+    logger.info('✅ .env loaded (development)');
+    return;
+  } catch (e) {
+    // .env not at project root — try production fallback
+  }
+
+  // Strategy B: Production — use build-time injected config (inside .asar)
+  try {
+    const envConfig = require('./env-config');
+    for (const [key, value] of Object.entries(envConfig)) {
+      if (!process.env[key]) { // Don't override system env vars
+        process.env[key] = value;
+      }
     }
-  });
-  logger.info('✅ .env loaded');
-} catch (e) { 
-  logger.warn('⚠️ .env not found or failed to load. Using system environment variables.');
+    logger.info(`✅ env-config.js loaded (production, ${Object.keys(envConfig).length} keys)`);
+    return;
+  } catch (e) {
+    // env-config.js not found — likely dev without .env or build without inject step
+  }
+
+  logger.warn('⚠️ No .env or env-config.js found. Google Drive features may be unavailable.');
 }
+loadEnvFile();
 
 // 2. Now require modules that depend on process.env
 const ollama = require('./ollama-manager');
