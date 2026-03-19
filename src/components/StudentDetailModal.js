@@ -13,6 +13,7 @@ import { renderReceiptInput } from './ReceiptInput.js';
 import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
 import { fileSystem } from '../services/fileSystem.js';
 import { optimisticRemove, showToast } from '../utils/optimistic.js';
+import { registerActions } from '../actions.js';
 
 /**
  * Initialize the Student Detail Modal
@@ -38,7 +39,7 @@ export function initStudentDetailModal() {
           <p class="modal-student-meta" id="modalStudentMeta"></p>
         </div>
         <div class="modal-header-actions">
-          <button class="btn-header" id="modalEditStudentBtn">
+          <button class="btn-header" data-action="edit-student">
             <span class="icon">${Icons.edit}</span>
             <span>Edit Student</span>
           </button>
@@ -886,9 +887,9 @@ export function initStudentDetailModal() {
   document.getElementById('modalEditStudentBtn')?.addEventListener('click', () => {
     const modal = document.getElementById('studentDetailModal');
     const studentId = modal.dataset.studentId;
-    if (studentId && window.editStudent) {
+    if (studentId) {
       closeModal();
-      window.editStudent(studentId);
+      // This action will be handled by registerActions
     }
   });
 
@@ -899,25 +900,8 @@ export function initStudentDetailModal() {
     }
   });
 
-  // Attach methods to window for global access (keeping compatibility)
-  window.openStudentDetailModal = openStudentDetailModal;
-  window.closeStudentModal = closeModal;
-  window.addSemester = addSemester;
-  window.editSemester = editSemester;
-  window.addPaymentEntry = addPaymentEntry;
-  window.saveInlinePayment = saveInlinePayment;
-  window.cancelInlinePayment = cancelInlinePayment;
-  window.editPaymentEntry = editPaymentEntry;
-  window.updateInlinePayment = updateInlinePayment;
-  window.deletePaymentEntry = deletePaymentEntry;
-  window.downloadReceipt = downloadReceipt;
-  window.previewReceipt = previewReceipt;
-  window.generateFeeReceipt = generateFeeReceipt;
-  window.previewFeeReceipt = previewFeeReceipt;
-  window.editFeeDetail = editFeeDetail;
-  window.saveFeeUpdate = saveFeeUpdate;
-  window.openStudentDetailModalById = openStudentDetailModalById;
-  window.formatPaymentMethod = formatPaymentMethod;
+  // Register actions for dynamic buttons
+  registerActions();
 }
 
 /**
@@ -1003,14 +987,14 @@ export async function openStudentDetailModal(studentIdOrObject) {
           </div>
           <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.registrationFeeReceipt ? `
-              <button class="btn-icon-xs view" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
+              <button class="btn-icon-xs view" title="Preview Receipt" data-action="preview-fee-receipt" data-student-id="${student.id}" data-fee-type="Registration Fee" data-amount="${student.registrationFee || 0}" data-receipt="${student.registrationFeeReceipt}">
                 <span class="icon">${Icons.eye}</span>
               </button>
-              <button class="btn-icon-xs download" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Registration Fee', ${student.registrationFee || 0}, '${student.registrationFeeReceipt}')">
+              <button class="btn-icon-xs download" title="Download Receipt" data-action="generate-fee-receipt" data-student-id="${student.id}" data-fee-type="Registration Fee" data-amount="${student.registrationFee || 0}" data-receipt="${student.registrationFeeReceipt}">
                 <span class="icon">${Icons.download}</span>
               </button>
             ` : ''}
-            <button class="btn-icon-xs edit" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'registration')">
+            <button class="btn-icon-xs edit" title="Edit Fee" data-action="edit-fee-detail" data-student-id="${student.id}" data-type="registration">
               <span class="icon">${Icons.edit}</span>
             </button>
           </div>
@@ -1037,14 +1021,14 @@ export async function openStudentDetailModal(studentIdOrObject) {
           </div>
           <div class="flex gap-xs" style="align-items: center; gap: 0.5rem;">
             ${student.commissionReceipt ? `
-              <button class="btn-icon-xs view" title="Preview Receipt" onclick="window.previewFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
+              <button class="btn-icon-xs view" title="Preview Receipt" data-action="preview-fee-receipt" data-student-id="${student.id}" data-fee-type="Commission Fee" data-amount="${student.commission || 0}" data-receipt="${student.commissionReceipt}" data-paid-to="${student.commissionPaidTo || ''}">
                 <span class="icon">${Icons.eye}</span>
               </button>
-              <button class="btn-icon-xs download" title="Download Receipt" onclick="window.generateFeeReceipt('${student.id}', 'Commission Fee', ${student.commission || 0}, '${student.commissionReceipt}', '${student.commissionPaidTo || ''}')">
+              <button class="btn-icon-xs download" title="Download Receipt" data-action="generate-fee-receipt" data-student-id="${student.id}" data-fee-type="Commission Fee" data-amount="${student.commission || 0}" data-receipt="${student.commissionReceipt}" data-paid-to="${student.commissionPaidTo || ''}">
                 <span class="icon">${Icons.download}</span>
               </button>
             ` : ''}
-            <button class="btn-icon-xs edit" title="Edit Fee" onclick="window.editFeeDetail('${student.id}', 'commission')">
+            <button class="btn-icon-xs edit" title="Edit Fee" data-action="edit-fee-detail" data-student-id="${student.id}" data-type="commission">
               <span class="icon">${Icons.edit}</span>
             </button>
           </div>
@@ -1094,11 +1078,11 @@ export async function openStudentDetailModal(studentIdOrObject) {
             <h4 class="semester-title">Semester ${sem}</h4>
           </div>
           <div class="semester-header-actions">
-            <button class="btn-semester-action" onclick="window.addPaymentEntry('${student.id}', ${sem})">
+            <button class="btn-semester-action" data-action="add-payment-entry" data-student-id="${student.id}" data-semester="${sem}">
               <span class="icon">${Icons.plus}</span>
               Add Payment
             </button>
-            <button class="btn-semester-action danger icon-only" title="Delete Semester" onclick="window.editSemester('${student.id}', ${sem})">
+            <button class="btn-semester-action danger icon-only" title="Delete Semester" data-action="edit-semester" data-student-id="${student.id}" data-semester="${sem}">
               <span class="icon">${Icons.trash}</span>
             </button>
           </div>
@@ -1125,7 +1109,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
                     <td>${formatPaymentMethod(payment.method)}</td>
                     <td>
                       ${payment.reference ? `
-                        <a href="#" class="receipt-link" onclick="window.previewReceipt('${student.id}', '${payment.id}'); return false;">
+                        <a href="#" class="receipt-link" data-action="preview-receipt" data-student-id="${student.id}" data-payment-id="${payment.id}">
                           <span class="icon">${Icons.file}</span>
                           ${payment.reference}
                         </a>
@@ -1133,13 +1117,13 @@ export async function openStudentDetailModal(studentIdOrObject) {
                     </td>
                     <td>
                       <div class="payment-actions">
-                        <button class="payment-action-btn" title="Download" onclick="window.downloadReceipt('${student.id}', '${payment.id}')">
+                        <button class="payment-action-btn" title="Download" data-action="download-receipt" data-student-id="${student.id}" data-payment-id="${payment.id}">
                           <span class="icon" style="width: 1rem; height: 1rem;">${Icons.download}</span>
                         </button>
-                        <button class="payment-action-btn" title="Edit" onclick="window.editPaymentEntry('${student.id}', ${sem}, '${payment.id}')">
+                        <button class="payment-action-btn" title="Edit" data-action="edit-payment-entry" data-student-id="${student.id}" data-semester="${sem}" data-payment-id="${payment.id}">
                           <span class="icon" style="width: 1rem; height: 1rem;">${Icons.edit}</span>
                         </button>
-                        <button class="payment-action-btn danger" title="Delete" onclick="window.deletePaymentEntry('${student.id}', '${payment.id}')">
+                        <button class="payment-action-btn danger" title="Delete" data-action="delete-payment-entry" data-student-id="${student.id}" data-payment-id="${payment.id}">
                           <span class="icon" style="width: 1rem; height: 1rem;">${Icons.trash}</span>
                         </button>
                       </div>
@@ -1153,7 +1137,7 @@ export async function openStudentDetailModal(studentIdOrObject) {
               <div class="empty-semester-icon">${Icons.dollarSign}</div>
               <p class="empty-semester-text">No payments recorded yet</p>
               <p class="empty-semester-sub">Add the first payment entry for this semester to start tracking.</p>
-              <button class="inner-add-btn" onclick="window.addPaymentEntry('${student.id}', ${sem})">
+              <button class="inner-add-btn" data-action="add-payment-entry" data-student-id="${student.id}" data-semester="${sem}">
                 <span class="icon">${Icons.plus}</span>
                 Record First Payment
               </button>
@@ -1284,10 +1268,10 @@ function addPaymentEntry(studentId, semester) {
       </div>
 
       <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">
+        <button class="btn-inline-cancel" data-action="cancel-inline-payment" data-semester="${semester}" data-stop-propagation="true">
           ✕ Discard
         </button>
-        <button class="btn-inline-save" onclick="window.saveInlinePayment('${studentId}', ${semester})">
+        <button class="btn-inline-save" data-action="save-inline-payment" data-student-id="${studentId}" data-semester="${semester}">
           <span class="icon" style="width:1rem;height:1rem;display:inline-flex;align-items:center;">${Icons.check}</span>
           Save Payment Record
         </button>
@@ -1445,10 +1429,10 @@ async function editPaymentEntry(studentId, semester, paymentId) {
       </div>
 
       <div class="inline-form-actions">
-        <button class="btn-inline-cancel" onclick="window.cancelInlinePayment(${semester})">
+        <button class="btn-inline-cancel" data-action="cancel-inline-payment" data-semester="${semester}" data-stop-propagation="true">
           ✕ Cancel
         </button>
-        <button class="btn-inline-save" onclick="window.updateInlinePayment('${studentId}', '${paymentId}', ${semester})">
+        <button class="btn-inline-save" data-action="update-inline-payment" data-student-id="${studentId}" data-payment-id="${paymentId}" data-semester="${semester}">
           <span class="icon" style="width:1rem;height:1rem;display:inline-flex;align-items:center;">${Icons.check}</span>
           Update Entry
         </button>
@@ -1546,7 +1530,7 @@ async function deletePaymentEntry(studentId, paymentId) {
   if (!confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) return;
 
   // Find the payment row in the DOM for optimistic removal
-  const btn = document.querySelector(`button[onclick="window.deletePaymentEntry('${studentId}', '${paymentId}')"]`);
+  const btn = document.querySelector(`button[data-action="delete-payment-entry"][data-payment-id="${paymentId}"]`);
   const row = btn?.closest('.payment-row') || btn?.closest('tr');
 
   const doDelete = async () => {
@@ -1720,8 +1704,8 @@ async function editFeeDetail(studentId, type) {
         </div>
       ` : ''}
       <div class="flex gap-xs mt-sm">
-        <button class="btn btn-sm btn-success" style="flex: 1; padding: 0.25rem;" onclick="window.saveFeeUpdate('${studentId}', '${type}')">Save</button>
-        <button class="btn btn-sm btn-secondary" style="flex: 1; padding: 0.25rem;" onclick="window.openStudentDetailModalById('${studentId}')">Cancel</button>
+        <button class="btn btn-sm btn-success" style="flex: 1; padding: 0.25rem;" data-action="save-fee-update" data-student-id="${studentId}" data-type="${type}">Save</button>
+        <button class="btn btn-sm btn-secondary" style="flex: 1; padding: 0.25rem;" data-action="open-student-detail-modal-by-id" data-student-id="${studentId}">Cancel</button>
       </div>
     </div>
   `;
@@ -1836,3 +1820,31 @@ async function openStudentDetailModalById(studentId) {
   const student = await Student.findById(studentId);
   if (student) openStudentDetailModal(student);
 }
+
+// Register all actions with the global dispatcher
+registerActions({
+  'edit-student': () => {
+    const modal = document.getElementById('studentDetailModal');
+    const studentId = modal?.dataset?.studentId;
+    if (studentId && window.editStudent) { // Kept window.editStudent as App module level router or similar until we refactor it
+      document.getElementById('studentDetailModal').style.display = 'none';
+      document.body.style.overflow = '';
+      window.editStudent(studentId);
+    }
+  },
+  'add-semester': (target) => addSemester(target.dataset.studentId),
+  'edit-semester': (target) => editSemester(target.dataset.studentId, target.dataset.semester),
+  'add-payment-entry': (target) => addPaymentEntry(target.dataset.studentId, target.dataset.semester),
+  'save-inline-payment': (target) => saveInlinePayment(target.dataset.studentId, target.dataset.semester),
+  'cancel-inline-payment': (target) => cancelInlinePayment(target.dataset.semester),
+  'edit-payment-entry': (target) => editPaymentEntry(target.dataset.studentId, target.dataset.semester, target.dataset.paymentId),
+  'update-inline-payment': (target) => updateInlinePayment(target.dataset.studentId, target.dataset.paymentId, target.dataset.semester),
+  'delete-payment-entry': (target) => deletePaymentEntry(target.dataset.studentId, target.dataset.paymentId),
+  'download-receipt': (target) => downloadReceipt(target.dataset.studentId, target.dataset.paymentId),
+  'preview-receipt': (target) => previewReceipt(target.dataset.studentId, target.dataset.paymentId),
+  'generate-fee-receipt': (target) => generateFeeReceipt(target.dataset.studentId, target.dataset.feeType, parseFloat(target.dataset.amount), target.dataset.receipt, target.dataset.paidTo),
+  'preview-fee-receipt': (target) => previewFeeReceipt(target.dataset.studentId, target.dataset.feeType, parseFloat(target.dataset.amount), target.dataset.receipt, target.dataset.paidTo),
+  'edit-fee-detail': (target) => editFeeDetail(target.dataset.studentId, target.dataset.type),
+  'save-fee-update': (target) => saveFeeUpdate(target.dataset.studentId, target.dataset.type),
+  'open-student-detail-modal-by-id': (target) => openStudentDetailModalById(target.dataset.studentId)
+});

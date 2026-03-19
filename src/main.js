@@ -26,6 +26,7 @@ import { initBackground } from './services/background.js';
 import { mountReactIsland } from './utils/reactIsland.js';
 import { initAiChat } from './components/AiChat.js';
 import { formatDate } from './utils/formatting.js';
+import { handleGlobalAction } from './actions.js';
 
 
 // Application state
@@ -39,6 +40,12 @@ const app = {
  */
 async function init() {
   console.log('🚀 Initializing SCS...');
+
+  // Initialize Event Delegation (CSP Compliance)
+  document.body.addEventListener('click', handleGlobalAction);
+  document.body.addEventListener('change', handleGlobalAction);
+  document.body.addEventListener('input', handleGlobalAction);
+  document.body.addEventListener('submit', handleGlobalAction);
 
   // Layer 4: Request Browser Storage Persistence
   if (navigator.storage && navigator.storage.persist) {

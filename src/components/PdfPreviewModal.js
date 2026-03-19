@@ -4,6 +4,7 @@
  */
 
 import { Icons } from '../utils/icons.js';
+import { registerActions } from '../actions.js';
 
 let currentBlobUrl = null;
 let currentFilename = 'document.pdf';
@@ -265,11 +266,10 @@ export function openPdfPreviewModal(doc, filename, saveResult = null) {
       src="${currentBlobUrl}" 
       width="100%" 
       height="100%"
-      style="position: relative; z-index: 1; border:none; background: transparent;"
-      onload="this.style.background='#525659'"
+      style="position: relative; z-index: 1; border:none; background: #525659;"
     ></iframe>
     <div style="position: absolute; bottom: 1.5rem; left: 0; right: 0; display: flex; justify-content: center; z-index: 10; pointer-events: none;">
-      <button class="btn btn-secondary btn-sm" style="pointer-events: auto; background: var(--surface); box-shadow: var(--shadow-xl); border: 1px solid var(--border-color); padding: 0.75rem 1.25rem;" onclick="${fallbackAction}">
+      <button class="btn btn-secondary btn-sm" style="pointer-events: auto; background: var(--surface); box-shadow: var(--shadow-xl); border: 1px solid var(--border-color); padding: 0.75rem 1.25rem;" data-action="pdf-open-fallback" data-fallback-path="${fallbackPath}" data-is-native="${isNativeFallback}">
         <span class="icon" style="margin-right: 0.5rem;">${Icons.external || Icons.fileText}</span>
         <span>Trouble viewing? Open in System Viewer</span>
       </button>
@@ -282,6 +282,15 @@ export function openPdfPreviewModal(doc, filename, saveResult = null) {
   modal.style.display = 'flex';
 }
 
-// Expose globally for components not using modules
-window.initPdfPreviewModal = initPdfPreviewModal;
-window.openPdfPreviewModal = openPdfPreviewModal;
+// Register PDF preview actions
+registerActions({
+  'pdf-open-fallback': (target) => {
+    const isNative = target.dataset.isNative === 'true';
+    const path = target.dataset.fallbackPath;
+    if (isNative && window.electronAPI) {
+      window.electronAPI.openFile(path);
+    } else {
+      window.open(path, '_blank');
+    }
+  }
+});

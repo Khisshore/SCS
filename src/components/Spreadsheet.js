@@ -16,6 +16,7 @@ import { generateReceiptPDF, previewPDF, generateFeeReceiptPDF } from '../utils/
 import { initStudentDetailModal, openStudentDetailModal } from './StudentDetailModal.js';
 import { SpreadsheetExporter } from '../utils/spreadsheetExporter.js';
 import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
+import { registerActions } from '../actions.js';
 
 // Available courses (removed 'Other')
 const COURSES = ['All Programs', 'Diploma', 'BBA', 'MBA', 'DBA'];
@@ -967,25 +968,27 @@ function setupEventListeners() {
     printSpreadsheet();
   });
 
-  // Expose clear filters to window for the empty state button
-  window.clearFilters = async () => {
-    searchQuery = '';
-    currentCourse = 'Diploma'; // Reset to default
-    filterOutstanding = false;
-    
-    // Update UI elements if they exist
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.value = '';
-    
-    const balanceFilter = document.getElementById('balanceFilter');
-    if (balanceFilter) balanceFilter.classList.remove('active');
-    
-    document.querySelectorAll('.course-pill:not(.status-filter)').forEach(p => {
-      p.classList.toggle('active', p.dataset.course === currentCourse);
-    });
-    
-    await loadSpreadsheetData();
-  };
+  // Register actions
+  registerActions({
+    'spreadsheet-clear-filters': async () => {
+      searchQuery = '';
+      currentCourse = 'All Programs'; // Reset to default
+      filterOutstanding = false;
+      
+      // Update UI elements if they exist
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) searchInput.value = '';
+      
+      const balanceFilter = document.getElementById('balanceFilter');
+      if (balanceFilter) balanceFilter.classList.remove('active');
+      
+      document.querySelectorAll('.course-pill:not(.status-filter)').forEach(p => {
+        p.classList.toggle('active', p.dataset.course === currentCourse);
+      });
+      
+      await loadSpreadsheetData();
+    }
+  });
 
   // Student Detail Modal Close Event
   window.onStudentModalClose = async () => {
@@ -1075,7 +1078,7 @@ async function loadSpreadsheetData() {
               </div>
               <p style="font-size: var(--font-size-xl); margin-bottom: 0.75rem; color: var(--text-primary); font-weight: 700;">No results found</p>
               <p style="font-size: var(--font-size-base); margin-bottom: 2rem; opacity: 0.8;">We couldn't find any students matching "<strong>${searchQuery}</strong>" in the selected program.</p>
-              <button class="btn btn-secondary" onclick="window.clearFilters()" style="margin: 0 auto; padding: 0.75rem 1.5rem;">
+              <button class="btn btn-secondary" data-action="spreadsheet-clear-filters" style="margin: 0 auto; padding: 0.75rem 1.5rem;">
                 <span class="icon" style="font-size: 1rem;">✕</span>
                 Clear search
               </button>

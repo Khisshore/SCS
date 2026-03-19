@@ -8,6 +8,7 @@ import { parseSpreadsheet, suggestColumnMapping, transformToPayments, matchProof
 import { aiService } from '../services/aiService.js';
 import { Programme } from '../models/Programme.js';
 import { escapeHtml, formatDate } from '../utils/formatting.js';
+import { registerActions } from '../actions.js';
 
 let wizardState = {
   currentStep: 1,
@@ -24,7 +25,7 @@ let wizardState = {
 };
 
 // Helper functions for Import Wizard
-window.updateImportProgrammeOptions = async () => {
+async function updateImportProgrammeOptions() {
   const course = document.getElementById('importCourse').value;
   const programSelect = document.getElementById('importProgramSelect');
   
@@ -39,9 +40,9 @@ window.updateImportProgrammeOptions = async () => {
   }
   
   programSelect.innerHTML += '<option value="Other">Other (Add New)</option>';
-};
+}
 
-window.toggleImportOtherProgram = () => {
+function toggleImportOtherProgram() {
   const val = document.getElementById('importProgramSelect').value;
   const input = document.getElementById('importProgramOther');
   if (val === 'Other') {
@@ -50,7 +51,12 @@ window.toggleImportOtherProgram = () => {
   } else {
     input.classList.add('hidden');
   }
-};
+}
+
+registerActions({
+  'import-update-programme': () => updateImportProgrammeOptions(),
+  'import-toggle-other-program': () => toggleImportOtherProgram()
+});
 
 export function renderImportWizard() {
   const steps = [
@@ -217,7 +223,7 @@ function renderStep2() {
           <div class="grid grid-2 gap-md">
             <div class="form-group">
               <label class="form-label required">Course Type</label>
-              <select id="importCourse" class="form-select" onchange="window.updateImportProgrammeOptions()">
+              <select id="importCourse" class="form-select" data-action="import-update-programme" data-event="change">
                 <option value="">Select Course</option>
                 <option value="Diploma">Diploma</option>
                 <option value="BBA">BBA (Bachelor)</option>
@@ -228,7 +234,7 @@ function renderStep2() {
             </div>
             <div class="form-group">
               <label class="form-label required">Programme</label>
-              <select id="importProgramSelect" class="form-select" onchange="window.toggleImportOtherProgram()">
+              <select id="importProgramSelect" class="form-select" data-action="import-toggle-other-program" data-event="change">
                 <option value="">Select Programme</option>
               </select>
               <input type="text" id="importProgramOther" class="form-input mt-sm hidden" placeholder="Enter new programme name" spellcheck="true" autocorrect="on" />

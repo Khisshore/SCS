@@ -14,6 +14,7 @@ import { setTheme, setVisualPreset } from './ThemeToggle.js';
 // ExcelJS via CDN — same pattern as spreadsheetExporter.js (reading side)
 const getExcelJS = () => import('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/+esm').then(m => m.default);
 import { fuzzyMatchStudent, applyUpdatePlan } from '../services/smartXLSXProcessor.js';
+import { registerActions } from '../actions.js';
 
 // Initialize state from localStorage
 const savedState = localStorage.getItem('ai-chat-state');
@@ -208,7 +209,7 @@ function renderBridgeCard(prompt, fileName) {
         </div>
         <div class="bridge-prompt-box">
           <pre class="bridge-prompt-text" id="bridgePromptText">${escapedPrompt}</pre>
-          <button class="bridge-copy-btn" onclick="window.copyBridgePrompt()" id="bridgeCopyBtn">
+          <button class="bridge-copy-btn" data-action="copy-bridge-prompt" id="bridgeCopyBtn">
             📋 Copy Prompt
           </button>
         </div>
@@ -216,7 +217,7 @@ function renderBridgeCard(prompt, fileName) {
           <span class="bridge-step-num">2</span>
           <div class="bridge-step-content">
             <strong>Paste into Gemini + attach your file</strong>
-            <p>Go to <a href="#" onclick="window.electronAPI.openExternal('https://gemini.google.com'); return false;">gemini.google.com</a>, paste the prompt, then attach your .xlsx file using the 📎 icon.</p>
+            <p>Go to <a href="#" data-action="open-external-gemini">gemini.google.com</a>, paste the prompt, then attach your .xlsx file using the 📎 icon.</p>
           </div>
         </div>
         <div class="bridge-step">
@@ -551,8 +552,8 @@ function renderMessages() {
       if (msg.proposal) {
         content += `
           <div class="ai-action-row">
-            <button class="ai-action-btn confirm" onclick="window.confirmAiProposal(${index})">Confirm</button>
-            <button class="ai-action-btn cancel" onclick="window.cancelAiProposal(${index})">Cancel</button>
+            <button class="ai-action-btn confirm" data-action="confirm-ai-proposal" data-index="${index}">Confirm</button>
+            <button class="ai-action-btn cancel" data-action="cancel-ai-proposal" data-index="${index}">Cancel</button>
           </div>
         `;
       }
@@ -562,8 +563,8 @@ function renderMessages() {
         content += renderStagingTable(chatState.pendingUpdatePlan);
         content += `
           <div class="ai-action-row">
-            <button class="ai-action-btn confirm" onclick="window.applyXLSXPlan()">✅ Apply Changes</button>
-            <button class="ai-action-btn cancel" onclick="window.cancelXLSXPlan(${index})">❌ Cancel</button>
+            <button class="ai-action-btn confirm" data-action="apply-xlsx-plan">✅ Apply Changes</button>
+            <button class="ai-action-btn cancel" data-action="cancel-xlsx-plan" data-index="${index}">❌ Cancel</button>
           </div>
         `;
       }
@@ -577,7 +578,7 @@ function renderMessages() {
       let undoIconHtml = '';
       if (msg.role === 'user' && msg.canUndo) {
         undoIconHtml = `
-          <button class="ai-undo-edit-btn" onclick="window.undoAiAction(${index})" title="Undo and Edit">
+          <button class="ai-undo-edit-btn" data-action="undo-ai-action" data-index="${index}" title="Undo and Edit">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"></path><path d="M4 9h12a5 5 0 0 1 5 5v3"></path></svg>
           </button>
         `;
@@ -1610,9 +1611,9 @@ function setupInputListeners() {
 }
 
 /**
- * GLOBAL ACTION HANDLERS
+ * ACTION HANDLERS (registered via global event delegation)
  */
-window.confirmAiProposal = async (index) => {
+async function confirmAiProposal(index) {
   const msg = chatState.messages[index];
   if (!msg || !msg.proposal) return;
   
@@ -1632,24 +1633,21 @@ window.confirmAiProposal = async (index) => {
       }
       
       // CRITICAL: Take a GLOBAL snapshot of ALL students BEFORE any batch action executes.
-      // This ensures Undo reverts to the TRUE original state, not an intermediate one.
       const allStudentsBefore = await Student.findAll() || [];
       const globalSnapshot = JSON.parse(JSON.stringify(allStudentsBefore));
       
       const actions = Array.isArray(proposal) ? proposal : [proposal];
       let totalUpdated = 0;
-      const touchedIds = new Set(); // Track which students were touched across ALL actions
+      const touchedIds = new Set();
 
       for (const act of actions) {
         const res = await executeGeneralizedAction(act);
-        // Collect all touched IDs
         if (res.undo && res.undo.touchedIds) {
           res.undo.touchedIds.forEach(id => touchedIds.add(id));
         }
         totalUpdated += (parseInt(res.summary) || 0);
       }
       
-      // Build undo data from the GLOBAL pre-batch snapshot, filtered to only touched students
       const combinedUndo = {
         collection: 'students',
         previousData: globalSnapshot.filter(s => touchedIds.has(String(s.id)))
@@ -1668,20 +1666,19 @@ window.confirmAiProposal = async (index) => {
     chatState.isTyping = false;
     initAiChat();
   }
-};
+}
 
-
-window.cancelAiProposal = (index) => {
+function cancelAiProposal(index) {
   if (chatState.messages[index]) {
     chatState.messages[index].proposal = null;
     chatState.messages[index].text += "\n\n(Action cancelled by user)";
     initAiChat();
     saveMessages();
   }
-};
+}
 
 // ─── SMART XLSX PLAN HANDLERS ───────────────────────────────
-window.applyXLSXPlan = async () => {
+async function applyXLSXPlan() {
   if (!chatState.pendingUpdatePlan || chatState.pendingUpdatePlan.length === 0) return;
 
   const previewIdx = chatState.messages.findLastIndex(m => m.isPreview);
@@ -1709,9 +1706,9 @@ window.applyXLSXPlan = async () => {
   chatState.pendingUpdatePlan = null;
   saveMessages();
   initAiChat();
-};
+}
 
-window.cancelXLSXPlan = (index) => {
+function cancelXLSXPlan(index) {
   chatState.pendingUpdatePlan = null;
   if (chatState.messages[index]) {
     chatState.messages[index].isPreview = false;
@@ -1719,10 +1716,10 @@ window.cancelXLSXPlan = (index) => {
   }
   saveMessages();
   initAiChat();
-};
+}
 
 // ─── BRIDGE CARD HANDLERS ────────────────────────────────────
-window.copyBridgePrompt = () => {
+function copyBridgePrompt() {
   const promptEl = document.getElementById('bridgePromptText');
   const btn = document.getElementById('bridgeCopyBtn');
   if (!promptEl) return;
@@ -1746,9 +1743,9 @@ window.copyBridgePrompt = () => {
     sel.addRange(range);
     if (btn) btn.textContent = '📌 Selected — Ctrl+C to copy';
   });
-};
+}
 
-window.undoAiAction = async (index) => {
+async function undoAiAction(index) {
   const msg = chatState.messages[index];
   if (!msg) return;
   
@@ -1761,14 +1758,12 @@ window.undoAiAction = async (index) => {
       let restored = 0;
       for (const snapshot of undoData.previousData) {
         try {
-          // Strip RxDB internal metadata that would cause conflicts
           const cleanData = { ...snapshot };
           delete cleanData._rev;
           delete cleanData._deleted;
           delete cleanData._attachments;
           delete cleanData._meta;
           
-          // Direct db.update() for a FULL overwrite (bypasses Student.update's merge logic)
           await db.update(STORES.STUDENTS, cleanData);
           restored++;
         } catch (err) {
@@ -1779,7 +1774,6 @@ window.undoAiAction = async (index) => {
     }
     
     // 2. CASCADE DELETION: Remove this message AND all subsequent messages
-    // This ensures that when you undo "dei i wanna import", the Bridge Card and file upload are also removed
     const newMessages = chatState.messages.slice(0, index);
     
     chatState.messages = newMessages;
@@ -1793,7 +1787,6 @@ window.undoAiAction = async (index) => {
       const input = document.getElementById('aiChatInput');
       if (input) {
         input.value = restoredText;
-        // Trigger height adjustment for the new element
         input.style.height = 'auto';
         input.style.height = (input.scrollHeight) + 'px';
         input.focus();
@@ -1804,7 +1797,24 @@ window.undoAiAction = async (index) => {
     console.error("Undo error:", err);
     alert("Sorry, I couldn't undo that action.");
   }
-};
+}
+
+// Register all AI Chat action handlers with the global dispatcher
+registerActions({
+  'copy-bridge-prompt': () => copyBridgePrompt(),
+  'open-external-gemini': (target) => {
+    if (window.electronAPI) {
+      window.electronAPI.openExternal('https://gemini.google.com');
+    } else {
+      window.open('https://gemini.google.com', '_blank');
+    }
+  },
+  'confirm-ai-proposal': (target) => confirmAiProposal(parseInt(target.dataset.index)),
+  'cancel-ai-proposal': (target) => cancelAiProposal(parseInt(target.dataset.index)),
+  'apply-xlsx-plan': () => applyXLSXPlan(),
+  'cancel-xlsx-plan': (target) => cancelXLSXPlan(parseInt(target.dataset.index)),
+  'undo-ai-action': (target) => undoAiAction(parseInt(target.dataset.index))
+});
 
 /**
  * Generalized DB Engine

@@ -7,6 +7,7 @@ import { Icons } from '../utils/icons.js';
 import { db } from '../db/database.js';
 import { fileSystem } from '../services/fileSystem.js';
 import { formatDate } from '../utils/formatting.js';
+import { registerActions } from '../actions.js';
 
 export function renderTransferHubSkeleton() {
   const container = document.getElementById('app-content');
@@ -66,7 +67,7 @@ export async function renderTransferHub() {
           <h1 style="margin-bottom: 0.5rem;">Data Transfer Hub</h1>
           <p style="margin: 0; color: var(--text-secondary);">Manage your portable library and sync across devices.</p>
         </div>
-        <button class="btn btn-secondary" onclick="window.location.hash = '#dashboard'">
+        <button class="btn btn-secondary" data-action="navigate-hash" data-hash="#dashboard">
           ${Icons.arrowLeft} Back to Dashboard
         </button>
       </div>
@@ -267,5 +268,11 @@ export async function renderTransferHub() {
   document.getElementById('downloadBackupBtn')?.addEventListener('click', async () => {
     const { exportDatabase } = await import('../utils/exportData.js');
     await exportDatabase();
+  });
+
+  registerActions({
+    'navigate-hash': (target) => {
+      window.location.hash = target.dataset.hash || '#dashboard';
+    }
   });
 }

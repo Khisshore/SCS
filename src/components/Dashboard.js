@@ -11,6 +11,7 @@ import { Icons } from '../utils/icons.js';
 import { fileSystem } from '../services/fileSystem.js';
 import googleDriveService from '../services/googleDriveService.js';
 import Chart from 'chart.js/auto';
+import { registerActions } from '../actions.js';
 
 /**
  * Render instant skeleton placeholder while real data loads.
@@ -100,11 +101,11 @@ export async function renderDashboard() {
               <span id="lastSyncTime">Updated: Just now</span>
             </div>
           </div>
-          <button class="btn btn-success" id="quickPaymentBtn">
+          <button class="btn btn-success" data-action="navigate-hash" data-hash="#spreadsheet">
             <span class="icon">${Icons.dollarSign}</span>
             Record Payment
           </button>
-          <button class="btn btn-primary" id="quickStudentBtn">
+          <button class="btn btn-primary" data-action="dashboard-add-student">
             <span class="icon">${Icons.user}</span>
             Add Student
           </button>
@@ -164,7 +165,7 @@ export async function renderDashboard() {
         <div class="card dashboard-sync-card">
           <div class="card-header dashboard-card-header">
             <h3 class="card-title">Recent Payments</h3>
-            <button class="btn-icon-only" id="viewReportsBtn" title="View all reports" style="margin-left: auto; border-radius: 8px; padding: 4px; color: var(--primary-500); background: var(--primary-50); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+            <button class="btn-icon-only" data-action="navigate-hash" data-hash="#reports" title="View all reports" style="margin-left: auto; border-radius: 8px; padding: 4px; color: var(--primary-500); background: var(--primary-50); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
               <span class="icon" style="width: 18px; height: 18px;">${Icons.external}</span>
             </button>
           </div>
@@ -412,22 +413,6 @@ export async function renderDashboard() {
   // Refresh every 30s
   setInterval(updateSyncStatus, 30000);
 
-  // Attach event listeners
-  document.getElementById('quickPaymentBtn')?.addEventListener('click', () => {
-    window.location.hash = '#spreadsheet';
-  });
-
-  document.getElementById('quickStudentBtn')?.addEventListener('click', async () => {
-    // Load the students component first, then open the modal
-    window.location.hash = '#students';
-    // Wait for navigation to complete
-    setTimeout(() => {
-      if (window.editStudent) {
-        window.editStudent();
-      }
-    }, 100);
-  });
-
   // Render payment trend chart
   try {
     await renderPaymentTrendChart(6); // Default to 6 months
@@ -442,9 +427,18 @@ export async function renderDashboard() {
     await renderPaymentTrendChart(months);
   });
 
-  // Attach event listener for view reports button
-  document.getElementById('viewReportsBtn')?.addEventListener('click', () => {
-    window.location.hash = '#reports';
+  registerActions({
+    'navigate-hash': (target) => {
+      window.location.hash = target.dataset.hash;
+    },
+    'dashboard-add-student': () => {
+      window.location.hash = '#students';
+      setTimeout(() => {
+        if (window.editStudent) {
+          window.editStudent();
+        }
+      }, 100);
+    }
   });
 }
 /**

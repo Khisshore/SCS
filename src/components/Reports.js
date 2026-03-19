@@ -12,6 +12,7 @@ import { SpreadsheetExporter } from '../utils/spreadsheetExporter.js';
 import { initPdfPreviewModal, openPdfPreviewModal } from './PdfPreviewModal.js';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { registerActions } from '../actions.js';
 
 // Store report data for export
 let reportData = [];
@@ -322,9 +323,6 @@ export async function renderReports() {
   // Initialize shared modals
   initPdfPreviewModal();
 
-  // Attach global functions to window for PDF preview from reports
-  window.previewReceiptFromReport = previewReceiptFromReport;
-
   // Attach event listeners
   document.getElementById('reportStartDate').addEventListener('change', updateReport);
   document.getElementById('reportEndDate').addEventListener('change', updateReport);
@@ -366,6 +364,12 @@ export async function renderReports() {
       setPresetDateRange(preset);
       updateReport();
     });
+  });
+
+  registerActions({
+    'preview-receipt-report': (target) => {
+      previewReceiptFromReport(target.dataset.studentId, target.dataset.paymentId);
+    }
   });
 
   // Initial report load
@@ -501,7 +505,7 @@ async function updateReport() {
     // 2. Reference Clickable Fix - Modern Badge UI
     let refHtml = `<span style="font-family: monospace; opacity: 0.4;">-</span>`;
     if (payment.reference) {
-      refHtml = `<a href="#" class="receipt-link" title="Click to view receipt" onclick="window.previewReceiptFromReport('${student.id}', '${payment.id}'); return false;">
+      refHtml = `<a href="#" class="receipt-link" title="Click to view receipt" data-action="preview-receipt-report" data-student-id="${student.id}" data-payment-id="${payment.id}">
                    <span class="icon">${Icons.file}</span>
                    ${payment.reference}
                  </a>`;
